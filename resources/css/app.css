@@ -6,6 +6,12 @@
   html { scroll-behavior: smooth; }
   body { @apply antialiased text-slate-800 dark:text-slate-200; }
   ::selection { @apply bg-emerald-300 text-emerald-950; }
+  :focus-visible { outline: 2px solid #10b981; outline-offset: 4px; }
+  h1, h2, h3 { text-wrap: balance; }
+  th { @apply text-xs font-semibold uppercase tracking-wider; }
+  td { @apply tabular-nums; }
+  tbody tr { transition: background-color .2s ease; }
+  tbody tr:hover { background-color: rgb(16 185 129 / .04); }
 }
 @layer components {
   .panel { @apply rounded-2xl border border-slate-200 bg-white shadow-sm transition-colors dark:border-slate-800 dark:bg-slate-900; }
@@ -44,7 +50,8 @@
 .feature-card:hover::before { transform: translateY(-30px) scale(1.2); }
 .image-stack { position: relative; }
 .odd-card img { image-rendering: auto; }
-.reveal-on-scroll { opacity: 0; transform: translateY(30px); transition: opacity .8s cubic-bezier(.22,1,.36,1), transform .8s cubic-bezier(.22,1,.36,1); }
+.reveal-on-scroll { transition: opacity .8s cubic-bezier(.22,1,.36,1), transform .8s cubic-bezier(.22,1,.36,1); }
+.reveal-on-scroll.is-pending { opacity: 0; transform: translateY(24px); }
 .reveal-on-scroll.is-visible { opacity: 1; transform: translateY(0); }
 
 /* Cohérence sombre pour les écrans CRUD existants. */

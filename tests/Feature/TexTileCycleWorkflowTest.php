@@ -23,6 +23,23 @@ class TexTileCycleWorkflowTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_catalog_displays_scores_and_identifies_illustrative_photos(): void
+    {
+        $consumer = User::factory()->create(['role' => 'consumer']);
+        Product::create([
+            'name' => 'Veste circulaire', 'brand' => 'Atelier', 'sku' => 'DESIGN-001',
+            'category' => 'Veste', 'status' => 'published', 'circularity_score' => 82,
+        ]);
+
+        $this->actingAs($consumer)->get(route('consumer.products'))
+            ->assertOk()
+            ->assertSee('Veste circulaire')
+            ->assertSee('82/100')
+            ->assertSee('Non évalué')
+            ->assertSee('Photo illustrative')
+            ->assertSee('Navigation mobile');
+    }
+
     public function test_public_landing_page_and_authentication_pages_are_available(): void
     {
         $this->get('/')
