@@ -10,7 +10,7 @@
  </div>
  <nav class="flex gap-2 overflow-x-auto border-t border-slate-100 px-5 py-2 lg:hidden">
   @foreach([
-   ['dashboard','Dashboard'],['products.index','Produits'],['scans.index','Scans'],
+   ['admin.dashboard','Pilotage'],['products.index','Produits'],['scans.index','Scans'],
    ['recovery-programs.index','Programmes'],['product-returns.index','Retours'],['assessments.index','Conformité']
   ] as [$routeName,$label])
    <a href="{{ route($routeName) }}" class="whitespace-nowrap rounded-lg px-3 py-2 text-xs font-bold {{ request()->routeIs(str($routeName)->before('.').'.*') || request()->routeIs($routeName) ? 'bg-emerald-50 text-emerald-700' : 'text-slate-500 hover:bg-slate-50' }}">{{ $label }}</a>

@@ -2,8 +2,16 @@
 
 namespace Tests\Feature;
 
+use App\Models\Assessment;
+use App\Models\CollectionPoint;
+use App\Models\Detection;
+use App\Models\Evidence;
 use App\Models\Material;
 use App\Models\Product;
+use App\Models\ProductReturn;
+use App\Models\RecoveryProgram;
+use App\Models\Scan;
+use App\Models\TreatmentResult;
 use App\Models\User;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -20,9 +28,9 @@ class TexTileCycleWorkflowTest extends TestCase
         $this->get('/register')->assertOk();
     }
 
-    public function test_authenticated_user_can_create_a_product_and_link_materials(): void
+    public function test_admin_can_create_a_product_and_link_materials(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->create(['role' => 'admin']);
         $material = Material::create([
             'name' => 'Coton recyclé',
             'type' => 'recycled',
@@ -51,13 +59,39 @@ class TexTileCycleWorkflowTest extends TestCase
         $this->assertTrue($product->materials->contains($material));
     }
 
-    public function test_dashboard_requires_authentication_and_renders_for_a_user(): void
+    public function test_dashboard_redirects_each_role_to_its_own_experience(): void
     {
         $this->get('/dashboard')->assertRedirect('/login');
-        $this->actingAs(User::factory()->create())
-            ->get('/dashboard')
-            ->assertOk()
-            ->assertSee('Pilotage de la circularité');
+
+        $consumer = User::factory()->create(['role' => 'consumer']);
+        $this->actingAs($consumer)->get('/dashboard')->assertRedirect(route('consumer.home'));
+        $this->get(route('consumer.home'))->assertOk()->assertSee('Quel vêtement voulez-vous sauver');
+
+        $admin = User::factory()->create(['role' => 'admin']);
+        $this->actingAs($admin)->get('/dashboard')->assertRedirect(route('admin.dashboard'));
+        $this->get(route('admin.dashboard'))->assertOk()->assertSee('Circularity Intelligence Center');
+    }
+
+    public function test_consumer_cannot_access_administration_crud(): void
+    {
+        $consumer = User::factory()->create(['role' => 'consumer']);
+
+        $this->actingAs($consumer)->get(route('products.index'))->assertForbidden();
+        $this->get(route('materials.index'))->assertForbidden();
+        $this->get(route('assessments.index'))->assertForbidden();
+        $this->get(route('admin.dashboard'))->assertForbidden();
+    }
+
+    public function test_consumer_only_sees_owned_scans(): void
+    {
+        $consumer = User::factory()->create(['role' => 'consumer']);
+        $other = User::factory()->create(['role' => 'consumer']);
+        $own = Scan::create(['user_id' => $consumer->id, 'source_type' => 'label', 'status' => 'pending']);
+        $foreign = Scan::create(['user_id' => $other->id, 'source_type' => 'ticket', 'status' => 'pending']);
+
+        $this->actingAs($consumer)->get(route('scans.index'))
+            ->assertOk()->assertSee('#'.$own->id)->assertDontSee('#'.$foreign->id);
+        $this->get(route('scans.edit', $foreign))->assertForbidden();
     }
 
     public function test_every_crud_index_create_and_edit_page_renders(): void
@@ -66,16 +100,16 @@ class TexTileCycleWorkflowTest extends TestCase
         $this->actingAs(User::where('email', 'demo@textilecycle.test')->firstOrFail());
 
         $resources = [
-            'products' => \App\Models\Product::first(),
-            'materials' => \App\Models\Material::first(),
-            'scans' => \App\Models\Scan::first(),
-            'detections' => \App\Models\Detection::first(),
-            'recovery-programs' => \App\Models\RecoveryProgram::first(),
-            'collection-points' => \App\Models\CollectionPoint::first(),
-            'product-returns' => \App\Models\ProductReturn::first(),
-            'treatment-results' => \App\Models\TreatmentResult::first(),
-            'assessments' => \App\Models\Assessment::first(),
-            'evidences' => \App\Models\Evidence::first(),
+            'products' => Product::first(),
+            'materials' => Material::first(),
+            'scans' => Scan::first(),
+            'detections' => Detection::first(),
+            'recovery-programs' => RecoveryProgram::first(),
+            'collection-points' => CollectionPoint::first(),
+            'product-returns' => ProductReturn::first(),
+            'treatment-results' => TreatmentResult::first(),
+            'assessments' => Assessment::first(),
+            'evidences' => Evidence::first(),
         ];
 
         foreach ($resources as $route => $model) {

@@ -1,6 +1,6 @@
 @php
 $groups = [
- ['label'=>'Vue générale','items'=>[['route'=>'dashboard','active'=>'dashboard','label'=>'Tableau de bord','icon'=>'M3 13h8V3H3v10Zm10 8h8V11h-8v10ZM3 21h8v-6H3v6Zm10-12h8V3h-8v6Z']]],
+ ['label'=>'Vue générale','items'=>[['route'=>'admin.dashboard','active'=>'admin.dashboard','label'=>'Centre de pilotage','icon'=>'M3 13h8V3H3v10Zm10 8h8V11h-8v10ZM3 21h8v-6H3v6Zm10-12h8V3h-8v6Z']]],
  ['label'=>'Passeport textile','items'=>[
   ['route'=>'products.index','active'=>'products.*','label'=>'Produits','icon'=>'M6 3h12l3 4-3 3v11H6V10L3 7l3-4Z'],
   ['route'=>'materials.index','active'=>'materials.*','label'=>'Matières','icon'=>'M12 3c3 3 5 5.5 5 9a5 5 0 1 1-10 0c0-3.5 2-6 5-9Z'],
