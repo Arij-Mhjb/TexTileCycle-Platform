@@ -19,12 +19,12 @@ $groups = [
  ]],
 ];
 @endphp
-<aside class="fixed inset-y-0 left-0 z-40 hidden w-72 border-r border-slate-200 bg-white lg:flex lg:flex-col">
- <div class="flex h-20 items-center border-b border-slate-100 px-6"><x-application-logo /></div>
+<aside class="fixed inset-y-0 left-0 z-40 hidden w-72 border-r border-slate-200 bg-white transition-colors dark:border-slate-800 dark:bg-slate-950 lg:flex lg:flex-col">
+ <div class="flex h-20 items-center border-b border-slate-100 px-6 dark:border-slate-800"><x-application-logo /></div>
  <nav class="flex-1 space-y-6 overflow-y-auto px-4 py-6">
   @foreach($groups as $group)<div><p class="mb-2 px-3 text-[10px] font-bold uppercase tracking-[.18em] text-slate-400">{{ $group['label'] }}</p><div class="space-y-1">
-   @foreach($group['items'] as $link)<a href="{{ route($link['route']) }}" class="group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition {{ request()->routeIs($link['active']) ? 'bg-emerald-50 text-emerald-700' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"><svg class="h-5 w-5 {{ request()->routeIs($link['active']) ? 'text-emerald-600' : 'text-slate-400 group-hover:text-slate-600' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="{{ $link['icon'] }}"/></svg>{{ $link['label'] }}</a>@endforeach
+   @foreach($group['items'] as $link)<a href="{{ route($link['route']) }}" class="group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition {{ request()->routeIs($link['active']) ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/70 dark:text-emerald-300' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-900 dark:hover:text-white' }}"><svg class="h-5 w-5 {{ request()->routeIs($link['active']) ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400 group-hover:text-slate-600 dark:text-slate-500' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="{{ $link['icon'] }}"/></svg>{{ $link['label'] }}</a>@endforeach
   </div></div>@endforeach
  </nav>
- <div class="border-t border-slate-100 p-4"><div class="rounded-2xl bg-slate-900 p-4 text-white"><p class="text-xs font-semibold text-emerald-300">Impact suivi</p><p class="mt-1 text-sm font-bold">Chaque retour compte</p><p class="mt-1 text-xs leading-5 text-slate-400">Tracez le parcours complet du textile jusqu’à sa seconde vie.</p></div></div>
+ <div class="border-t border-slate-100 p-4 dark:border-slate-800"><div class="relative overflow-hidden rounded-2xl bg-slate-900 p-4 text-white"><div class="absolute -right-6 -top-6 h-20 w-20 rounded-full bg-emerald-500/20 blur-xl"></div><p class="relative text-xs font-semibold text-emerald-300">Impact suivi</p><p class="relative mt-1 text-sm font-bold">Chaque retour compte</p><p class="relative mt-1 text-xs leading-5 text-slate-400">Tracez le parcours complet du textile jusqu’à sa seconde vie.</p></div></div>
 </aside>

@@ -23,8 +23,16 @@ class TexTileCycleWorkflowTest extends TestCase
 
     public function test_public_landing_page_and_authentication_pages_are_available(): void
     {
-        $this->get('/')->assertOk()->assertSee('TexTileCycle');
-        $this->get('/login')->assertOk();
+        $this->get('/')
+            ->assertOk()
+            ->assertSee('TexTileCycle')
+            ->assertSee('images/brand/textilecycle-logo.png', false)
+            ->assertSee('images/story/clothes-sorting.jpg', false)
+            ->assertSee('images/odd/odd-12.png', false)
+            ->assertSee('textilecycle-theme', false)
+            ->assertSee('Photos : Julia M Cameron / Pexels');
+
+        $this->get('/login')->assertOk()->assertSee('textilecycle-theme', false);
         $this->get('/register')->assertOk();
     }
 

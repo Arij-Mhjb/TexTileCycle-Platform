@@ -8,6 +8,8 @@ Plateforme Laravel 12 de circularité textile responsable. Elle relie consommate
 - Laravel Breeze pour l’authentification Blade
 - Blade Components
 - Tailwind CSS 3 et Alpine.js
+- Chart.js pour les statistiques administrateur
+- Thèmes clair et sombre persistants
 - SQLite par défaut, compatible MySQL
 
 ## Modules CRUD
@@ -37,10 +39,17 @@ Compte de démonstration après le seeding : `demo@textilecycle.test` / `passwor
 
 ## Structure de l’interface
 
-- `resources/views/layouts/app.blade.php` : layout du back office
+- `resources/views/layouts/app.blade.php` : layout du centre de pilotage administrateur
+- `resources/views/components/consumer-layout.blade.php` : expérience dédiée aux consommateurs
 - `resources/views/layouts/guest.blade.php` : layout d’authentification
 - `resources/views/components/layout` : sidebar, header et footer
 - `resources/views/components/ui` : champs, états, titres et actions communs
+
+## Crédits visuels
+
+- Logo TexTileCycle fourni par l’équipe du projet.
+- Photographies de tri et don textile : Julia M Cameron, via Pexels.
+- Icônes officielles des ODD 6, 7, 12 et 13 : Nations Unies. Leur présence n’implique aucune approbation du contenu par l’ONU.
 
 ## Équipe
 

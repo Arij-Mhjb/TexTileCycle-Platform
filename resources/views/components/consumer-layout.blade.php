@@ -6,10 +6,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{{ $title }} · {{ config('app.name') }}</title>
+    <x-theme-script />
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
-<body class="min-h-screen bg-[#f6f8f7] text-slate-800">
-    <header class="sticky top-0 z-40 border-b border-slate-200/80 bg-white/90 backdrop-blur-xl">
+<body class="min-h-screen bg-[#f6f8f7] text-slate-800 transition-colors duration-300 dark:bg-slate-950 dark:text-slate-200">
+    <header class="sticky top-0 z-40 border-b border-slate-200/80 bg-white/90 backdrop-blur-xl transition-colors dark:border-slate-800 dark:bg-slate-950/90">
         <div class="mx-auto flex h-20 max-w-7xl items-center justify-between px-5 sm:px-8">
             <x-application-logo />
             <nav class="hidden items-center gap-1 lg:flex">
@@ -21,13 +22,16 @@
                 @endforeach
             </nav>
             <div class="relative" x-data="{ open: false }">
-                <button @click="open = !open" class="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-1.5 pr-3 shadow-sm">
+                <div class="flex items-center gap-2">
+                <x-theme-toggle />
+                <button @click="open = !open" class="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-1.5 pr-3 shadow-sm transition-colors dark:border-slate-700 dark:bg-slate-900">
                     <span class="grid h-9 w-9 place-items-center rounded-xl bg-emerald-600 text-sm font-black text-white">{{ strtoupper(substr(auth()->user()->name, 0, 1)) }}</span>
-                    <span class="hidden text-left sm:block"><span class="block text-sm font-black">{{ auth()->user()->name }}</span><span class="block text-[11px] text-slate-400">Membre TexTileCycle</span></span>
+                    <span class="hidden text-left sm:block"><span class="block text-sm font-black dark:text-white">{{ auth()->user()->name }}</span><span class="block text-[11px] text-slate-400">Membre TexTileCycle</span></span>
                 </button>
-                <div x-cloak x-show="open" @click.outside="open = false" x-transition class="absolute right-0 mt-2 w-52 rounded-2xl border border-slate-200 bg-white p-2 shadow-2xl">
-                    <a href="{{ route('profile.edit') }}" class="block rounded-xl px-3 py-2.5 text-sm font-bold hover:bg-slate-50">Mon profil</a>
-                    <form method="POST" action="{{ route('logout') }}">@csrf<button class="w-full rounded-xl px-3 py-2.5 text-left text-sm font-bold text-rose-600 hover:bg-rose-50">Déconnexion</button></form>
+                </div>
+                <div x-cloak x-show="open" @click.outside="open = false" x-transition class="absolute right-0 mt-2 w-52 rounded-2xl border border-slate-200 bg-white p-2 shadow-2xl dark:border-slate-700 dark:bg-slate-900">
+                    <a href="{{ route('profile.edit') }}" class="block rounded-xl px-3 py-2.5 text-sm font-bold hover:bg-slate-50 dark:hover:bg-slate-800">Mon profil</a>
+                    <form method="POST" action="{{ route('logout') }}">@csrf<button class="w-full rounded-xl px-3 py-2.5 text-left text-sm font-bold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40">Déconnexion</button></form>
                 </div>
             </div>
         </div>
@@ -43,8 +47,8 @@
         {{ $slot }}
     </main>
 
-    <footer class="hidden border-t border-slate-200 bg-white py-6 lg:block"><div class="mx-auto flex max-w-7xl items-center justify-between px-8 text-xs text-slate-400"><p>© {{ date('Y') }} TexTileCycle</p><p>Chaque retour compte.</p></div></footer>
-    <nav class="fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 border-t border-slate-200 bg-white/95 px-2 py-2 backdrop-blur-xl lg:hidden">
+    <div class="pb-20 lg:pb-0"><x-layout.footer /></div>
+    <nav class="fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 border-t border-slate-200 bg-white/95 px-2 py-2 backdrop-blur-xl dark:border-slate-800 dark:bg-slate-950/95 lg:hidden">
         @foreach([
             ['consumer.home','⌂','Accueil'],['consumer.products','⌕','Explorer'],['scans.create','◎','Scanner'],
             ['consumer.points','⌖','Collecte'],['product-returns.index','↻','Retours']
