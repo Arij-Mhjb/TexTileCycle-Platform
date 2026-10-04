@@ -41,7 +41,7 @@
     <div class="relative border-t border-slate-200/80 dark:border-slate-800">
         <div class="mx-auto flex max-w-7xl flex-col gap-3 px-6 py-5 text-[11px] sm:px-8 lg:flex-row lg:items-center lg:justify-between">
             <p>© {{ date('Y') }} TexTileCycle. Tous droits réservés.</p>
-            <p class="max-w-3xl lg:text-right">Photos : Julia M Cameron / Pexels · Icônes ODD : Nations Unies. Le contenu de cette plateforme n’est pas approuvé par l’ONU et ne reflète pas ses opinions.</p>
+            <p class="max-w-3xl lg:text-right">Photos : Julia M Cameron, Burcu, Adrinil Dennis, NEOSiAM et Yeşim Çolak / Pexels · Icônes ODD : Nations Unies. Le contenu de cette plateforme n’est pas approuvé par l’ONU et ne reflète pas ses opinions.</p>
         </div>
     </div>
 </footer>

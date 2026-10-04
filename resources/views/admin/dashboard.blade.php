@@ -20,18 +20,18 @@
 
     <section class="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         @foreach([
-            ['Produits',$stats['products'],'Passeports textiles','👕','from-emerald-500 to-teal-600'],
-            ['Matières',$stats['materials'],'Référentiel matière','◈','from-sky-500 to-cyan-600'],
-            ['Programmes',$stats['programs'],'Solutions actives','♻','from-violet-500 to-purple-600'],
-            ['Points',$stats['points'],'Partenaires actifs','⌖','from-amber-500 to-orange-600'],
-            ['Retours',$stats['returns'],'Textiles déclarés','↻','from-rose-500 to-pink-600'],
-            ['Poids',$stats['weight'].' kg','Volume collecté','⚖','from-lime-500 to-emerald-600'],
-            ['Scans',$stats['scans'],'Analyses OCR','◎','from-indigo-500 to-blue-600'],
-            ['Évaluations',$stats['assessments'],'Dossiers conformité','✓','from-slate-600 to-slate-800']
+            ['Produits',$stats['products'],'Passeports textiles','shirt','from-emerald-500 to-teal-600'],
+            ['Matières',$stats['materials'],'Référentiel matière','layers','from-sky-500 to-cyan-600'],
+            ['Programmes',$stats['programs'],'Solutions actives','recycle','from-violet-500 to-purple-600'],
+            ['Points',$stats['points'],'Partenaires actifs','map-pin','from-amber-500 to-orange-600'],
+            ['Retours',$stats['returns'],'Textiles déclarés','refresh','from-rose-500 to-pink-600'],
+            ['Poids',$stats['weight'].' kg','Volume collecté','scale','from-lime-500 to-emerald-600'],
+            ['Scans',$stats['scans'],'Analyses OCR','scan','from-indigo-500 to-blue-600'],
+            ['Évaluations',$stats['assessments'],'Dossiers conformité','check','from-slate-600 to-slate-800']
         ] as $index=>$stat)
             <article class="panel animate-fade-up group relative overflow-hidden p-5 transition duration-300 hover:-translate-y-1 hover:shadow-xl" style="animation-delay: {{ $index * 55 }}ms">
                 <div class="absolute -right-7 -top-7 h-24 w-24 rounded-full bg-gradient-to-br {{ $stat[4] }} opacity-[.08] transition group-hover:scale-125 group-hover:opacity-[.14]"></div>
-                <div class="flex items-center justify-between"><span class="grid h-10 w-10 place-items-center rounded-2xl bg-gradient-to-br {{ $stat[4] }} text-lg font-black text-white shadow-lg">{{ $stat[3] }}</span><span class="text-xs font-black text-emerald-600">↗</span></div>
+                <div class="flex items-center justify-between"><span class="grid h-10 w-10 place-items-center rounded-2xl bg-gradient-to-br {{ $stat[4] }} text-white shadow-lg"><x-icon :name="$stat[3]" class="h-5 w-5" /></span><x-icon name="arrow-up" class="h-4 w-4 text-emerald-600" /></div>
                 <p class="mt-5 text-2xl font-black tracking-tight">{{ $stat[1] }}</p><p class="text-sm font-black text-slate-700">{{ $stat[0] }}</p><p class="mt-1 text-xs text-slate-400">{{ $stat[2] }}</p>
             </article>
         @endforeach
@@ -48,9 +48,9 @@
     </section>
 
     <section class="mt-6 grid gap-6 xl:grid-cols-3">
-        <article class="panel xl:col-span-1"><div class="border-b border-slate-100 p-5"><p class="text-xs font-black uppercase tracking-wider text-emerald-600">Catalogue</p><h3 class="mt-1 font-black">Derniers produits</h3></div><div class="divide-y divide-slate-100">@forelse($recentProducts as $product)<div class="flex items-center gap-3 p-4"><span class="grid h-10 w-10 place-items-center rounded-xl bg-slate-100">👕</span><div class="min-w-0 flex-1"><p class="truncate text-sm font-black">{{ $product->name }}</p><p class="truncate text-xs text-slate-400">{{ $product->brand }} · {{ $product->sku }}</p></div><x-ui.status :value="$product->status"/></div>@empty<x-ui.empty/>@endforelse</div></article>
-        <article class="panel xl:col-span-1"><div class="border-b border-slate-100 p-5"><p class="text-xs font-black uppercase tracking-wider text-sky-600">Collecte</p><h3 class="mt-1 font-black">Derniers retours</h3></div><div class="divide-y divide-slate-100">@forelse($recentReturns as $return)<div class="flex items-center gap-3 p-4"><span class="grid h-10 w-10 place-items-center rounded-xl bg-sky-50 text-sky-700">↻</span><div class="min-w-0 flex-1"><p class="truncate text-sm font-black">{{ $return->product->name }}</p><p class="truncate text-xs text-slate-400">{{ $return->reference }} · {{ $return->collectionPoint->city }}</p></div><x-ui.status :value="$return->status"/></div>@empty<x-ui.empty/>@endforelse</div></article>
-        <article class="panel xl:col-span-1"><div class="border-b border-slate-100 p-5"><p class="text-xs font-black uppercase tracking-wider text-amber-600">Conformité</p><h3 class="mt-1 font-black">Échéances des preuves</h3></div><div class="divide-y divide-slate-100">@forelse($expiringEvidences as $evidence)<div class="flex items-center gap-3 p-4"><span class="grid h-10 w-10 place-items-center rounded-xl bg-amber-50 text-amber-700">⌁</span><div class="min-w-0 flex-1"><p class="truncate text-sm font-black">{{ $evidence->title }}</p><p class="truncate text-xs text-slate-400">{{ $evidence->assessment->organization_name }}</p></div><span class="text-xs font-black text-slate-500">{{ $evidence->expires_at->format('d/m/y') }}</span></div>@empty<x-ui.empty/>@endforelse</div></article>
+        <article class="panel xl:col-span-1"><div class="border-b border-slate-100 p-5"><p class="text-xs font-black uppercase tracking-wider text-emerald-600">Catalogue</p><h3 class="mt-1 font-black">Derniers produits</h3></div><div class="divide-y divide-slate-100">@forelse($recentProducts as $product)<div class="flex items-center gap-3 p-4"><img src="{{ $product->image_url }}" alt="" class="h-10 w-10 rounded-xl object-cover"><div class="min-w-0 flex-1"><p class="truncate text-sm font-black">{{ $product->name }}</p><p class="truncate text-xs text-slate-400">{{ $product->brand }} · {{ $product->sku }}</p></div><x-ui.status :value="$product->status"/></div>@empty<x-ui.empty/>@endforelse</div></article>
+        <article class="panel xl:col-span-1"><div class="border-b border-slate-100 p-5"><p class="text-xs font-black uppercase tracking-wider text-sky-600">Collecte</p><h3 class="mt-1 font-black">Derniers retours</h3></div><div class="divide-y divide-slate-100">@forelse($recentReturns as $return)<div class="flex items-center gap-3 p-4"><span class="grid h-10 w-10 place-items-center rounded-xl bg-sky-50 text-sky-700"><x-icon name="refresh" class="h-5 w-5" /></span><div class="min-w-0 flex-1"><p class="truncate text-sm font-black">{{ $return->product->name }}</p><p class="truncate text-xs text-slate-400">{{ $return->reference }} · {{ $return->collectionPoint->city }}</p></div><x-ui.status :value="$return->status"/></div>@empty<x-ui.empty/>@endforelse</div></article>
+        <article class="panel xl:col-span-1"><div class="border-b border-slate-100 p-5"><p class="text-xs font-black uppercase tracking-wider text-amber-600">Conformité</p><h3 class="mt-1 font-black">Échéances des preuves</h3></div><div class="divide-y divide-slate-100">@forelse($expiringEvidences as $evidence)<div class="flex items-center gap-3 p-4"><span class="grid h-10 w-10 place-items-center rounded-xl bg-amber-50 text-amber-700"><x-icon name="document" class="h-5 w-5" /></span><div class="min-w-0 flex-1"><p class="truncate text-sm font-black">{{ $evidence->title }}</p><p class="truncate text-xs text-slate-400">{{ $evidence->assessment->organization_name }}</p></div><span class="text-xs font-black text-slate-500">{{ $evidence->expires_at->format('d/m/y') }}</span></div>@empty<x-ui.empty/>@endforelse</div></article>
     </section>
 
     <script id="admin-chart-data" type="application/json">@json($charts)</script>

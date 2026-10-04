@@ -15,6 +15,8 @@ use App\Models\TreatmentResult;
 use App\Models\User;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class TexTileCycleWorkflowTest extends TestCase
@@ -28,9 +30,10 @@ class TexTileCycleWorkflowTest extends TestCase
             ->assertSee('TexTileCycle')
             ->assertSee('images/brand/textilecycle-logo.png', false)
             ->assertSee('images/story/clothes-sorting.jpg', false)
+            ->assertSee('images/impact/clean-energy.jpg', false)
             ->assertSee('images/odd/odd-12.png', false)
             ->assertSee('textilecycle-theme', false)
-            ->assertSee('Photos : Julia M Cameron / Pexels');
+            ->assertSee('Photos : Julia M Cameron, Burcu, Adrinil Dennis');
 
         $this->get('/login')->assertOk()->assertSee('textilecycle-theme', false);
         $this->get('/register')->assertOk();
@@ -38,6 +41,7 @@ class TexTileCycleWorkflowTest extends TestCase
 
     public function test_admin_can_create_a_product_and_link_materials(): void
     {
+        Storage::fake('public');
         $user = User::factory()->create(['role' => 'admin']);
         $material = Material::create([
             'name' => 'Coton recyclé',
@@ -60,11 +64,20 @@ class TexTileCycleWorkflowTest extends TestCase
             'animal_free_score' => 100,
             'traceability_score' => 76,
             'material_ids' => [$material->id],
+            'image' => new UploadedFile(
+                public_path('images/impact/responsible-production.jpg'),
+                'circular-shirt.jpg',
+                'image/jpeg',
+                null,
+                true,
+            ),
         ]);
 
         $response->assertRedirect(route('products.index'));
         $product = Product::where('sku', 'EW-CS-001')->firstOrFail();
         $this->assertTrue($product->materials->contains($material));
+        $this->assertNotNull($product->image_path);
+        Storage::disk('public')->assertExists($product->image_path);
     }
 
     public function test_dashboard_redirects_each_role_to_its_own_experience(): void

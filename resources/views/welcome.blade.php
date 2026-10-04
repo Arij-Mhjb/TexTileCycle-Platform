@@ -111,10 +111,18 @@
             <div class="grid gap-10 lg:grid-cols-[.8fr_1.2fr] lg:items-end"><div class="reveal-on-scroll"><p class="eyebrow">Objectifs suivis</p><h2 class="mt-3 text-4xl font-black sm:text-5xl">Des actions reliées aux vrais symboles ODD.</h2></div><p class="max-w-2xl text-lg leading-8 text-slate-500 dark:text-slate-400">Chaque résultat environnemental est rattaché à un objectif du Programme de développement durable à l’horizon 2030.</p></div>
             <div class="mt-12 grid grid-cols-2 gap-4 md:grid-cols-4">
                 @foreach([
-                    ['06','Eau','Consommation et réduction'],['07','Énergie','Part renouvelable'],['12','Circularité','Réemploi et recyclage'],['13','Climat','Émissions évitées']
+                    ['06','Eau','Consommation et réduction','clean-water.jpg'],
+                    ['07','Énergie','Part renouvelable','clean-energy.jpg'],
+                    ['12','Circularité','Réemploi et recyclage','responsible-production.jpg'],
+                    ['13','Climat','Émissions évitées','climate-action.jpg']
                 ] as $odd)
                     <a href="https://sdgs.un.org/fr/goals/goal{{ (int) $odd[0] }}" target="_blank" rel="noopener" class="odd-card group panel overflow-hidden reveal-on-scroll">
-                        <img src="{{ asset('images/odd/odd-'.$odd[0].'.png') }}" alt="Icône officielle de l’ODD {{ (int) $odd[0] }}" class="aspect-square w-full transition duration-700 group-hover:scale-105" loading="lazy">
+                        <div class="relative h-52 overflow-hidden">
+                            <img src="{{ asset('images/impact/'.$odd[3]) }}" alt="Photographie illustrant l’ODD {{ (int) $odd[0] }} — {{ $odd[1] }}" class="h-full w-full object-cover transition duration-700 group-hover:scale-110" loading="lazy">
+                            <div class="absolute inset-0 bg-gradient-to-t from-slate-950/75 via-slate-950/5 to-transparent"></div>
+                            <img src="{{ asset('images/odd/odd-'.$odd[0].'.png') }}" alt="" class="absolute left-4 top-4 h-16 w-16 rounded-xl shadow-xl ring-2 ring-white/80" loading="lazy">
+                            <span class="absolute bottom-4 right-4 grid h-9 w-9 place-items-center rounded-full border border-white/25 bg-white/15 text-white backdrop-blur transition group-hover:-translate-y-1 group-hover:translate-x-1"><x-icon name="arrow-up" class="h-4 w-4" /></span>
+                        </div>
                         <div class="p-4"><p class="font-black">{{ $odd[1] }}</p><p class="mt-1 text-xs text-slate-500 dark:text-slate-400">{{ $odd[2] }}</p></div>
                     </a>
                 @endforeach

@@ -48,7 +48,7 @@ Compte de démonstration après le seeding : `demo@textilecycle.test` / `passwor
 ## Crédits visuels
 
 - Logo TexTileCycle fourni par l’équipe du projet.
-- Photographies de tri et don textile : Julia M Cameron, via Pexels.
+- Photographies de tri, don, eau, énergie et climat : Julia M Cameron, Burcu, Adrinil Dennis, NEOSiAM et Yeşim Çolak, via Pexels.
 - Icônes officielles des ODD 6, 7, 12 et 13 : Nations Unies. Leur présence n’implique aucune approbation du contenu par l’ONU.
 
 ## Équipe

@@ -50,10 +50,10 @@
     <div class="pb-20 lg:pb-0"><x-layout.footer /></div>
     <nav class="fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 border-t border-slate-200 bg-white/95 px-2 py-2 backdrop-blur-xl dark:border-slate-800 dark:bg-slate-950/95 lg:hidden">
         @foreach([
-            ['consumer.home','⌂','Accueil'],['consumer.products','⌕','Explorer'],['scans.create','◎','Scanner'],
-            ['consumer.points','⌖','Collecte'],['product-returns.index','↻','Retours']
+            ['consumer.home','home','Accueil'],['consumer.products','search','Explorer'],['scans.create','scan','Scanner'],
+            ['consumer.points','map-pin','Collecte'],['product-returns.index','refresh','Retours']
         ] as [$routeName,$icon,$label])
-            <a href="{{ route($routeName) }}" class="flex flex-col items-center gap-1 rounded-xl py-1.5 text-[10px] font-bold {{ request()->routeIs($routeName) ? 'text-emerald-600' : 'text-slate-400' }}"><span class="text-xl leading-none">{{ $icon }}</span>{{ $label }}</a>
+            <a href="{{ route($routeName) }}" class="flex flex-col items-center gap-1 rounded-xl py-1.5 text-[10px] font-bold {{ request()->routeIs($routeName) ? 'text-emerald-600' : 'text-slate-400' }}"><x-icon :name="$icon" class="h-5 w-5" />{{ $label }}</a>
         @endforeach
     </nav>
 </body>
