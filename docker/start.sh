@@ -10,6 +10,10 @@ mkdir -p storage/framework/cache/data storage/framework/sessions storage/framewo
 chown -R www-data:www-data storage bootstrap/cache
 php artisan config:cache
 php artisan migrate --force
+if [ "${RUN_SEED:-false}" = "true" ]; then
+  echo "RUN_SEED=true: loading demonstration data..."
+  php artisan db:seed --force
+fi
 php artisan view:cache
 php artisan storage:link
 sed -i "s/Listen 80/Listen ${PORT:-10000}/" /etc/apache2/ports.conf
