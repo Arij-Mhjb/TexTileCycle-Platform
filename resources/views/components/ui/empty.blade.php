@@ -1,0 +1,1 @@
+@props(['message'=>'Aucune donnée enregistrée.'])<div class="py-14 text-center"><div class="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-slate-100 text-2xl">♻</div><p class="mt-3 text-sm font-semibold text-slate-500">{{ $message }}</p></div>

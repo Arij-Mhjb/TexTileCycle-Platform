@@ -1,0 +1,1 @@
+<x-app-layout title="Matières"><x-ui.page-heading title="Matières" description="Référentiel des fibres et composants textiles."/><form method="POST" action="{{ route('materials.store') }}" class="panel p-6 sm:p-8">@csrf @include('materials._form')<x-ui.form-actions :cancel="route('materials.index')"/></form></x-app-layout>

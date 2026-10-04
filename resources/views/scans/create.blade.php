@@ -1,0 +1,1 @@
+<x-app-layout title="Smart scans"><x-ui.page-heading title="Smart scans" description="Tickets, étiquettes, codes-barres et QR codes analysés."/><form method="POST" action="{{ route('scans.store') }}" class="panel p-6 sm:p-8">@csrf @include('scans._form')<x-ui.form-actions :cancel="route('scans.index')"/></form></x-app-layout>

@@ -1,0 +1,1 @@
+<x-app-layout title="Détections"><x-ui.page-heading title="Détections" description="Informations extraites et rapprochements avec le catalogue."/><form method="POST" action="{{ route('detections.store') }}" class="panel p-6 sm:p-8">@csrf @include('detections._form')<x-ui.form-actions :cancel="route('detections.index')"/></form></x-app-layout>
