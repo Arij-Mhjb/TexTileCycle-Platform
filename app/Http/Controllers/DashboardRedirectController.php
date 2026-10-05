@@ -9,6 +9,7 @@ class DashboardRedirectController extends Controller
 {
     public function __invoke(Request $request): RedirectResponse
     {
-        return redirect()->route($request->user()->isAdmin() ? 'admin.dashboard' : 'consumer.home');
+        $route=match($request->user()->role){'admin'=>'admin.dashboard','brand'=>'brand.dashboard',default=>'consumer.home'};
+        return redirect()->route($route);
     }
 }

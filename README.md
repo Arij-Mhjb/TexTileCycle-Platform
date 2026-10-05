@@ -86,7 +86,8 @@ Le fichier `.env` local ne doit jamais être envoyé sur GitHub.
 Après le seeding :
 
 ```text
-Administrateur : demo@textilecycle.test / password
+Administrateur : admin@textilecycle.test / password
+Marque          : brand@textilecycle.test / password
 Consommateur    : consumer@textilecycle.test / password
 ```
 
@@ -107,3 +108,30 @@ Consommateur    : consumer@textilecycle.test / password
 ## Équipe
 
 L’authentification, l’intégration front office/back office et le dépôt Git sont des tâches communes. Les cinq modules peuvent ensuite être répartis entre les membres de l’équipe.
+
+
+## Catalogue et Smart Scan
+
+Le catalogue public authentifié propose la recherche et les filtres par catégorie, origine, score de recyclabilité, caractère recyclable, réutilisable et réparable. Une fiche produit affiche la marque, la composition en pourcentage, l’origine et les consignes de fin de vie. Toute information absente est présentée comme « Non renseigné ».
+
+Le Smart Scan accepte quatre entrées : code-barres, QR code, recherche manuelle et photo. Les correspondances exactes sur SKU, code-barres et QR obtiennent une confiance de 100 %. Les recherches textuelles peuvent retourner plusieurs candidats. Chaque résultat est conservé dans l’historique de l’utilisateur. La photo est stockée pour analyse sans inventer une reconnaissance lorsque aucun moteur OCR n’est configuré.
+
+## Espace marque et preuves
+
+Une inscription peut créer un compte consommateur ou marque. Une marque dispose de son espace `/brand`, gère uniquement ses produits et peut constituer des dossiers associés à des référentiels externes. La progression est calculée ainsi :
+
+```text
+étapes disposant d’une preuve approuvée / nombre total d’étapes × 100
+```
+
+À 100 %, le statut interne devient `verified_evidence`. TexTileCycle affiche « Preuves vérifiées » et ne se présente jamais comme organisme certificateur.
+
+## Commandes de vérification
+
+```bash
+php artisan migrate:fresh --seed
+php artisan test
+npm run build
+```
+
+Sur Render, conserver `DB_CONNECTION=pgsql`. En local XAMPP, conserver `DB_CONNECTION=mysql`. Les migrations sont compatibles avec les deux moteurs.

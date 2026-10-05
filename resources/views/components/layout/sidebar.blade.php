@@ -14,6 +14,7 @@ $groups = [
   ['route'=>'treatment-results.index','active'=>'treatment-results.*','label'=>'Traitements','icon'=>'m4 14 6 6L20 10M14 4l6 6-6 6'],
  ]],
  ['label'=>'Conformité','items'=>[
+  ['route'=>'admin.labels.index','active'=>'admin.labels.*','label'=>'Labels','icon'=>'M12 3l2.5 5 5.5.8-4 4 .9 5.7-4.9-2.7-4.9 2.7.9-5.7-4-4 5.5-.8L12 3Z'],
   ['route'=>'assessments.index','active'=>'assessments.*','label'=>'Évaluations','icon'=>'M9 11l3 3L22 4M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11'],
   ['route'=>'evidences.index','active'=>'evidences.*','label'=>'Preuves','icon'=>'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6Zm0 0v6h6M8 13h8M8 17h5'],
  ]],

@@ -3,6 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\Assessment;
+use App\Models\Brand;
+use App\Models\Label;
+use App\Models\User;
 use App\Models\CollectionPoint;
 use App\Models\Evidence;
 use App\Models\Material;
@@ -41,6 +44,8 @@ class DashboardController extends Controller
                 'products' => Product::count(), 'materials' => Material::count(), 'programs' => RecoveryProgram::where('is_active', true)->count(),
                 'points' => CollectionPoint::where('is_active', true)->count(), 'returns' => $returns->count(), 'weight' => round((float) $returns->sum('weight_kg'), 2),
                 'scans' => Scan::count(), 'assessments' => Assessment::count(),
+                'brands' => Brand::count(), 'labels' => Label::where('is_active', true)->count(),
+                'users' => User::count(), 'pendingEvidence' => Evidence::where('status', 'pending')->count(),
                 'recyclingRate' => round((float) $results->avg('recycled_percent'), 1),
                 'reuseRate' => round((float) $results->avg('reused_percent'), 1),
             ],

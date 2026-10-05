@@ -238,5 +238,8 @@ class DatabaseSeeder extends Seeder
                 );
             }
         }
+
+        // Enrichissements Catalogue, Smart Scan, marques et labels.
+        $this->call(ExtendedDemoSeeder::class);
     }
 }
