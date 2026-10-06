@@ -41,6 +41,7 @@ class ScanController extends Controller
             'product_image' => 'nullable|required_if:source_type,multimodal|image|max:8192',
             'product_back_image' => 'nullable|image|max:8192',
             'damage_image' => 'nullable|image|max:8192',
+            'privacy_consent' => 'required_if:source_type,multimodal|accepted',
         ]);
 
         $value = $data['value'] ?? '';
