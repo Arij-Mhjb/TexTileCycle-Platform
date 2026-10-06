@@ -2,11 +2,14 @@
 
 namespace App\Services;
 
+use App\Models\CollectionPoint;
 use App\Models\ConsumerNotification;
+use App\Models\Product;
 use App\Models\ProductReturn;
 use App\Models\RewardTransaction;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class ProductReturnWorkflowService
@@ -25,22 +28,13 @@ class ProductReturnWorkflowService
     public function create(User $user, array $data): ProductReturn
     {
         return DB::transaction(function () use ($user, $data) {
-            $point = \App\Models\CollectionPoint::with('recoveryProgram')->findOrFail($data['collection_point_id']);
-            if (! $point->is_active || ! $point->recoveryProgram?->is_active) {
-                throw ValidationException::withMessages(['collection_point_id' => 'Ce point de collecte est indisponible.']);
-            }
-
-            if ($point->recoveryProgram->type !== $data['action']) {
-                throw ValidationException::withMessages(['collection_point_id' => 'Ce point ne prend pas en charge la solution circulaire choisie.']);
-            }
-
-            $reward = (int) $point->recoveryProgram->reward_points;
+            $point = $this->validateDestination($data);
 
             $return = ProductReturn::create([
                 ...$data,
                 'user_id' => $user->id,
                 'reference' => $this->reference(),
-                'qr_token' => (string) \Illuminate\Support\Str::uuid(),
+                'qr_token' => (string) Str::uuid(),
                 'status' => 'declared',
                 'points_awarded' => 0,
             ]);
@@ -54,7 +48,7 @@ class ProductReturnWorkflowService
             RewardTransaction::create([
                 'user_id' => $user->id,
                 'product_return_id' => $return->id,
-                'points' => $reward,
+                'points' => (int) $point->recoveryProgram->reward_points,
                 'status' => 'pending',
                 'description' => 'Récompense en attente de validation pour '.$return->reference,
             ]);
@@ -62,6 +56,33 @@ class ProductReturnWorkflowService
             $this->notify($return, 'return_declared', 'Retour enregistré', 'Votre retour '.$return->reference.' est prêt à être déposé.');
 
             return $return;
+        });
+    }
+
+    public function revise(ProductReturn $return, array $data, User $actor): ProductReturn
+    {
+        if (! $return->canConsumerEdit() && ! $actor->isAdmin()) {
+            throw ValidationException::withMessages(['status' => 'Ce retour ne peut plus être modifié.']);
+        }
+
+        return DB::transaction(function () use ($return, $data, $actor) {
+            $point = $this->validateDestination($data);
+            $return->update($data);
+
+            if ($return->rewardTransaction?->status === 'pending') {
+                $return->rewardTransaction->update([
+                    'points' => (int) $point->recoveryProgram->reward_points,
+                    'description' => 'Récompense en attente de validation pour '.$return->reference,
+                ]);
+            }
+
+            $return->statusHistory()->create([
+                'user_id' => $actor->id,
+                'status' => $return->status,
+                'note' => 'Informations de dépôt mises à jour.',
+            ]);
+
+            return $return->fresh();
         });
     }
 
@@ -128,6 +149,30 @@ class ProductReturnWorkflowService
         });
     }
 
+    private function validateDestination(array $data): CollectionPoint
+    {
+        $productIsAvailable = Product::whereKey($data['product_id'])
+            ->where('status', 'published')
+            ->where('is_active', true)
+            ->exists();
+
+        if (! $productIsAvailable) {
+            throw ValidationException::withMessages(['product_id' => 'Ce produit ne peut pas être retourné.']);
+        }
+
+        $point = CollectionPoint::with('recoveryProgram')->findOrFail($data['collection_point_id']);
+
+        if (! $point->is_active || ! $point->recoveryProgram?->is_active) {
+            throw ValidationException::withMessages(['collection_point_id' => 'Ce point de collecte est indisponible.']);
+        }
+
+        if ($point->recoveryProgram->type !== $data['action']) {
+            throw ValidationException::withMessages(['collection_point_id' => 'Ce point ne prend pas en charge la solution circulaire choisie.']);
+        }
+
+        return $point;
+    }
+
     private function notify(ProductReturn $return, string $type, string $title, string $message): void
     {
         ConsumerNotification::create([
@@ -142,7 +187,7 @@ class ProductReturnWorkflowService
     private function reference(): string
     {
         do {
-            $reference = 'TTC-'.now()->format('ymd').'-'.strtoupper(\Illuminate\Support\Str::random(6));
+            $reference = 'TTC-'.now()->format('ymd').'-'.strtoupper(Str::random(6));
         } while (ProductReturn::where('reference', $reference)->exists());
 
         return $reference;
