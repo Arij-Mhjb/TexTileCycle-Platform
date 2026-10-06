@@ -71,7 +71,7 @@ class MaterialExchangeService
         }
 
         $alreadyReserved = $match->productReturn->materialMatches()
-            ->whereKeyNot($match->id)
+            ->where('id', '!=', $match->id)
             ->whereIn('status', ['accepted', 'in_transit', 'brand_received', 'verified'])
             ->exists();
         if ($alreadyReserved) {
@@ -88,7 +88,7 @@ class MaterialExchangeService
             ]);
 
             $return = $match->productReturn;
-            $return->materialMatches()->whereKeyNot($match->id)->where('status', 'suggested')->update(['status' => 'unavailable']);
+            $return->materialMatches()->where('id', '!=', $match->id)->where('status', 'suggested')->update(['status' => 'unavailable']);
             $return->update(['status' => 'reserved_by_brand']);
             $return->statusHistory()->create([
                 'user_id' => $match->request->brand->user_id,
