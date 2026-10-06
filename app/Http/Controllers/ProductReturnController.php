@@ -68,7 +68,7 @@ class ProductReturnController extends Controller
         return view('product-returns.show', [
             'item' => $productReturn->load([
                 'product.materials', 'collectionPoint.recoveryProgram', 'statusHistory.user',
-                'rewardTransaction', 'treatmentResult', 'scan',
+                'rewardTransaction', 'treatmentResult', 'scan.assets', 'materialMatches.request.brand',
             ]),
         ]);
     }
@@ -169,7 +169,13 @@ class ProductReturnController extends Controller
     private function guardScan(Request $request, ?int $scanId): void
     {
         if ($request->user()->isConsumer() && $scanId) {
-            abort_unless(Scan::whereKey($scanId)->where('user_id', $request->user()->id)->exists(), 403);
+            $isAllowed = Scan::whereKey($scanId)
+                ->where('user_id', $request->user()->id)
+                ->where(fn ($query) => $query
+                    ->where('source_type', '!=', 'multimodal')
+                    ->orWhereNotNull('consumer_confirmed_at'))
+                ->exists();
+            abort_unless($isAllowed, 403);
         }
     }
 }

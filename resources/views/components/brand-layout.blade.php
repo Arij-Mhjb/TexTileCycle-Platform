@@ -18,6 +18,8 @@
                 <a href="{{ route('brand.products.index') }}">Produits</a>
                 <a href="{{ route('brand.products.import') }}">Import CSV</a>
                 <a href="{{ route('brand.labels.index') }}">Preuves</a>
+                <a href="{{ route('brand.material-requests.index') }}">Matières</a>
+                <a href="{{ route('brand.material-matches.index') }}">Retours compatibles</a>
                 <a href="{{ route('brand.profile.edit') }}">Marque</a>
             </nav>
 

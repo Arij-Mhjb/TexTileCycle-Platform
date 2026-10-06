@@ -1,0 +1,30 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+
+class MaterialMatch extends Model
+{
+    protected $fillable = [
+        'material_request_id', 'product_return_id', 'match_score', 'status', 'transfer_token',
+        'accepted_at', 'due_at', 'transferred_at', 'brand_received_at', 'brand_verified_at',
+        'brand_review_note',
+    ];
+
+    protected function casts(): array
+    {
+        return [
+            'match_score' => 'decimal:2',
+            'accepted_at' => 'datetime',
+            'due_at' => 'datetime',
+            'transferred_at' => 'datetime',
+            'brand_received_at' => 'datetime',
+            'brand_verified_at' => 'datetime',
+        ];
+    }
+
+    public function request(): BelongsTo { return $this->belongsTo(MaterialRequest::class, 'material_request_id'); }
+    public function productReturn(): BelongsTo { return $this->belongsTo(ProductReturn::class); }
+}

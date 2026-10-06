@@ -13,5 +13,6 @@ class Brand extends Model
     public function user(): BelongsTo { return $this->belongsTo(User::class); }
     public function products(): HasMany { return $this->hasMany(Product::class); }
     public function activities(): HasMany { return $this->hasMany(ActivityLog::class)->latest(); }
+    public function materialRequests(): HasMany { return $this->hasMany(MaterialRequest::class); }
     public function getRouteKeyName(): string { return 'slug'; }
 }

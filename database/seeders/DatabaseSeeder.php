@@ -242,5 +242,6 @@ class DatabaseSeeder extends Seeder
         // Enrichissements Catalogue, Smart Scan, marques et labels.
         $this->call(ExtendedDemoSeeder::class);
         $this->call(ConsumerJourneySeeder::class);
+        $this->call(MaterialExchangeSeeder::class);
     }
 }

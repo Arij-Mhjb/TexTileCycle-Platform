@@ -52,6 +52,33 @@
             </article>
         </section>
 
+        @php($activeMatch = $item->materialMatches->first(fn($match) => in_array($match->status, ['accepted','in_transit','brand_received','verified'])))
+        @if ($activeMatch)
+            <section class="panel mt-6 p-6">
+                <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                        <p class="text-xs font-black uppercase tracking-[.2em] text-emerald-600">Destination matière</p>
+                        <h2 class="mt-2 text-2xl font-black">{{ $activeMatch->request->brand->name }}</h2>
+                        <p class="mt-2 text-slate-500">{{ $activeMatch->request->dropoff_address ?: $activeMatch->request->city ?: 'Transfert organisé par le centre de collecte' }}</p>
+                    </div>
+                    <span class="rounded-full bg-sky-50 px-4 py-2 text-sm font-black text-sky-700">{{ str($activeMatch->status)->replace('_',' ')->headline() }}</span>
+                </div>
+                <div class="mt-5 rounded-2xl bg-slate-950 p-5 text-white">
+                    <p class="text-xs font-bold uppercase tracking-widest text-emerald-300">QR de transfert</p>
+                    <p class="mt-3 break-all font-mono">{{ $activeMatch->transfer_token }}</p>
+                    @if($activeMatch->due_at)<p class="mt-2 text-sm text-slate-400">À transférer avant le {{ $activeMatch->due_at->format('d/m/Y') }}</p>@endif
+                </div>
+                @if(auth()->user()->isConsumer() && $activeMatch->status === 'accepted')
+                    <form method="POST" action="{{ route('consumer.material-transfers.store',$activeMatch) }}" class="mt-4">
+                        @csrf
+                        <button class="rounded-xl bg-emerald-600 px-5 py-3 font-black text-white">J’ai déposé ou remis le textile</button>
+                    </form>
+                @endif
+            </section>
+        @elseif($item->admin_review_status === 'verified')
+            <section class="panel mt-6 p-6"><p class="text-xs font-black uppercase tracking-[.2em] text-emerald-600">Marketplace matière</p><h2 class="mt-2 text-xl font-black">Recherche d’une marque compatible</h2><p class="mt-2 text-slate-500">Le textile est vérifié. Les marques recherchant ces matières peuvent maintenant le réserver.</p></section>
+        @endif
+
         @if ($item->treatmentResult)
             <section class="panel mt-6 p-6">
                 <h2 class="text-xl font-black">Résultat du traitement</h2>
