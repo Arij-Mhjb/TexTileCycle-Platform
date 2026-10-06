@@ -39,6 +39,11 @@
                 Les informations extraites sont des propositions. La matière ne devient « vérifiée » qu’après le contrôle physique TexTileCycle puis la validation finale de la marque.
             </div>
 
+            <label class="flex items-start gap-3 rounded-2xl border border-sky-200 bg-sky-50 p-4 text-sm text-sky-950">
+                <input type="checkbox" name="privacy_consent" value="1" required class="mt-1 rounded border-sky-300 text-emerald-600">
+                <span>J’autorise TexTileCycle à conserver ces images pour l’analyse OCR locale et les contrôles du retour. Le ticket ne sera jamais montré aux marques.</span>
+            </label>
+
             @if ($errors->any())
                 <p class="rounded-xl bg-red-50 p-4 text-red-700">{{ $errors->first() }}</p>
             @endif
