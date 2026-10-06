@@ -26,7 +26,15 @@ class ProductReturnWorkflowService
     {
         return DB::transaction(function () use ($user, $data) {
             $point = \App\Models\CollectionPoint::with('recoveryProgram')->findOrFail($data['collection_point_id']);
-            $reward = (int) ($point->recoveryProgram?->reward_points ?? 0);
+            if (! $point->is_active || ! $point->recoveryProgram?->is_active) {
+                throw ValidationException::withMessages(['collection_point_id' => 'Ce point de collecte est indisponible.']);
+            }
+
+            if ($point->recoveryProgram->type !== $data['action']) {
+                throw ValidationException::withMessages(['collection_point_id' => 'Ce point ne prend pas en charge la solution circulaire choisie.']);
+            }
+
+            $reward = (int) $point->recoveryProgram->reward_points;
 
             $return = ProductReturn::create([
                 ...$data,
