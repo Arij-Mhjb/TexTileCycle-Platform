@@ -22,6 +22,8 @@ class User extends Authenticatable
     public function assessments(): HasMany { return $this->hasMany(Assessment::class); }
     public function brand(): HasOne { return $this->hasOne(Brand::class); }
     public function brandNotifications(): HasMany { return $this->hasMany(BrandNotification::class); }
+    public function rewardTransactions(): HasMany { return $this->hasMany(RewardTransaction::class); }
+    public function consumerNotifications(): HasMany { return $this->hasMany(ConsumerNotification::class); }
     public function isAdmin(): bool { return $this->role === 'admin'; }
     public function isConsumer(): bool { return $this->role === 'consumer'; }
     public function isBrand(): bool { return $this->role === 'brand'; }
