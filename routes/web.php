@@ -2,10 +2,15 @@
 
 use App\Http\Controllers\AdminEvidenceReviewController;
 use App\Http\Controllers\AdminLabelController;
+use App\Http\Controllers\AdminProductReviewController;
 use App\Http\Controllers\AssessmentController;
 use App\Http\Controllers\BrandDashboardController;
+use App\Http\Controllers\BrandEvidenceCommentController;
+use App\Http\Controllers\BrandImportController;
 use App\Http\Controllers\BrandLabelController;
 use App\Http\Controllers\BrandProductController;
+use App\Http\Controllers\BrandProfileController;
+use App\Http\Controllers\BrandNotificationController;
 use App\Http\Controllers\CollectionPointController;
 use App\Http\Controllers\ConsumerExploreController;
 use App\Http\Controllers\ConsumerHomeController;
@@ -13,6 +18,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DashboardRedirectController;
 use App\Http\Controllers\DetectionController;
 use App\Http\Controllers\EvidenceController;
+use App\Http\Controllers\EvidenceDownloadController;
 use App\Http\Controllers\MaterialController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ProductReturnController;
@@ -39,16 +45,30 @@ Route::middleware(['auth','verified'])->group(function(){
         ],['except'=>['show']]);
         Route::patch('/admin/evidences/{evidence}/review',[AdminEvidenceReviewController::class,'update'])->name('admin.evidences.review');
         Route::resource('admin/labels',AdminLabelController::class)->names('admin.labels')->except('show');
+        Route::patch('/admin/products/{product}/approve',[AdminProductReviewController::class,'approve'])->name('admin.products.approve');
+        Route::patch('/admin/products/{product}/reject',[AdminProductReviewController::class,'reject'])->name('admin.products.reject');
     });
 
     Route::middleware('role:brand')->prefix('brand')->name('brand.')->group(function(){
         Route::get('/',BrandDashboardController::class)->name('dashboard');
         Route::resource('products',BrandProductController::class)->except('show');
+        Route::get('/products-trash',[BrandProductController::class,'trash'])->name('products.trash');
+        Route::post('/products-trash/{id}/restore',[BrandProductController::class,'restore'])->name('products.restore');
+        Route::post('/products/{product}/submit',[BrandProductController::class,'submit'])->name('products.submit');
+        Route::post('/products/{product}/duplicate',[BrandProductController::class,'duplicate'])->name('products.duplicate');
+        Route::post('/products/{product}/archive',[BrandProductController::class,'archive'])->name('products.archive');
+        Route::get('/products/import',[BrandImportController::class,'create'])->name('products.import');
+        Route::post('/products/import',[BrandImportController::class,'store'])->name('products.import.store');
+        Route::get('/profile',[BrandProfileController::class,'edit'])->name('profile.edit');
+        Route::patch('/profile',[BrandProfileController::class,'update'])->name('profile.update');
+        Route::post('/notifications/read-all',[BrandNotificationController::class,'readAll'])->name('notifications.read-all');
+        Route::post('/notifications/{notification}/read',[BrandNotificationController::class,'read'])->name('notifications.read');
         Route::get('/labels',[BrandLabelController::class,'index'])->name('labels.index');
         Route::get('/labels/{label:slug}',[BrandLabelController::class,'show'])->name('labels.show');
         Route::post('/labels/{label:slug}/apply',[BrandLabelController::class,'apply'])->name('labels.apply');
         Route::post('/assessments/{assessment}/evidences',[BrandLabelController::class,'evidence'])->name('evidences.store');
         Route::post('/assessments/{assessment}/submit',[BrandLabelController::class,'submit'])->name('assessments.submit');
+        Route::post('/evidences/{evidence}/comments',[BrandEvidenceCommentController::class,'store'])->name('evidences.comments.store');
     });
 
     Route::middleware('role:consumer')->prefix('discover')->name('consumer.')->group(function(){
@@ -65,6 +85,7 @@ Route::middleware(['auth','verified'])->group(function(){
     Route::middleware('role:consumer,admin')->group(function(){
         Route::resource('product-returns',ProductReturnController::class)->except('show');
     });
+    Route::middleware('role:admin,brand')->get('/evidences/{evidence}/download',EvidenceDownloadController::class)->name('evidences.download');
 });
 
 Route::middleware('auth')->group(function(){

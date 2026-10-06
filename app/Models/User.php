@@ -21,6 +21,7 @@ class User extends Authenticatable
     public function productReturns(): HasMany { return $this->hasMany(ProductReturn::class); }
     public function assessments(): HasMany { return $this->hasMany(Assessment::class); }
     public function brand(): HasOne { return $this->hasOne(Brand::class); }
+    public function brandNotifications(): HasMany { return $this->hasMany(BrandNotification::class); }
     public function isAdmin(): bool { return $this->role === 'admin'; }
     public function isConsumer(): bool { return $this->role === 'consumer'; }
     public function isBrand(): bool { return $this->role === 'brand'; }

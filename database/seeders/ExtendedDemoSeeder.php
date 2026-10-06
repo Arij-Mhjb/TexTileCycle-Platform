@@ -18,7 +18,8 @@ class ExtendedDemoSeeder extends Seeder
         User::updateOrCreate(['email'=>'consumer@textilecycle.test'],['name'=>'Consommateur Démo','role'=>'consumer','password'=>Hash::make('password'),'email_verified_at'=>now()]);
         $brand=Brand::updateOrCreate(['user_id'=>$brandUser->id],[
             'name'=>'EcoFashion','slug'=>'ecofashion','description'=>'Marque de démonstration engagée dans la traçabilité et la circularité textile.',
-            'website'=>'https://example.com','is_active'=>true,
+            'website'=>'https://example.com','country'=>'Tunisie','contact_email'=>'brand@textilecycle.test',
+            'commitments'=>'Améliorer la traçabilité des matières, la réparabilité et la collecte en fin de vie.','is_active'=>true,
         ]);
         Product::orderBy('id')->get()->each(function(Product $product,$index) use($brand){
             $product->update([
@@ -31,6 +32,7 @@ class ExtendedDemoSeeder extends Seeder
                 'recycling_instructions'=>$product->recycling_instructions ?: 'Rapporter le produit dans un point de collecte adapté après réemploi ou réparation.',
                 'is_active'=>$product->status==='published',
             ]);
+            app(\App\Services\ProductCompletenessService::class)->refresh($product);
         });
         $this->call(LabelSeeder::class);
     }

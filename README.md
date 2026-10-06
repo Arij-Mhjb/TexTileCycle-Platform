@@ -135,3 +135,34 @@ npm run build
 ```
 
 Sur Render, conserver `DB_CONNECTION=pgsql`. En local XAMPP, conserver `DB_CONNECTION=mysql`. Les migrations sont compatibles avec les deux moteurs.
+
+
+## Brand Studio professionnel
+
+L’espace marque comprend désormais :
+
+- un score de complétude calculé sur les données produit ;
+- une composition obligatoirement égale à 100 % ;
+- le workflow `brouillon → vérification → publication` ;
+- les demandes de correction administrateur ;
+- le versionnement des passeports publiés ;
+- la duplication, l’archivage récupérable et l’import CSV ;
+- un profil public de marque enrichi ;
+- des preuves privées, versionnées et pondérées ;
+- un dialogue traçable autour des preuves ;
+- un journal d’activité et des notifications internes.
+
+Les modifications d’un produit publié créent une nouvelle version et remettent le produit en brouillon. Une marque ne peut jamais publier directement un produit : elle le soumet, puis un administrateur le vérifie.
+
+### Format d’import CSV
+
+```csv
+name,sku,category,description,origin,barcode,recyclability_score,recycling_instructions
+T-shirt circulaire,TS-001,T-shirt,Description,Tunisie,6190000000001,85,Réemploi puis collecte
+```
+
+Les colonnes `name`, `sku` et `category` sont obligatoires. Les produits importés restent en brouillon.
+
+### Vérification continue
+
+La GitHub Action `.github/workflows/tests.yml` exécute automatiquement l’installation, le build front, les migrations SQLite et les tests Laravel sur chaque pull request et chaque mise à jour de `main`.
