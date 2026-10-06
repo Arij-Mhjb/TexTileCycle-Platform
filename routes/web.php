@@ -14,6 +14,8 @@ use App\Http\Controllers\BrandNotificationController;
 use App\Http\Controllers\CollectionPointController;
 use App\Http\Controllers\ConsumerExploreController;
 use App\Http\Controllers\ConsumerHomeController;
+use App\Http\Controllers\ConsumerNotificationController;
+use App\Http\Controllers\ConsumerWalletController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DashboardRedirectController;
 use App\Http\Controllers\DetectionController;
@@ -77,13 +79,17 @@ Route::middleware(['auth','verified'])->group(function(){
         Route::get('/products/{product}',[ConsumerExploreController::class,'product'])->name('products.show');
         Route::get('/programs',[ConsumerExploreController::class,'programs'])->name('programs');
         Route::get('/points',[ConsumerExploreController::class,'points'])->name('points');
+        Route::get('/wallet',ConsumerWalletController::class)->name('wallet');
+        Route::post('/notifications/read-all',[ConsumerNotificationController::class,'readAll'])->name('notifications.read-all');
+        Route::post('/notifications/{notification}/read',[ConsumerNotificationController::class,'read'])->name('notifications.read');
     });
 
     Route::middleware('role:consumer,admin')->group(function(){
         Route::resource('scans',ScanController::class)->only(['index','create','store','show','destroy']);
+        Route::post('/scans/{scan}/confirm/{product}',[ScanController::class,'confirm'])->name('scans.confirm');
     });
     Route::middleware('role:consumer,admin')->group(function(){
-        Route::resource('product-returns',ProductReturnController::class)->except('show');
+        Route::resource('product-returns',ProductReturnController::class);
     });
     Route::middleware('role:admin,brand')->get('/evidences/{evidence}/download',EvidenceDownloadController::class)->name('evidences.download');
 });

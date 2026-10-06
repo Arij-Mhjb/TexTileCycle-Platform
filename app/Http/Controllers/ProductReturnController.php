@@ -5,71 +5,171 @@ namespace App\Http\Controllers;
 use App\Models\CollectionPoint;
 use App\Models\Product;
 use App\Models\ProductReturn;
+use App\Models\Scan;
+use App\Services\ProductReturnWorkflowService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class ProductReturnController extends Controller
 {
-    public function index(Request $r): View
+    public function index(Request $request): View
     {
-        $q = ProductReturn::with(['product', 'collectionPoint']);
-        if ($r->user()->isConsumer()) {
-            $q->where('user_id', $r->user()->id);
+        $query = ProductReturn::with(['product', 'collectionPoint.recoveryProgram', 'rewardTransaction']);
+
+        if ($request->user()->isConsumer()) {
+            $query->where('user_id', $request->user()->id);
         }
 
-return view('product-returns.index', ['items' => $q->latest()->paginate(10)]);
+        if ($request->filled('search')) {
+            $search = $request->string('search');
+            $query->where(fn ($q) => $q
+                ->where('reference', 'like', "%{$search}%")
+                ->orWhereHas('product', fn ($product) => $product->where('name', 'like', "%{$search}%")));
+        }
+
+        if ($request->filled('status')) {
+            $query->where('status', $request->string('status'));
+        }
+
+        return view('product-returns.index', ['items' => $query->latest()->paginate(10)->withQueryString()]);
     }
 
-    public function create(): View
+    public function create(Request $request): View
     {
-        return view('product-returns.create', ['item' => new ProductReturn, 'products' => Product::where('status', 'published')->orderBy('name')->get(), 'points' => CollectionPoint::where('is_active', true)->orderBy('name')->get()]);
+        $item = new ProductReturn([
+            'product_id' => $request->integer('product') ?: null,
+            'collection_point_id' => $request->integer('point') ?: null,
+            'scan_id' => $request->integer('scan') ?: null,
+            'action' => $request->string('action')->toString() ?: 'recycling',
+            'condition' => $request->string('condition')->toString() ?: null,
+            'returned_at' => now()->addDay(),
+        ]);
+
+        return view('product-returns.create', $this->formData($item));
     }
 
-    public function store(Request $r): RedirectResponse
+    public function store(Request $request, ProductReturnWorkflowService $workflow): RedirectResponse
     {
-        $data = $this->validated($r);
-        $data['user_id'] = $r->user()->id;
-        if ($r->user()->isConsumer()) {
-            $data['status'] = 'declared';
-        }ProductReturn::create($data);
+        $data = $this->validated($request);
+        $this->guardScan($request, $data['scan_id'] ?? null);
 
-        return to_route('product-returns.index')->with('success', 'Retour enregistré.');
+        $return = $workflow->create($request->user(), $data);
+        $return = $workflow->transition($return, 'dropoff_expected', $request->user(), 'Dépôt préparé et QR généré.');
+
+        return to_route('product-returns.show', $return)
+            ->with('success', 'Retour enregistré. Présentez le QR au point sélectionné.');
     }
 
-    public function edit(Request $r, ProductReturn $productReturn): View
+    public function show(Request $request, ProductReturn $productReturn): View
     {
-        $this->guard($r, $productReturn);
+        $this->guard($request, $productReturn);
 
-        return view('product-returns.edit', ['item' => $productReturn, 'products' => Product::where('status', 'published')->orderBy('name')->get(), 'points' => CollectionPoint::where('is_active', true)->orderBy('name')->get()]);
+        return view('product-returns.show', [
+            'item' => $productReturn->load([
+                'product.materials', 'collectionPoint.recoveryProgram', 'statusHistory.user',
+                'rewardTransaction', 'treatmentResult', 'scan',
+            ]),
+        ]);
     }
 
-    public function update(Request $r, ProductReturn $productReturn): RedirectResponse
+    public function edit(Request $request, ProductReturn $productReturn): View
     {
-        $this->guard($r, $productReturn);
-        $data = $this->validated($r, $productReturn);
-        if ($r->user()->isConsumer()) {
-            $data['status'] = $productReturn->status;
-        }$productReturn->update($data);
+        $this->guard($request, $productReturn);
 
-        return to_route('product-returns.index')->with('success', 'Retour mis à jour.');
+        if ($request->user()->isConsumer()) {
+            abort_unless($productReturn->canConsumerEdit(), 403);
+        }
+
+        return view('product-returns.edit', $this->formData($productReturn));
     }
 
-    public function destroy(Request $r, ProductReturn $productReturn): RedirectResponse
+    public function update(Request $request, ProductReturn $productReturn, ProductReturnWorkflowService $workflow): RedirectResponse
     {
-        $this->guard($r, $productReturn);
+        $this->guard($request, $productReturn);
+
+        if ($request->user()->isConsumer()) {
+            abort_unless($productReturn->canConsumerEdit(), 403);
+            $data = $this->validated($request);
+            $this->guardScan($request, $data['scan_id'] ?? null);
+            $workflow->revise($productReturn, $data, $request->user());
+
+            return to_route('product-returns.show', $productReturn)->with('success', 'Retour mis à jour.');
+        }
+
+        $data = $this->validated($request, true);
+        $status = $data['status'];
+        $note = $data['status_note'] ?? null;
+        unset($data['status'], $data['status_note']);
+
+        $productReturn = $workflow->revise($productReturn, $data, $request->user());
+        $workflow->transition($productReturn, $status, $request->user(), $note);
+
+        return to_route('product-returns.show', $productReturn)->with('success', 'Retour et statut mis à jour.');
+    }
+
+    public function destroy(Request $request, ProductReturn $productReturn, ProductReturnWorkflowService $workflow): RedirectResponse
+    {
+        $this->guard($request, $productReturn);
+
+        if ($request->user()->isConsumer()) {
+            abort_unless($productReturn->canConsumerEdit(), 403);
+            $workflow->transition($productReturn, 'cancelled', $request->user(), 'Retour annulé par le consommateur.');
+
+            return to_route('product-returns.index')->with('success', 'Retour annulé.');
+        }
+
         $productReturn->delete();
 
-        return back()->with('success', 'Retour supprimé.');
+        return to_route('product-returns.index')->with('success', 'Retour supprimé.');
     }
 
-    private function validated(Request $r, ?ProductReturn $x = null): array
+    private function validated(Request $request, bool $admin = false): array
     {
-        return $r->validate(['product_id' => 'required|exists:products,id', 'collection_point_id' => 'required|exists:collection_points,id', 'reference' => 'required|string|max:80|unique:product_returns,reference,'.($x?->id ?? 'NULL'), 'status' => 'required|in:declared,received,sorting,processed,rejected', 'weight_kg' => 'nullable|numeric|min:0|max:999999', 'returned_at' => 'nullable|date', 'notes' => 'nullable|string']);
+        $rules = [
+            'product_id' => 'required|exists:products,id',
+            'collection_point_id' => 'required|exists:collection_points,id',
+            'scan_id' => 'nullable|exists:scans,id',
+            'action' => 'required|in:repair,donation,take_back,recycling,reuse',
+            'condition' => 'nullable|in:good,wearable,minor_damage,damaged,unusable,unknown',
+            'weight_kg' => 'nullable|numeric|min:0|max:999999',
+            'returned_at' => 'nullable|date',
+            'notes' => 'nullable|string|max:2000',
+        ];
+
+        if ($admin) {
+            $rules += [
+                'status' => 'required|in:declared,dropoff_expected,received,inspected,routed,completed,rejected,cancelled',
+                'confirmed_weight_kg' => 'nullable|numeric|min:0|max:999999',
+                'status_note' => 'nullable|string|max:1000',
+            ];
+        }
+
+        return $request->validate($rules);
     }
 
-    private function guard(Request $r, ProductReturn $return): void
+    private function formData(ProductReturn $item): array
     {
-        abort_if($r->user()->isConsumer() && $return->user_id !== $r->user()->id, 403);
+        return [
+            'item' => $item,
+            'products' => Product::where('status', 'published')->where('is_active', true)->orderBy('name')->get(),
+            'points' => CollectionPoint::where('is_active', true)
+                ->whereHas('recoveryProgram', fn ($program) => $program->where('is_active', true))
+                ->with('recoveryProgram')
+                ->orderBy('name')
+                ->get(),
+        ];
+    }
+
+    private function guard(Request $request, ProductReturn $return): void
+    {
+        abort_if($request->user()->isConsumer() && $return->user_id !== $request->user()->id, 403);
+    }
+
+    private function guardScan(Request $request, ?int $scanId): void
+    {
+        if ($request->user()->isConsumer() && $scanId) {
+            abort_unless(Scan::whereKey($scanId)->where('user_id', $request->user()->id)->exists(), 403);
+        }
     }
 }

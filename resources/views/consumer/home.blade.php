@@ -17,7 +17,7 @@
                     <div class="flex items-center justify-between"><div><p class="text-xs font-black uppercase tracking-wider text-emerald-600">Votre impact</p><p class="mt-1 text-lg font-black">Progression circulaire</p></div><span class="grid h-11 w-11 place-items-center rounded-2xl bg-emerald-50 text-emerald-700"><x-icon name="recycle" class="h-6 w-6" /></span></div>
                     <div class="mt-5 grid grid-cols-2 gap-3">
                         <div class="rounded-2xl bg-slate-50 p-4"><p class="text-2xl font-black">{{ $personalStats['weight'] }}<span class="text-sm text-slate-400"> kg</span></p><p class="mt-1 text-xs font-semibold text-slate-500">Textiles retournés</p></div>
-                        <div class="rounded-2xl bg-slate-50 p-4"><p class="text-2xl font-black text-emerald-600">{{ $personalStats['points'] }}</p><p class="mt-1 text-xs font-semibold text-slate-500">Points gagnés</p></div>
+                        <a href="{{ route('consumer.wallet') }}" class="rounded-2xl bg-slate-50 p-4"><p class="text-2xl font-black text-emerald-600">{{ $personalStats['points'] }}</p><p class="mt-1 text-xs font-semibold text-slate-500">Points validés</p><p class="mt-1 text-[11px] font-bold text-amber-600">+{{ $personalStats['pending_points'] }} en attente</p></a>
                     </div>
                 </div>
             </div>
@@ -25,10 +25,29 @@
     </section>
 
     <section class="mt-8 grid grid-cols-2 gap-4 lg:grid-cols-4">
-        @foreach([['Mes scans',$personalStats['scans'],'Analyses effectuées','scans.index','scan'],['Mes retours',$personalStats['returns'],'Dépôts déclarés','product-returns.index','refresh'],['Points',$personalStats['points'],'Récompenses cumulées','consumer.home','star'],['Poids sauvé',$personalStats['weight'].' kg','Textile valorisé','consumer.home','scale']] as $stat)
+        @foreach([['Mes scans',$personalStats['scans'],'Analyses effectuées','scans.index','scan'],['Mes retours',$personalStats['returns'],'Dépôts déclarés','product-returns.index','refresh'],['Points',$personalStats['points'],'Récompenses validées','consumer.wallet','star'],['Poids sauvé',$personalStats['weight'].' kg','Textile valorisé','consumer.home','scale']] as $stat)
             <a href="{{ route($stat[3]) }}" class="consumer-card animate-fade-up p-5"><div class="flex items-center justify-between"><span class="grid h-10 w-10 place-items-center rounded-2xl bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"><x-icon :name="$stat[4]" class="h-5 w-5" /></span><x-icon name="arrow-up" class="h-4 w-4 text-slate-300" /></div><p class="mt-5 text-2xl font-black tracking-tight">{{ $stat[1] }}</p><p class="text-sm font-black text-slate-700">{{ $stat[0] }}</p><p class="mt-1 text-xs text-slate-400">{{ $stat[2] }}</p></a>
         @endforeach
     </section>
+
+    @if ($notifications->isNotEmpty())
+        <section class="consumer-card mt-8 p-6">
+            <div class="flex items-center justify-between">
+                <div><p class="eyebrow">Suivi</p><h2 class="mt-2 text-xl font-black">Notifications</h2></div>
+                <form method="POST" action="{{ route('consumer.notifications.read-all') }}">@csrf<button class="text-sm font-black text-emerald-600">Tout marquer comme lu</button></form>
+            </div>
+            <div class="mt-5 grid gap-3 md:grid-cols-2">
+                @foreach ($notifications as $notification)
+                    <form method="POST" action="{{ route('consumer.notifications.read', $notification) }}">@csrf
+                        <button class="w-full rounded-2xl bg-slate-50 p-4 text-left dark:bg-slate-900">
+                            <strong>{{ $notification->title }}</strong>
+                            <p class="mt-1 text-sm text-slate-500">{{ $notification->message }}</p>
+                        </button>
+                    </form>
+                @endforeach
+            </div>
+        </section>
+    @endif
 
     <section class="mt-12">
         <div class="flex items-end justify-between"><div><p class="eyebrow">Actions recommandées</p><h2 class="mt-2 text-2xl font-black tracking-tight">Donnez une seconde vie à vos vêtements</h2></div></div>
