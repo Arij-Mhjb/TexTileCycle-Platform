@@ -91,7 +91,7 @@ class MultimodalScanService
 
         $haystack = Str::lower(Str::ascii($text));
 
-        return Product::query()
+        $candidate = Product::query()
             ->where('status', 'published')
             ->where('is_active', true)
             ->get()
@@ -111,7 +111,9 @@ class MultimodalScanService
                 return ['product' => $product, 'score' => $score];
             })
             ->sortByDesc('score')
-            ->first(fn ($candidate) => $candidate['score'] >= 70)['product'] ?? null;
+            ->first(fn ($item) => $item['score'] >= 70);
+
+        return $candidate['product'] ?? null;
     }
 
     private function composition(string $text, ?Product $product): array
