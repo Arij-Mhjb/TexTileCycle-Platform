@@ -54,7 +54,7 @@ return new class extends Migration {
 
         Schema::create('evidence_comments', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('evidence_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('evidence_id')->constrained('evidences')->cascadeOnDelete();
             $table->foreignId('user_id')->constrained()->cascadeOnDelete();
             $table->text('body');
             $table->timestamps();
