@@ -52,10 +52,7 @@ class ProductReturnController extends Controller
     public function store(Request $request, ProductReturnWorkflowService $workflow): RedirectResponse
     {
         $data = $this->validated($request);
-
-        if ($request->user()->isConsumer() && ! empty($data['scan_id'])) {
-            abort_unless(Scan::whereKey($data['scan_id'])->where('user_id', $request->user()->id)->exists(), 403);
-        }
+        $this->guardScan($request, $data['scan_id'] ?? null);
 
         $return = $workflow->create($request->user(), $data);
         $return = $workflow->transition($return, 'dropoff_expected', $request->user(), 'Dépôt préparé et QR généré.');
@@ -93,7 +90,9 @@ class ProductReturnController extends Controller
 
         if ($request->user()->isConsumer()) {
             abort_unless($productReturn->canConsumerEdit(), 403);
-            $productReturn->update($this->validated($request));
+            $data = $this->validated($request);
+            $this->guardScan($request, $data['scan_id'] ?? null);
+            $workflow->revise($productReturn, $data, $request->user());
 
             return to_route('product-returns.show', $productReturn)->with('success', 'Retour mis à jour.');
         }
@@ -102,18 +101,22 @@ class ProductReturnController extends Controller
         $status = $data['status'];
         $note = $data['status_note'] ?? null;
         unset($data['status'], $data['status_note']);
-        $productReturn->update($data);
-        $workflow->transition($productReturn->fresh(), $status, $request->user(), $note);
+
+        $productReturn = $workflow->revise($productReturn, $data, $request->user());
+        $workflow->transition($productReturn, $status, $request->user(), $note);
 
         return to_route('product-returns.show', $productReturn)->with('success', 'Retour et statut mis à jour.');
     }
 
-    public function destroy(Request $request, ProductReturn $productReturn): RedirectResponse
+    public function destroy(Request $request, ProductReturn $productReturn, ProductReturnWorkflowService $workflow): RedirectResponse
     {
         $this->guard($request, $productReturn);
 
         if ($request->user()->isConsumer()) {
             abort_unless($productReturn->canConsumerEdit(), 403);
+            $workflow->transition($productReturn, 'cancelled', $request->user(), 'Retour annulé par le consommateur.');
+
+            return to_route('product-returns.index')->with('success', 'Retour annulé.');
         }
 
         $productReturn->delete();
@@ -150,12 +153,23 @@ class ProductReturnController extends Controller
         return [
             'item' => $item,
             'products' => Product::where('status', 'published')->where('is_active', true)->orderBy('name')->get(),
-            'points' => CollectionPoint::where('is_active', true)->with('recoveryProgram')->orderBy('name')->get(),
+            'points' => CollectionPoint::where('is_active', true)
+                ->whereHas('recoveryProgram', fn ($program) => $program->where('is_active', true))
+                ->with('recoveryProgram')
+                ->orderBy('name')
+                ->get(),
         ];
     }
 
     private function guard(Request $request, ProductReturn $return): void
     {
         abort_if($request->user()->isConsumer() && $return->user_id !== $request->user()->id, 403);
+    }
+
+    private function guardScan(Request $request, ?int $scanId): void
+    {
+        if ($request->user()->isConsumer() && $scanId) {
+            abort_unless(Scan::whereKey($scanId)->where('user_id', $request->user()->id)->exists(), 403);
+        }
     }
 }
