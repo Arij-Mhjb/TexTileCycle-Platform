@@ -150,6 +150,8 @@ class ScanController extends Controller
             'size' => 'nullable|string|max:100',
             'retailer' => 'nullable|string|max:255',
             'purchase_date' => 'nullable|date',
+            'purchase_price' => 'nullable|numeric|min:0|max:9999999.99',
+            'currency' => 'nullable|string|size:3',
             'condition' => 'required|in:good,wearable,minor_damage,damaged,unusable,unknown',
             'composition_text' => 'nullable|string|max:3000',
             'defects_text' => 'nullable|string|max:2000',

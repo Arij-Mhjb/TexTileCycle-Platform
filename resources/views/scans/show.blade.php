@@ -25,6 +25,16 @@
                     <div><h2 class="text-xl font-black">Confirmez les données proposées</h2><p class="mt-1 text-sm text-slate-500">{{ $scan->ai_explanation }}</p></div>
                     <span class="rounded-full bg-amber-50 px-3 py-1 text-xs font-black text-amber-700">À confirmer</span>
                 </div>
+                @if (filled(data_get($data, 'warnings')))
+                    <div class="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+                        <p class="font-black">Incohérences détectées</p>
+                        <ul class="mt-2 list-disc space-y-1 pl-5">
+                            @foreach (data_get($data, 'warnings', []) as $warning)
+                                <li>{{ $warning }}</li>
+                            @endforeach
+                        </ul>
+                    </div>
+                @endif
                 <div class="mt-6 grid gap-5 md:grid-cols-2">
                     <label class="font-bold">Produit du catalogue
                         <select name="product_id" class="mt-2 w-full rounded-xl border-slate-300">
@@ -43,6 +53,8 @@
                     <label class="font-bold">Taille<input name="size" value="{{ old('size', data_get($data,'size')) }}" class="mt-2 w-full rounded-xl border-slate-300"></label>
                     <label class="font-bold">Enseigne<input name="retailer" value="{{ old('retailer', data_get($data,'retailer')) }}" class="mt-2 w-full rounded-xl border-slate-300"></label>
                     <label class="font-bold">Date d’achat<input type="date" name="purchase_date" value="{{ old('purchase_date', data_get($data,'purchase_date')) }}" class="mt-2 w-full rounded-xl border-slate-300"></label>
+                    <label class="font-bold">Prix d’achat<input type="number" step="0.01" min="0" name="purchase_price" value="{{ old('purchase_price', data_get($data,'purchase_price')) }}" class="mt-2 w-full rounded-xl border-slate-300"></label>
+                    <label class="font-bold">Devise<input name="currency" maxlength="3" value="{{ old('currency', data_get($data,'currency')) }}" placeholder="EUR, TND…" class="mt-2 w-full rounded-xl border-slate-300 uppercase"></label>
                     <label class="font-bold">État
                         <select name="condition" class="mt-2 w-full rounded-xl border-slate-300" required>
                             @foreach(['good'=>'Très bon','wearable'=>'Portable','minor_damage'=>'Petits défauts','damaged'=>'Endommagé','unusable'=>'Inutilisable','unknown'=>'Incertain'] as $value=>$label)
