@@ -135,6 +135,25 @@ class ScanController extends Controller
         return view('scans.show', compact('scan', 'recommendation', 'points', 'catalogueProducts'));
     }
 
+    public function reanalyse(Request $request, Scan $scan, MultimodalScanService $multimodal): RedirectResponse
+    {
+        $this->guard($request, $scan);
+        abort_unless($scan->source_type === 'multimodal', 422);
+        abort_if($scan->consumer_confirmed_at, 422, 'Les données déjà confirmées ne peuvent plus être remplacées.');
+
+        $scan->update([
+            'status' => 'analysing',
+            'ai_status' => 'analysing',
+        ]);
+
+        $multimodal->analyse($scan);
+
+        return to_route('scans.show', $scan)->with(
+            'success',
+            'Nouvelle analyse terminée avec amélioration d’image et lecture du code-barres.'
+        );
+    }
+
     public function confirmData(Request $request, Scan $scan): RedirectResponse
     {
         $this->guard($request, $scan);
