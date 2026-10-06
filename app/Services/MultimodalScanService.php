@@ -36,7 +36,7 @@ class MultimodalScanService
         }
 
         foreach ($scan->assets as $asset) {
-            $text = $this->extractText($asset->path);
+            $text = $this->extractText($asset->path, $asset->type);
             $barcode = $this->extractBarcode($asset->path);
             if ($barcode) {
                 $text = trim($text."\nBARCODE: ".$barcode);
@@ -158,7 +158,7 @@ class MultimodalScanService
         return $data;
     }
 
-    private function extractText(string $path): string
+    private function extractText(string $path, string $assetType): string
     {
         $temporaryPath = null;
 
@@ -168,27 +168,35 @@ class MultimodalScanService
                 return '';
             }
 
-            $passes = [
-                $this->ocrPass($absolutePath, 6),
-                $this->ocrPass($absolutePath, 11),
-            ];
+            $pageModes = match ($assetType) {
+                'receipt' => [6],
+                'composition_label' => [6, 11],
+                'product_front', 'product_back' => [11],
+                default => [],
+            };
 
-            $temporaryPath = sys_get_temp_dir().'/textilecycle-ocr-'.Str::uuid().'.png';
-            $preprocess = new Process([
-                'convert', $absolutePath,
-                '-auto-orient',
-                '-colorspace', 'Gray',
-                '-contrast-stretch', '2%x2%',
-                '-sharpen', '0x1',
-                '-resize', '180%',
-                $temporaryPath,
-            ]);
-            $preprocess->setTimeout(30);
-            $preprocess->run();
+            $passes = collect($pageModes)
+                ->map(fn ($mode) => $this->ocrPass($absolutePath, $mode))
+                ->all();
 
-            if ($preprocess->isSuccessful() && is_file($temporaryPath)) {
-                $passes[] = $this->ocrPass($temporaryPath, 6);
-                $passes[] = $this->ocrPass($temporaryPath, 11);
+            if ($assetType === 'composition_label') {
+                $temporaryPath = sys_get_temp_dir().'/textilecycle-ocr-'.Str::uuid().'.png';
+                $preprocess = new Process([
+                    'convert', $absolutePath,
+                    '-auto-orient',
+                    '-colorspace', 'Gray',
+                    '-contrast-stretch', '2%x2%',
+                    '-sharpen', '0x1',
+                    '-resize', '180%',
+                    $temporaryPath,
+                ]);
+                $preprocess->setTimeout(30);
+                $preprocess->run();
+
+                if ($preprocess->isSuccessful() && is_file($temporaryPath)) {
+                    $passes[] = $this->ocrPass($temporaryPath, 6);
+                    $passes[] = $this->ocrPass($temporaryPath, 11);
+                }
             }
 
             return collect($passes)
