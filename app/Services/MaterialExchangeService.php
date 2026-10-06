@@ -70,6 +70,14 @@ class MaterialExchangeService
             throw ValidationException::withMessages(['match' => 'Cette proposition n’est plus disponible.']);
         }
 
+        $alreadyReserved = $match->productReturn->materialMatches()
+            ->whereKeyNot($match->id)
+            ->whereIn('status', ['accepted', 'in_transit', 'brand_received', 'verified'])
+            ->exists();
+        if ($alreadyReserved) {
+            throw ValidationException::withMessages(['match' => 'Ce textile est déjà réservé par une autre marque.']);
+        }
+
         return DB::transaction(function () use ($match) {
             $match->loadMissing(['request.brand', 'productReturn.rewardTransaction']);
             $match->update([
@@ -80,6 +88,7 @@ class MaterialExchangeService
             ]);
 
             $return = $match->productReturn;
+            $return->materialMatches()->whereKeyNot($match->id)->where('status', 'suggested')->update(['status' => 'unavailable']);
             $return->update(['status' => 'reserved_by_brand']);
             $return->statusHistory()->create([
                 'user_id' => $match->request->brand->user_id,
@@ -187,8 +196,10 @@ class MaterialExchangeService
             ]);
 
             $weight = (float) ($return->confirmed_weight_kg ?? $return->weight_kg ?? 0);
+            $remaining = max(0, (float) $match->request->remaining_kg - $weight);
             $match->request->update([
-                'remaining_kg' => max(0, (float) $match->request->remaining_kg - $weight),
+                'remaining_kg' => $remaining,
+                'status' => $remaining <= 0 ? 'closed' : $match->request->status,
             ]);
 
             ConsumerNotification::create([
