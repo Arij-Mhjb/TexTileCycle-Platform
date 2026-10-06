@@ -80,7 +80,21 @@ class ScanController extends Controller
         }
 
         if ($isMultimodal) {
-            $multimodal->analyse($scan);
+            $analysis = $multimodal->analyse($scan);
+            $scan->refresh();
+            if ($scan->product_id) {
+                Detection::updateOrCreate(
+                    ['scan_id' => $scan->id, 'product_id' => $scan->product_id],
+                    [
+                        'detected_name' => $analysis['product_name'] ?? $scan->product->name,
+                        'detected_brand' => $analysis['brand'] ?? $scan->product->brand,
+                        'detected_category' => $analysis['category'] ?? $scan->product->category,
+                        'detected_composition' => json_encode($analysis['composition'] ?? [], JSON_UNESCAPED_UNICODE),
+                        'confidence' => $analysis['confidence'] ?? $scan->confidence,
+                        'is_confirmed' => false,
+                    ]
+                );
+            }
         } else {
             foreach ($matches as $match) {
                 Detection::create([
