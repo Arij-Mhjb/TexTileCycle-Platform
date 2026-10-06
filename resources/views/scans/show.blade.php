@@ -3,7 +3,17 @@
         <a href="{{ route('scans.index') }}" class="font-black text-emerald-600">← Historique</a>
         <div class="mt-3 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div><p class="text-xs font-black uppercase tracking-[.2em] text-emerald-600">Smart Scan #{{ $scan->id }}</p><h1 class="mt-2 text-3xl font-black">Analyse du textile</h1></div>
-            <span class="rounded-full bg-sky-50 px-4 py-2 text-sm font-black text-sky-700">{{ $scan->confidence ?? 0 }} % de confiance · données non vérifiées</span>
+            <div class="flex flex-wrap items-center gap-3">
+                <span class="rounded-full bg-sky-50 px-4 py-2 text-sm font-black text-sky-700">{{ $scan->confidence ?? 0 }} % de confiance · données non vérifiées</span>
+                @if ($scan->source_type === 'multimodal' && ! $scan->consumer_confirmed_at)
+                    <form method="POST" action="{{ route('scans.reanalyse', $scan) }}">
+                        @csrf
+                        <button class="rounded-xl border border-emerald-600 px-4 py-2 text-sm font-black text-emerald-700 hover:bg-emerald-50">
+                            Relancer l’analyse
+                        </button>
+                    </form>
+                @endif
+            </div>
         </div>
 
         @if ($scan->assets->isNotEmpty())
