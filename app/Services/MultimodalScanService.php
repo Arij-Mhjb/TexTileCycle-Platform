@@ -31,7 +31,7 @@ class MultimodalScanService
         $scan->load('assets');
         $sourceTexts = [];
 
-        if ($scan->raw_text) {
+        if ($scan->raw_text && $scan->source_type !== 'multimodal') {
             $sourceTexts['manual'] = $scan->raw_text;
         }
 
