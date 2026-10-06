@@ -460,7 +460,7 @@ class MultimodalScanService
         $date = str_replace(['.', '-'], '/', $date);
         $parsed = DateTimeImmutable::createFromFormat('d/m/Y', $date);
 
-        return $parsed?->format('Y-m-d') ?: null;
+        return $parsed instanceof DateTimeImmutable ? $parsed->format('Y-m-d') : null;
     }
 
     private function firstMatch(string $pattern, string $text): ?string
