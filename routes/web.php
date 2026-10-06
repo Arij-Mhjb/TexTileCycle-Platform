@@ -102,6 +102,7 @@ Route::middleware(['auth','verified'])->group(function(){
         Route::resource('scans',ScanController::class)->only(['index','create','store','show','destroy']);
         Route::post('/scans/{scan}/confirm/{product}',[ScanController::class,'confirm'])->name('scans.confirm');
         Route::post('/scans/{scan}/confirm-data',[ScanController::class,'confirmData'])->name('scans.confirm-data');
+        Route::post('/scans/{scan}/reanalyse',[ScanController::class,'reanalyse'])->name('scans.reanalyse');
     });
     Route::middleware('role:consumer,admin')->group(function(){
         Route::resource('product-returns',ProductReturnController::class);

@@ -31,12 +31,17 @@ class MultimodalScanService
         $scan->load('assets');
         $sourceTexts = [];
 
-        if ($scan->raw_text) {
+        if ($scan->raw_text && $scan->source_type !== 'multimodal') {
             $sourceTexts['manual'] = $scan->raw_text;
         }
 
         foreach ($scan->assets as $asset) {
-            $text = $this->extractText($asset->path);
+            $text = $this->extractText($asset->path, $asset->type);
+            $barcode = $this->extractBarcode($asset->path);
+            if ($barcode) {
+                $text = trim($text."\nBARCODE: ".$barcode);
+            }
+
             $asset->update([
                 'extracted_text' => $text ?: null,
                 'confidence' => $text ? 80 : null,
@@ -52,6 +57,12 @@ class MultimodalScanService
         $data = $this->extractStructuredData($sourceTexts, $product);
 
         $warnings = $data['warnings'] ?? [];
+        if ($rawText === '') {
+            $warnings[] = 'Aucun texte lisible détecté. Recadrez le ticket ou l’étiquette, évitez les reflets et relancez l’analyse.';
+            $data['warnings'] = $warnings;
+            $data['confidence'] = 0;
+        }
+
         $explanation = $product
             ? 'Produit rapproché du catalogue et informations extraites par OCR local multilingue.'
             : 'Informations extraites des documents. Sélectionnez un produit du catalogue ou confirmez les valeurs proposées.';
@@ -147,27 +158,102 @@ class MultimodalScanService
         return $data;
     }
 
-    private function extractText(string $path): string
+    private function extractText(string $path, string $assetType): string
     {
+        $temporaryPath = null;
+
         try {
             $absolutePath = Storage::disk('public')->path($path);
             if (! is_file($absolutePath)) {
                 return '';
             }
 
-            $process = new Process([
-                'tesseract', $absolutePath, 'stdout',
-                '-l', 'fra+eng+tur',
-                '--psm', '6',
-            ]);
-            $process->setTimeout(45);
-            $process->run();
+            $pageModes = match ($assetType) {
+                'receipt' => [6],
+                'composition_label' => [6, 11],
+                'product_front', 'product_back' => [11],
+                default => [],
+            };
 
-            return $process->isSuccessful() ? trim($process->getOutput()) : '';
+            $passes = collect($pageModes)
+                ->map(fn ($mode) => $this->ocrPass($absolutePath, $mode))
+                ->all();
+
+            if ($assetType === 'composition_label') {
+                $temporaryPath = sys_get_temp_dir().'/textilecycle-ocr-'.Str::uuid().'.png';
+                $preprocess = new Process([
+                    'convert', $absolutePath,
+                    '-auto-orient',
+                    '-colorspace', 'Gray',
+                    '-contrast-stretch', '2%x2%',
+                    '-sharpen', '0x1',
+                    '-resize', '180%',
+                    $temporaryPath,
+                ]);
+                $preprocess->setTimeout(30);
+                $preprocess->run();
+
+                if ($preprocess->isSuccessful() && is_file($temporaryPath)) {
+                    $passes[] = $this->ocrPass($temporaryPath, 6);
+                    $passes[] = $this->ocrPass($temporaryPath, 11);
+                }
+            }
+
+            return collect($passes)
+                ->filter()
+                ->flatMap(fn ($text) => preg_split('/\R/u', $text))
+                ->map(fn ($line) => trim(preg_replace('/\s+/', ' ', $line)))
+                ->filter()
+                ->unique()
+                ->join("\n");
         } catch (Throwable $exception) {
             report($exception);
 
             return '';
+        } finally {
+            if ($temporaryPath && is_file($temporaryPath)) {
+                @unlink($temporaryPath);
+            }
+        }
+    }
+
+    private function ocrPass(string $path, int $pageSegmentationMode): string
+    {
+        $process = new Process([
+            'tesseract', $path, 'stdout',
+            '-l', 'fra+eng+tur',
+            '--psm', (string) $pageSegmentationMode,
+            '-c', 'preserve_interword_spaces=1',
+        ]);
+        $process->setTimeout(45);
+        $process->run();
+
+        return $process->isSuccessful() ? trim($process->getOutput()) : '';
+    }
+
+    private function extractBarcode(string $path): ?string
+    {
+        try {
+            $absolutePath = Storage::disk('public')->path($path);
+            if (! is_file($absolutePath)) {
+                return null;
+            }
+
+            $process = new Process(['zbarimg', '--quiet', '--raw', $absolutePath]);
+            $process->setTimeout(15);
+            $process->run();
+
+            if (! $process->isSuccessful()) {
+                return null;
+            }
+
+            return collect(preg_split('/\R/u', trim($process->getOutput())))
+                ->map(fn ($value) => preg_replace('/\D+/', '', $value))
+                ->first(fn ($value) => in_array(strlen($value), [8, 12, 13, 14], true));
+        } catch (Throwable $exception) {
+            report($exception);
+
+            return null;
         }
     }
 
