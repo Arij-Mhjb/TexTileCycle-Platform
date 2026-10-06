@@ -119,6 +119,66 @@ class ConsumerJourneyTest extends TestCase
         ]);
     }
 
+    public function test_revising_dropoff_recalculates_pending_reward(): void
+    {
+        [$user, $product, $point] = $this->journeyData();
+        $workflow = app(ProductReturnWorkflowService::class);
+        $return = $workflow->create($user, [
+            'product_id' => $product->id,
+            'collection_point_id' => $point->id,
+            'action' => 'recycling',
+        ]);
+
+        $secondProgram = RecoveryProgram::create([
+            'name' => 'Recyclage premium',
+            'organization_name' => 'Partenaire premium',
+            'type' => 'recycling',
+            'reward_points' => 120,
+            'is_active' => true,
+        ]);
+        $secondPoint = CollectionPoint::create([
+            'recovery_program_id' => $secondProgram->id,
+            'name' => 'Point premium',
+            'address' => '2 rue test',
+            'city' => 'Tunis',
+            'is_active' => true,
+        ]);
+
+        $workflow->revise($return, [
+            'product_id' => $product->id,
+            'collection_point_id' => $secondPoint->id,
+            'action' => 'recycling',
+        ], $user);
+
+        $this->assertSame(120, $return->rewardTransaction()->firstOrFail()->points);
+    }
+
+    public function test_consumer_cancellation_preserves_audit_trail(): void
+    {
+        [$user, $product, $point] = $this->journeyData();
+        $workflow = app(ProductReturnWorkflowService::class);
+        $return = $workflow->create($user, [
+            'product_id' => $product->id,
+            'collection_point_id' => $point->id,
+            'action' => 'recycling',
+        ]);
+        $workflow->transition($return, 'dropoff_expected', $user);
+
+        $this->actingAs($user)
+            ->delete(route('product-returns.destroy', $return))
+            ->assertRedirect(route('product-returns.index'));
+
+        $this->assertDatabaseHas('product_returns', ['id' => $return->id, 'status' => 'cancelled']);
+        $this->assertDatabaseHas('reward_transactions', [
+            'product_return_id' => $return->id,
+            'status' => 'cancelled',
+        ]);
+        $this->assertDatabaseHas('return_status_histories', [
+            'product_return_id' => $return->id,
+            'status' => 'cancelled',
+        ]);
+    }
+
     private function journeyData(): array
     {
         $user = User::factory()->create(['role' => 'consumer']);
