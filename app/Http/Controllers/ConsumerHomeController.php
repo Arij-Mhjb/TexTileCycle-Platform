@@ -17,21 +17,28 @@ class ConsumerHomeController extends Controller
         $user = $request->user();
         $returns = ProductReturn::query()
             ->where('user_id', $user->id)
-            ->with(['product', 'collectionPoint.recoveryProgram', 'treatmentResult'])
+            ->with(['product', 'collectionPoint.recoveryProgram', 'treatmentResult', 'rewardTransaction'])
             ->latest()
             ->get();
+
+        $completed = $returns->whereIn('status', ['completed', 'processed']);
+        $validatedPoints = (int) $user->rewardTransactions()->where('status', 'validated')->sum('points');
+        $pendingPoints = (int) $user->rewardTransactions()->where('status', 'pending')->sum('points');
 
         return view('consumer.home', [
             'personalStats' => [
                 'returns' => $returns->count(),
-                'weight' => round((float) $returns->sum('weight_kg'), 2),
+                'weight' => round((float) $completed->sum(fn ($return) => $return->confirmed_weight_kg ?? $return->weight_kg), 2),
                 'scans' => Scan::where('user_id', $user->id)->count(),
-                'points' => $returns->sum(fn ($return) => $return->collectionPoint?->recoveryProgram?->reward_points ?? 0),
+                'points' => $validatedPoints,
+                'pending_points' => $pendingPoints,
+                'completed' => $completed->count(),
             ],
             'recentReturns' => $returns->take(4),
             'featuredProducts' => Product::where('status', 'published')->latest()->limit(6)->get(),
             'programs' => RecoveryProgram::where('is_active', true)->withCount('collectionPoints')->latest()->limit(4)->get(),
             'nearbyPoints' => CollectionPoint::where('is_active', true)->with('recoveryProgram')->latest()->limit(4)->get(),
+            'notifications' => $user->consumerNotifications()->whereNull('read_at')->latest()->limit(5)->get(),
         ]);
     }
 }
