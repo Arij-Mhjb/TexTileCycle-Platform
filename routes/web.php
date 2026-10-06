@@ -2,11 +2,14 @@
 
 use App\Http\Controllers\AdminEvidenceReviewController;
 use App\Http\Controllers\AdminLabelController;
+use App\Http\Controllers\AdminMaterialReviewController;
 use App\Http\Controllers\AdminProductReviewController;
 use App\Http\Controllers\AssessmentController;
 use App\Http\Controllers\BrandDashboardController;
 use App\Http\Controllers\BrandEvidenceCommentController;
 use App\Http\Controllers\BrandImportController;
+use App\Http\Controllers\BrandMaterialMatchController;
+use App\Http\Controllers\BrandMaterialRequestController;
 use App\Http\Controllers\BrandLabelController;
 use App\Http\Controllers\BrandProductController;
 use App\Http\Controllers\BrandProfileController;
@@ -15,6 +18,7 @@ use App\Http\Controllers\CollectionPointController;
 use App\Http\Controllers\ConsumerExploreController;
 use App\Http\Controllers\ConsumerHomeController;
 use App\Http\Controllers\ConsumerNotificationController;
+use App\Http\Controllers\ConsumerMaterialTransferController;
 use App\Http\Controllers\ConsumerWalletController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DashboardRedirectController;
@@ -49,6 +53,8 @@ Route::middleware(['auth','verified'])->group(function(){
         Route::resource('admin/labels',AdminLabelController::class)->names('admin.labels')->except('show');
         Route::patch('/admin/products/{product}/approve',[AdminProductReviewController::class,'approve'])->name('admin.products.approve');
         Route::patch('/admin/products/{product}/reject',[AdminProductReviewController::class,'reject'])->name('admin.products.reject');
+        Route::get('/admin/material-reviews',[AdminMaterialReviewController::class,'index'])->name('admin.material-reviews.index');
+        Route::patch('/admin/material-reviews/{productReturn}',[AdminMaterialReviewController::class,'update'])->name('admin.material-reviews.update');
     });
 
     Route::middleware('role:brand')->prefix('brand')->name('brand.')->group(function(){
@@ -71,6 +77,14 @@ Route::middleware(['auth','verified'])->group(function(){
         Route::post('/assessments/{assessment}/evidences',[BrandLabelController::class,'evidence'])->name('evidences.store');
         Route::post('/assessments/{assessment}/submit',[BrandLabelController::class,'submit'])->name('assessments.submit');
         Route::post('/evidences/{evidence}/comments',[BrandEvidenceCommentController::class,'store'])->name('evidences.comments.store');
+        Route::get('/material-requests',[BrandMaterialRequestController::class,'index'])->name('material-requests.index');
+        Route::post('/material-requests',[BrandMaterialRequestController::class,'store'])->name('material-requests.store');
+        Route::delete('/material-requests/{materialRequest}',[BrandMaterialRequestController::class,'destroy'])->name('material-requests.destroy');
+        Route::get('/material-matches',[BrandMaterialMatchController::class,'index'])->name('material-matches.index');
+        Route::post('/material-matches/{materialMatch}/accept',[BrandMaterialMatchController::class,'accept'])->name('material-matches.accept');
+        Route::post('/material-matches/{materialMatch}/receive',[BrandMaterialMatchController::class,'receive'])->name('material-matches.receive');
+        Route::post('/material-matches/{materialMatch}/verify',[BrandMaterialMatchController::class,'verify'])->name('material-matches.verify');
+        Route::post('/material-matches/{materialMatch}/reject',[BrandMaterialMatchController::class,'reject'])->name('material-matches.reject');
     });
 
     Route::middleware('role:consumer')->prefix('discover')->name('consumer.')->group(function(){
@@ -87,9 +101,11 @@ Route::middleware(['auth','verified'])->group(function(){
     Route::middleware('role:consumer,admin')->group(function(){
         Route::resource('scans',ScanController::class)->only(['index','create','store','show','destroy']);
         Route::post('/scans/{scan}/confirm/{product}',[ScanController::class,'confirm'])->name('scans.confirm');
+        Route::post('/scans/{scan}/confirm-data',[ScanController::class,'confirmData'])->name('scans.confirm-data');
     });
     Route::middleware('role:consumer,admin')->group(function(){
         Route::resource('product-returns',ProductReturnController::class);
+        Route::post('/material-transfers/{materialMatch}',[ConsumerMaterialTransferController::class,'store'])->middleware('role:consumer')->name('consumer.material-transfers.store');
     });
     Route::middleware('role:admin,brand')->get('/evidences/{evidence}/download',EvidenceDownloadController::class)->name('evidences.download');
 });
