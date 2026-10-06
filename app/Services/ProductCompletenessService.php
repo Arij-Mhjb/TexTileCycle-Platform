@@ -14,7 +14,7 @@ class ProductCompletenessService {
    'end_of_life'=>filled($product->recycling_instructions),
   ];
   $weights=['identity'=>10,'description_photo'=>15,'origin'=>10,'composition'=>25,'identifier'=>10,'recyclability'=>15,'end_of_life'=>15];
-  $score=collect($checks)->sum(fn($ok,$key)=>$ok?$weights[$key]:0);
+  $score=collect($checks)->map(fn($ok,$key)=>$ok?$weights[$key]:0)->sum();
   return ['score'=>$score,'ready'=>$score===100,'checks'=>$checks,'missing'=>collect($checks)->filter(fn($ok)=>!$ok)->keys()->values()->all()];
  }
  public function refresh(Product $product): array { $result=$this->analyse($product); $product->updateQuietly(['completion_score'=>$result['score']]); return $result; }
