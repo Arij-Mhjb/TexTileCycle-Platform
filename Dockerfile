@@ -18,6 +18,7 @@ RUN composer install --no-dev --no-interaction --prefer-dist --optimize-autoload
     && sed -i 's|/var/www/html|/var/www/html/public|g' /etc/apache2/sites-available/000-default.conf \
     && printf '<Directory /var/www/html/public>\nAllowOverride All\nRequire all granted\n</Directory>\n' > /etc/apache2/conf-available/laravel.conf \
     && a2enconf laravel \
+    && printf 'upload_max_filesize=12M\\npost_max_size=40M\\nmax_file_uploads=10\\nmemory_limit=256M\\n' > /usr/local/etc/php/conf.d/uploads.ini \\
     && chmod +x docker/start.sh
 COPY --from=assets /app/public/build ./public/build
 ENV APP_ENV=production APP_DEBUG=false LOG_CHANNEL=stderr
