@@ -68,7 +68,7 @@ class ProductReturnController extends Controller
         return view('product-returns.show', [
             'item' => $productReturn->load([
                 'product.materials', 'collectionPoint.recoveryProgram', 'statusHistory.user',
-                'rewardTransaction', 'treatmentResult', 'scan',
+                'rewardTransaction', 'treatmentResult', 'scan.assets', 'materialMatches.request.brand',
             ]),
         ]);
     }
