@@ -115,7 +115,9 @@ class ScanController extends Controller
                 ->get()
             : collect();
 
-        return view('scans.show', compact('scan', 'recommendation', 'points'));
+        $catalogueProducts = Product::where('status', 'published')->where('is_active', true)->orderBy('name')->get();
+
+        return view('scans.show', compact('scan', 'recommendation', 'points', 'catalogueProducts'));
     }
 
     public function confirmData(Request $request, Scan $scan): RedirectResponse
