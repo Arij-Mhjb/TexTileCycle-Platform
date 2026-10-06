@@ -1,5 +1,48 @@
-<x-role-layout title="Smart Scan"><div class="mx-auto max-w-3xl"><h1 class="text-3xl font-black">Smart Scan</h1><p class="mt-2 text-slate-600">Identifiez un produit par QR, code-barres, recherche manuelle ou photo.</p><form method="POST" enctype="multipart/form-data" action="{{ route('scans.store') }}" class="mt-7 space-y-5 rounded-2xl border bg-white p-7" x-data="{type:'barcode'}">@csrf
-<div class="grid grid-cols-2 gap-3 md:grid-cols-4">@foreach(['barcode'=>'Code-barres','qr'=>'QR code','manual'=>'Manuel','image'=>'Photo'] as $value=>$label)<label class="cursor-pointer rounded-xl border p-3 text-center"><input type="radio" name="source_type" value="{{ $value }}" x-model="type" class="sr-only"><span class="font-bold">{{ $label }}</span></label>@endforeach</div>
-<div x-show="type!=='image'"><label class="font-bold">Code ou recherche</label><input name="value" value="{{ old('value') }}" placeholder="Ex. 6191234567890 ou nom du produit" class="mt-2 w-full rounded-xl border-slate-300"></div>
-<div x-show="type==='image'"><label class="font-bold">Photo de l’étiquette</label><input type="file" name="image" accept="image/*" capture="environment" class="mt-2 block w-full"></div>
-@if($errors->any())<p class="rounded-xl bg-red-50 p-4 text-red-700">{{ $errors->first() }}</p>@endif<button class="w-full rounded-xl bg-emerald-700 px-6 py-3 font-bold text-white">Analyser</button></form></div></x-role-layout>
+<x-role-layout title="Smart Scan">
+    <div class="mx-auto max-w-4xl">
+        <p class="text-xs font-black uppercase tracking-[.2em] text-emerald-600">Analyse privée locale</p>
+        <h1 class="mt-2 text-3xl font-black">Photographiez votre textile</h1>
+        <p class="mt-3 max-w-2xl text-slate-600">Le ticket, l’étiquette et le produit sont analysés localement. Vous confirmez toujours les informations avant le dépôt.</p>
+
+        <form method="POST" enctype="multipart/form-data" action="{{ route('scans.store') }}" class="mt-7 space-y-7 rounded-3xl border bg-white p-7 shadow-sm">
+            @csrf
+            <input type="hidden" name="source_type" value="multimodal">
+
+            <div class="grid gap-5 md:grid-cols-3">
+                @foreach ([
+                    ['receipt_image','1 · Ticket de caisse','Prix, date, enseigne et référence','receipt'],
+                    ['label_image','2 · Étiquette matière','Composition et pourcentages','label'],
+                    ['product_image','3 · Produit entier','Catégorie, couleur et état','product'],
+                ] as [$name,$title,$help,$capture])
+                    <label class="rounded-2xl border-2 border-dashed border-slate-200 p-5 transition hover:border-emerald-400">
+                        <span class="block font-black">{{ $title }}</span>
+                        <span class="mt-1 block text-xs text-slate-500">{{ $help }}</span>
+                        <input type="file" name="{{ $name }}" accept="image/*" capture="environment" required class="mt-4 block w-full text-sm">
+                    </label>
+                @endforeach
+            </div>
+
+            <details class="rounded-2xl bg-slate-50 p-5">
+                <summary class="cursor-pointer font-black">Ajouter plus de preuves</summary>
+                <div class="mt-4 grid gap-5 md:grid-cols-2">
+                    <label class="text-sm font-bold">Dos du produit<input type="file" name="product_back_image" accept="image/*" capture="environment" class="mt-2 block w-full"></label>
+                    <label class="text-sm font-bold">Photo d’un défaut<input type="file" name="damage_image" accept="image/*" capture="environment" class="mt-2 block w-full"></label>
+                </div>
+            </details>
+
+            <div>
+                <label class="font-bold">Référence connue — facultatif</label>
+                <input name="value" value="{{ old('value') }}" placeholder="Code-barres, SKU ou nom du produit" class="mt-2 w-full rounded-xl border-slate-300">
+            </div>
+
+            <div class="rounded-2xl bg-sky-50 p-4 text-sm text-sky-900">
+                Les informations extraites sont des propositions. La matière ne devient « vérifiée » qu’après le contrôle physique TexTileCycle puis la validation finale de la marque.
+            </div>
+
+            @if ($errors->any())
+                <p class="rounded-xl bg-red-50 p-4 text-red-700">{{ $errors->first() }}</p>
+            @endif
+            <button class="w-full rounded-2xl bg-emerald-700 px-6 py-4 font-black text-white">Analyser les photos</button>
+        </form>
+    </div>
+</x-role-layout>
