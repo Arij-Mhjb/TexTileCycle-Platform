@@ -19,6 +19,7 @@
                 <a href="{{ route('brand.products.import') }}">Import CSV</a>
                 <a href="{{ route('brand.labels.index') }}">Mes labels</a>
                 <a href="{{ route('brand.roadmaps.index') }}">Feuilles de route</a>
+                <a href="{{ route('brand.product-label-recommendations.index') }}">IA produit-label</a>
                 <a href="{{ route('brand.material-requests.index') }}">Matières</a>
                 <a href="{{ route('brand.material-matches.index') }}">Retours compatibles</a>
                 <a href="{{ route('brand.profile.edit') }}">Marque</a>

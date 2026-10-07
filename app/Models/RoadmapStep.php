@@ -12,7 +12,7 @@ class RoadmapStep extends Model
 
     protected function casts(): array
     {
-        return ['due_date' => 'date'];
+        return ['due_date' => 'date', 'completion_points' => 'array'];
     }
 
     public function roadmap(): BelongsTo

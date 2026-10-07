@@ -15,7 +15,8 @@ class LabelRoadmap extends Model
 
     protected function casts(): array
     {
-        return ['scope_version' => 'integer', 'starts_on' => 'date', 'target_date' => 'date', 'label_snapshot' => 'array'];
+        return ['scope_version' => 'integer', 'starts_on' => 'date', 'target_date' => 'date', 'label_snapshot' => 'array',
+            'specification' => 'array', 'impact_summary' => 'array', 'ai_assessment_snapshot' => 'array'];
     }
 
     public function brand(): BelongsTo
@@ -26,6 +27,11 @@ class LabelRoadmap extends Model
     public function label(): BelongsTo
     {
         return $this->belongsTo(Label::class);
+    }
+
+    public function recommendation(): BelongsTo
+    {
+        return $this->belongsTo(ProductLabelRecommendation::class, 'product_label_recommendation_id');
     }
 
     public function products(): BelongsToMany

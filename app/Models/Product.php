@@ -37,6 +37,11 @@ class Product extends Model
         return $this->belongsToMany(LabelRoadmap::class)->withPivot('snapshot');
     }
 
+    public function labelRecommendations(): HasMany
+    {
+        return $this->hasMany(ProductLabelRecommendation::class);
+    }
+
     public function materials(): BelongsToMany
     {
         return $this->belongsToMany(Material::class)

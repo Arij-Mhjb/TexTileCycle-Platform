@@ -26,6 +26,13 @@ class MaterialRequest extends Model
         ];
     }
 
-    public function brand(): BelongsTo { return $this->belongsTo(Brand::class); }
-    public function matches(): HasMany { return $this->hasMany(MaterialMatch::class); }
+    public function brand(): BelongsTo
+    {
+        return $this->belongsTo(Brand::class);
+    }
+
+    public function matches(): HasMany
+    {
+        return $this->hasMany(MaterialMatch::class);
+    }
 }

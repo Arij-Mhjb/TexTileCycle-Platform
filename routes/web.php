@@ -67,6 +67,9 @@ Route::middleware(['auth','verified'])->group(function(){
 
     Route::middleware('role:brand')->prefix('brand')->name('brand.')->group(function(){
         Route::resource('roadmaps', \App\Http\Controllers\BrandRoadmapController::class)->parameters(['roadmaps' => 'roadmap']);
+        Route::get('/product-label-recommendations', [\App\Http\Controllers\ProductLabelRecommendationController::class, 'index'])->name('product-label-recommendations.index');
+        Route::post('/product-label-recommendations/analyse', [\App\Http\Controllers\ProductLabelRecommendationController::class, 'analyse'])->name('product-label-recommendations.analyse');
+        Route::post('/product-label-recommendations/{recommendation}/assign', [\App\Http\Controllers\ProductLabelRecommendationController::class, 'assign'])->name('product-label-recommendations.assign');
         Route::post('/roadmaps/{roadmap}/restore', [\App\Http\Controllers\BrandRoadmapController::class, 'restore'])->name('roadmaps.restore');
         Route::patch('/roadmap-steps/{step}', [\App\Http\Controllers\BrandRoadmapController::class, 'step'])->name('roadmaps.steps.update');
         Route::post('/roadmap-steps/{step}/submissions', [\App\Http\Controllers\BrandRoadmapController::class, 'submit'])->name('roadmaps.steps.submit');

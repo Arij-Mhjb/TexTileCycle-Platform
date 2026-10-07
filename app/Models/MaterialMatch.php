@@ -25,6 +25,13 @@ class MaterialMatch extends Model
         ];
     }
 
-    public function request(): BelongsTo { return $this->belongsTo(MaterialRequest::class, 'material_request_id'); }
-    public function productReturn(): BelongsTo { return $this->belongsTo(ProductReturn::class); }
+    public function request(): BelongsTo
+    {
+        return $this->belongsTo(MaterialRequest::class, 'material_request_id');
+    }
+
+    public function productReturn(): BelongsTo
+    {
+        return $this->belongsTo(ProductReturn::class);
+    }
 }

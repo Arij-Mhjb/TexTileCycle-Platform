@@ -6,6 +6,7 @@ use App\Models\Label;
 use App\Models\LabelRoadmap;
 use App\Models\MaterialMatch;
 use App\Models\Product;
+use App\Models\ProductLabelRecommendation;
 use App\Models\RoadmapStep;
 use App\Models\RoadmapSubmission;
 use App\Models\User;
@@ -26,19 +27,46 @@ class LabelRoadmapService
     {
         return DB::transaction(function () use ($user, $data) {
             $label = Label::findOrFail($data['label_id']);
-            $roadmap = LabelRoadmap::create(collect($data)->except('products')->all() + ['brand_id' => $user->brand->id, 'label_snapshot' => $label->only('id', 'name', 'official_url', 'description')]);
+            $recommendation = ! empty($data['recommendation_id'])
+                ? ProductLabelRecommendation::where('brand_id', $user->brand->id)->findOrFail($data['recommendation_id']) : null;
+            if ($recommendation && ($recommendation->label_id !== $label->id || ! in_array($recommendation->product_id, array_map('intval', $data['products']), true))) {
+                throw ValidationException::withMessages(['recommendation_id' => 'La recommandation doit correspondre au label et à un produit du périmètre.']);
+            }
+            $roadmap = LabelRoadmap::create(collect($data)->except('products', 'recommendation_id')->all() + [
+                'brand_id' => $user->brand->id, 'label_snapshot' => $label->only('id', 'name', 'official_url', 'description'),
+                'product_label_recommendation_id' => $recommendation?->id,
+                'specification' => $this->specification($label, $recommendation),
+                'impact_summary' => $recommendation ? ['environmental' => $recommendation->environmental_impacts, 'reputation' => $recommendation->reputation_impacts] : null,
+                'ai_assessment_snapshot' => $recommendation?->only(['id', 'path', 'readiness_score', 'reason', 'gaps', 'target_composition', 'next_steps', 'analysis_mode', 'analysis_model', 'analysed_at']),
+            ]);
             $this->setProducts($roadmap, $data['products']);
             $definitions = app(RoadmapTemplates::class)->steps($label);
             $days = $roadmap->starts_on->diffInDays($roadmap->target_date);
             foreach ($definitions as $index => [$title,$instructions,$evidence]) {
                 $roadmap->steps()->create(['title' => $title, 'instructions' => $instructions, 'required_evidence' => $evidence,
+                    'completion_points' => [$evidence, 'Résultat concret renseigné pour chaque produit du périmètre.', 'Au moins une preuve privée jointe et revue par un administrateur.'],
                     'position' => $index + 1, 'due_date' => $roadmap->starts_on->copy()->addDays((int) round($days * ($index + 1) / count($definitions))),
                     'owner_name' => $user->name, 'goal' => $instructions, 'status' => 'todo']);
             }
             app(ActivityService::class)->log($user->id, $roadmap->brand_id, 'roadmap.created', $roadmap, ['scope_version' => 1, 'products' => $data['products']]);
+            $recommendation?->update(['status' => 'assigned']);
 
             return $roadmap;
         });
+    }
+
+    private function specification(Label $label, ?ProductLabelRecommendation $recommendation): array
+    {
+        return [
+            'title' => 'Cahier des charges de préparation — '.$label->name,
+            'official_source' => $label->official_url,
+            'ruleset_version' => '2026-10',
+            'criteria_to_verify' => $recommendation?->gaps ?? ['Identifier les critères applicables dans le référentiel officiel.'],
+            'target_composition' => $recommendation?->target_composition,
+            'required_work' => $recommendation?->next_steps ?? ['Analyser les écarts', 'Réunir les preuves', 'Faire vérifier le dossier'],
+            'badge_condition' => 'Le badge ne peut être utilisé qu’après validation du produit, du périmètre et des claims par l’organisme compétent.',
+            'measurement_notice' => 'Les bénéfices environnementaux chiffrés exigent une méthode, un périmètre et des données de cycle de vie documentés.',
+        ];
     }
 
     private function setProducts(LabelRoadmap $roadmap, array $ids): void
@@ -126,7 +154,7 @@ class LabelRoadmapService
             $submission->update($data + ['reviewed_by' => $admin->id, 'reviewed_at' => now()]);
             $step->update(['status' => $data['status'] === 'approved' ? 'approved' : 'changes_requested']);
             app(ActivityService::class)->log($admin->id, $roadmap->brand_id, 'roadmap.step.'.$data['status'], $submission, ['comment' => $data['review_comment']]);
-            app(ActivityService::class)->notify($roadmap->brand->user_id,'roadmap_review','Revue de feuille de route',$step->title.' : '.$data['review_comment'],route('brand.roadmaps.show',$roadmap));
+            app(ActivityService::class)->notify($roadmap->brand->user_id, 'roadmap_review', 'Revue de feuille de route', $step->title.' : '.$data['review_comment'], route('brand.roadmaps.show', $roadmap));
         });
     }
 }

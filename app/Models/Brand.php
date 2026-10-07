@@ -39,6 +39,11 @@ class Brand extends Model
         return $this->hasMany(LabelRoadmap::class);
     }
 
+    public function productLabelRecommendations(): HasMany
+    {
+        return $this->hasMany(ProductLabelRecommendation::class);
+    }
+
     public function products(): HasMany
     {
         return $this->hasMany(Product::class);
