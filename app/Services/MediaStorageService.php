@@ -239,17 +239,50 @@ class MediaStorageService
             return $this->client;
         }
 
-        $url = config('services.cloudinary.url');
-        $configuration = $url ?: [
-            'cloud' => [
-                'cloud_name' => config('services.cloudinary.cloud_name'),
-                'api_key' => config('services.cloudinary.api_key'),
-                'api_secret' => config('services.cloudinary.api_secret'),
-            ],
-            'url' => ['secure' => (bool) config('services.cloudinary.secure', true)],
+        $url = $this->normalizedCloudinaryUrl(config('services.cloudinary.url'));
+        $credentials = [
+            'cloud_name' => trim((string) config('services.cloudinary.cloud_name')),
+            'api_key' => trim((string) config('services.cloudinary.api_key')),
+            'api_secret' => trim((string) config('services.cloudinary.api_secret')),
         ];
+        $hasCompleteCredentials = ! in_array('', $credentials, true);
+
+        if ($url !== null) {
+            $configuration = $url;
+        } elseif ($hasCompleteCredentials) {
+            $configuration = [
+                'cloud' => $credentials,
+                'url' => ['secure' => (bool) config('services.cloudinary.secure', true)],
+            ];
+        } else {
+            throw new RuntimeException(
+                'Cloudinary n’est pas configuré correctement. Définissez CLOUDINARY_URL ou les trois variables CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY et CLOUDINARY_API_SECRET.'
+            );
+        }
 
         return $this->client = new Cloudinary($configuration);
+    }
+
+    private function normalizedCloudinaryUrl(mixed $value): ?string
+    {
+        if (! is_string($value) || trim($value) === '') {
+            return null;
+        }
+
+        $url = trim($value, " \t\n\r\0\x0B\"'");
+        $url = preg_replace('/^CLOUDINARY_URL\\s*=\\s*/i', '', $url) ?? $url;
+        $parts = parse_url($url);
+
+        if (($parts['scheme'] ?? null) !== 'cloudinary'
+            || blank($parts['user'] ?? null)
+            || blank($parts['pass'] ?? null)
+            || blank($parts['host'] ?? null)
+            || str_contains($url, '<')
+            || str_contains($url, '>')) {
+            return null;
+        }
+
+        return $url;
     }
 
     private function isOwnedCloudinaryId(?string $publicId): bool
