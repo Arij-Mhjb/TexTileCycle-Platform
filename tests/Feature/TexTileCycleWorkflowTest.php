@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Brand;
 use App\Models\Material;
 use App\Models\Product;
 use App\Models\Scan;
@@ -39,20 +40,47 @@ class TexTileCycleWorkflowTest extends TestCase
             'cloudinary_public_id' => 'textilecycle/products/test-image', 'secure_url' => 'https://res.cloudinary.com/demo/image/upload/test-image.jpg',
             'delivery_type' => 'upload', 'format' => 'jpg', 'version' => 1,
         ]);
+        $media->shouldReceive('url')->once()->andReturn('https://res.cloudinary.com/demo/image/upload/test-image.jpg');
         $this->app->instance(MediaStorageService::class, $media);
         $user = User::factory()->create(['role' => 'admin']);
+        $brandOwner = User::factory()->create(['role' => 'brand']);
+        $brand = Brand::create(['user_id' => $brandOwner->id, 'name' => 'EcoWear', 'slug' => 'ecowear']);
         $material = Material::create(['name' => 'Coton recyclé', 'type' => 'recycled', 'recyclable' => true]);
         $response = $this->actingAs($user)->post(route('products.store'), [
-            'name' => 'Circular Shirt', 'brand' => 'EcoWear', 'sku' => 'EW-CS-001', 'category' => 'Chemise', 'status' => 'published', 'year' => 2026,
+            'name' => 'Circular Shirt', 'brand_id' => $brand->id, 'sku' => 'EW-CS-001', 'category' => 'Chemise', 'status' => 'published', 'year' => 2026,
             'repairable' => 1, 'reusable' => 1, 'recyclable' => 1, 'environmental_score' => 82, 'circularity_score' => 91,
             'animal_free_score' => 100, 'traceability_score' => 76, 'material_ids' => [$material->id],
             'image' => new UploadedFile(public_path('images/impact/responsible-production.jpg'), 'circular-shirt.jpg', 'image/jpeg', null, true),
         ]);
         $response->assertRedirect(route('products.index'));
         $product = Product::where('sku', 'EW-CS-001')->firstOrFail();
+        $this->assertSame($brand->id, $product->brand_id);
+        $this->assertSame('EcoWear', $product->brand);
         $this->assertTrue($product->materials->contains($material));
         $this->assertSame('cloudinary', $product->image_storage_disk);
         $this->assertSame('textilecycle/products/test-image', $product->image_cloudinary_public_id);
+        $this->actingAs($brandOwner)->get(route('brand.products.index'))->assertOk()->assertSee('Circular Shirt');
+    }
+
+    public function test_admin_product_form_requires_an_existing_brand_assignment(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        $brandOwner = User::factory()->create(['role' => 'brand']);
+        $brand = Brand::create(['user_id' => $brandOwner->id, 'name' => 'Assigned Brand', 'slug' => 'assigned-brand']);
+
+        $this->actingAs($admin)->get(route('products.create'))
+            ->assertOk()
+            ->assertSee('Affecter à une marque')
+            ->assertSee('Assigned Brand');
+
+        $this->post(route('products.store'), [
+            'name' => 'Unassigned product', 'sku' => 'NO-BRAND', 'category' => 'Test', 'status' => 'draft',
+        ])->assertSessionHasErrors('brand_id');
+
+        $this->assertDatabaseMissing('products', ['sku' => 'NO-BRAND']);
+        $this->post(route('products.store'), [
+            'name' => 'Unknown brand product', 'brand_id' => $brand->id + 9999, 'sku' => 'BAD-BRAND', 'category' => 'Test', 'status' => 'draft',
+        ])->assertSessionHasErrors('brand_id');
     }
 
     public function test_dashboard_redirects_each_role_to_its_own_experience(): void
