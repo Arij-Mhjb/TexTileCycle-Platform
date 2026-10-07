@@ -3,12 +3,18 @@ namespace App\Http\Controllers;
 use App\Models\Assessment;use App\Models\Evidence;use App\Models\Label;use App\Services\ActivityService;use App\Services\AssessmentProgressService;
 use Illuminate\Http\RedirectResponse;use Illuminate\Http\Request;use Illuminate\View\View;
 class BrandLabelController extends Controller {
- public function index(Request $request): View { return view('brand.labels.index',['labels'=>Label::where('is_active',true)->withCount('steps')->get(),'assessments'=>$request->user()->assessments()->with('label')->get()->keyBy('label_id')]); }
+ public function index(Request $request): View {
+  $brand=$request->user()->brand;
+  $labels=$brand->application()->exists() ? $brand->approvedLabels()->where('is_active',true)->withCount('steps')->get() : Label::where('is_active',true)->withCount('steps')->get();
+  return view('brand.labels.index',['labels'=>$labels,'application'=>$brand->application,'assessments'=>$request->user()->assessments()->with('label')->get()->keyBy('label_id')]);
+ }
  public function show(Request $request,Label $label): View {
+  $this->eligible($request,$label);
   $label->load('steps');$assessment=$request->user()->assessments()->where('label_id',$label->id)->with('evidences.comments.user')->first();
   return view('brand.labels.show',compact('label','assessment'));
  }
  public function apply(Request $request,Label $label): RedirectResponse {
+  $this->eligible($request,$label);
   Assessment::firstOrCreate(['user_id'=>$request->user()->id,'label_id'=>$label->id],['organization_name'=>$request->user()->brand->name,'framework'=>$label->name,'status'=>'draft','assessment_date'=>today()]);
   app(ActivityService::class)->log($request->user()->id,$request->user()->brand->id,'assessment.created',$label);
   return to_route('brand.labels.show',$label)->with('success','Dossier créé.');
@@ -27,5 +33,9 @@ class BrandLabelController extends Controller {
  public function submit(Request $request,Assessment $assessment): RedirectResponse {
   abort_unless($assessment->user_id===$request->user()->id,403);$assessment->update(['submitted_at'=>now(),'status'=>'in_review']);app(AssessmentProgressService::class)->refresh($assessment);
   app(ActivityService::class)->log($request->user()->id,$request->user()->brand->id,'assessment.submitted',$assessment);return back()->with('success','Dossier soumis.');
+ }
+ private function eligible(Request $request,Label $label): void {
+  $brand=$request->user()->brand;
+  abort_unless($label->is_active && (!$brand->application()->exists() || $brand->approvedLabels()->where('labels.id',$label->id)->exists()),403);
  }
 }

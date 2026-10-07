@@ -115,7 +115,7 @@ class CloudinarySmartScanTest extends TestCase
             $asset->version,
         )->andReturn($temporaryPath);
 
-        (new MultimodalScanService($media))->analyse($scan);
+        (new MultimodalScanService($media, app(\App\Services\GeminiVisionService::class)))->analyse($scan);
         $this->assertFileDoesNotExist($temporaryPath);
     }
 

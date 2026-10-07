@@ -7,7 +7,7 @@ RUN npm run build
 
 FROM php:8.3-apache-bookworm
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libcurl4-openssl-dev libpq-dev libonig-dev libzip-dev unzip \
+    libcurl4-openssl-dev libpq-dev libonig-dev libzip-dev unzip supervisor \
     tesseract-ocr tesseract-ocr-fra tesseract-ocr-eng tesseract-ocr-tur \
     imagemagick zbar-tools \
     && docker-php-ext-install curl pdo_pgsql pdo_mysql mbstring zip bcmath \

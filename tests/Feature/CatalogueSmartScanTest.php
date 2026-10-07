@@ -15,15 +15,20 @@ use Tests\TestCase;
 class CatalogueSmartScanTest extends TestCase
 {
     use RefreshDatabase;
+    use \Tests\Support\BrandQuestionnaireData;
 
     public function test_brand_registration_creates_profile_and_redirects(): void
     {
-        $response = $this->post('/register', [
-            'name' => 'Responsable', 'email' => 'newbrand@example.test', 'role' => 'brand', 'brand_name' => 'Nouvelle Marque',
-            'password' => 'password', 'password_confirmation' => 'password',
+        \Illuminate\Support\Facades\Queue::fake();
+        \Illuminate\Support\Facades\Notification::fake();
+        $response=$this->post('/register',[
+            'name'=>'Responsable','email'=>'newbrand@example.test','role'=>'brand','brand_name'=>'Nouvelle Marque',
+            'password'=>'password','password_confirmation'=>'password',
+            'answers'=>$this->brandAnswers(), 'analysis_consent'=>'1',
         ]);
-        $user = User::where('email', 'newbrand@example.test')->firstOrFail();
-        $response->assertRedirect(route('brand.dashboard'));
+        $user=User::where('email','newbrand@example.test')->firstOrFail();
+        $response->assertRedirect(route('brand.application-pending'));
+        $this->assertGuest();
         $this->assertTrue($user->isBrand());
         $this->assertDatabaseHas('brands', ['user_id' => $user->id, 'name' => 'Nouvelle Marque']);
     }

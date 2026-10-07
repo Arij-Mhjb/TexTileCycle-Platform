@@ -36,6 +36,7 @@ use App\Http\Controllers\TreatmentResultController;
 use Illuminate\Support\Facades\Route;
 
 Route::view('/','welcome')->name('home');
+Route::view('/brand-application-pending', 'auth.brand-pending')->name('brand.application-pending');
 Route::get('/brands',[PublicBrandController::class,'index'])->name('brands.index');
 Route::get('/brands/{brand:slug}',[PublicBrandController::class,'show'])->name('brands.show');
 
@@ -43,6 +44,10 @@ Route::middleware(['auth','verified'])->group(function(){
     Route::get('/dashboard',DashboardRedirectController::class)->name('dashboard');
 
     Route::middleware('role:admin')->group(function(){
+        Route::get('/admin/brand-applications', [\App\Http\Controllers\AdminBrandApplicationController::class, 'index'])->name('admin.brand-applications.index');
+        Route::get('/admin/brand-applications/{application}', [\App\Http\Controllers\AdminBrandApplicationController::class, 'show'])->name('admin.brand-applications.show');
+        Route::post('/admin/brand-applications/{application}/analyse', [\App\Http\Controllers\AdminBrandApplicationController::class, 'analyse'])->name('admin.brand-applications.analyse');
+        Route::post('/admin/brand-applications/{application}/approve', [\App\Http\Controllers\AdminBrandApplicationController::class, 'approve'])->name('admin.brand-applications.approve');
         Route::get('/admin',DashboardController::class)->name('admin.dashboard');
         Route::resources([
             'products'=>ProductController::class,'materials'=>MaterialController::class,'detections'=>DetectionController::class,

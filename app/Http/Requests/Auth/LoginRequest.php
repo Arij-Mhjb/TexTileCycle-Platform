@@ -50,6 +50,15 @@ class LoginRequest extends FormRequest
             ]);
         }
 
+        $user = Auth::user();
+        if ($user->isBrand() && $user->brand?->onboarding_status !== 'approved') {
+            Auth::logout();
+            $this->session()->invalidate();
+            $this->session()->regenerateToken();
+            throw ValidationException::withMessages([
+                'email' => 'Votre compte marque est en cours de traitement. Un email vous sera envoyé après validation administrateur.',
+            ]);
+        }
         RateLimiter::clear($this->throttleKey());
     }
 

@@ -1,5 +1,12 @@
 <x-app-layout title="Centre de pilotage">
     @vite('resources/js/admin-charts.js')
+    @php($pendingApplications = \App\Models\BrandApplication::where('status', 'pending')->count())
+    @if($pendingApplications)
+    <a href="{{ route('admin.brand-applications.index') }}" class="mb-6 flex items-center justify-between rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-emerald-900">
+        <span><strong>{{ $pendingApplications }} inscription(s) marque à examiner</strong><span class="mt-1 block text-sm">Questionnaires et recommandations de labels disponibles dans les dossiers.</span></span>
+        <span class="text-sm font-bold">Examiner →</span>
+    </a>
+    @endif
 
     <section class="relative overflow-hidden rounded-[2rem] bg-slate-950 p-7 text-white shadow-2xl shadow-slate-900/15 sm:p-9">
         <div class="absolute -right-28 -top-36 h-96 w-96 rounded-full bg-emerald-500/20 blur-3xl"></div>

@@ -14,6 +14,9 @@ class EnsureUserHasRole
             abort(403, 'Vous ne disposez pas des autorisations nécessaires.');
         }
 
+        if ($request->user()->isBrand() && $request->user()->brand?->onboarding_status !== 'approved') {
+            return redirect()->route('brand.application-pending');
+        }
         return $next($request);
     }
 }
