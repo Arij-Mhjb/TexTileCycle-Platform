@@ -1,8 +1,10 @@
 import './bootstrap';
 
 import Alpine from 'alpinejs';
+import brandRegistration from './brand-registration';
 
 window.Alpine = Alpine;
+Alpine.data('brandRegistration', brandRegistration);
 
 Alpine.start();
 
