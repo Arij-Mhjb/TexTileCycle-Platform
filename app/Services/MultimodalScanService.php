@@ -5,13 +5,14 @@ namespace App\Services;
 use App\Models\Product;
 use App\Models\Scan;
 use DateTimeImmutable;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Symfony\Component\Process\Process;
 use Throwable;
 
 class MultimodalScanService
 {
+    public function __construct(private MediaStorageService $media) {}
+
     private const MATERIAL_ALIASES = [
         'Viscose' => ['viscose', 'viskoz', 'viscosa', 'rayon'],
         'Polyester' => ['polyester', 'poliester'],
@@ -35,20 +36,46 @@ class MultimodalScanService
             $sourceTexts['manual'] = $scan->raw_text;
         }
 
+        $unavailableAssets = [];
         foreach ($scan->assets as $asset) {
-            $text = $this->extractText($asset->path, $asset->type);
-            $barcode = $this->extractBarcode($asset->path);
-            if ($barcode) {
-                $text = trim($text."\nBARCODE: ".$barcode);
-            }
+            $temporaryPath = null;
+            try {
+                $temporaryPath = $this->media->downloadToTemporaryFile(
+                    $asset->path,
+                    $asset->storage_disk,
+                    $asset->cloudinary_public_id,
+                    $asset->secure_url,
+                    $asset->delivery_type,
+                    $asset->format,
+                    $asset->version,
+                );
+                if (! $temporaryPath) {
+                    $unavailableAssets[] = $asset->type;
 
-            $asset->update([
-                'extracted_text' => $text ?: null,
-                'confidence' => $text ? 80 : null,
-            ]);
+                    continue;
+                }
 
-            if ($text) {
-                $sourceTexts[$asset->type] = trim(($sourceTexts[$asset->type] ?? '')."\n".$text);
+                $text = $this->extractText($temporaryPath, $asset->type);
+                $barcode = $this->extractBarcode($temporaryPath);
+                if ($barcode) {
+                    $text = trim($text."\nBARCODE: ".$barcode);
+                }
+
+                $asset->update([
+                    'extracted_text' => $text ?: null,
+                    'confidence' => $text ? 80 : null,
+                ]);
+
+                if ($text) {
+                    $sourceTexts[$asset->type] = trim(($sourceTexts[$asset->type] ?? '')."\n".$text);
+                }
+            } catch (Throwable $exception) {
+                report($exception);
+                $unavailableAssets[] = $asset->type;
+            } finally {
+                if ($temporaryPath && is_file($temporaryPath)) {
+                    @unlink($temporaryPath);
+                }
             }
         }
 
@@ -57,6 +84,10 @@ class MultimodalScanService
         $data = $this->extractStructuredData($sourceTexts, $product);
 
         $warnings = $data['warnings'] ?? [];
+        if ($unavailableAssets) {
+            $warnings[] = 'Certaines images sont indisponibles : '.collect($unavailableAssets)->unique()->join(', ').'.';
+            $data['warnings'] = $warnings;
+        }
         if ($rawText === '') {
             $warnings[] = 'Aucun texte lisible détecté. Recadrez le ticket ou l’étiquette, évitez les reflets et relancez l’analyse.';
             $data['warnings'] = $warnings;
@@ -158,12 +189,11 @@ class MultimodalScanService
         return $data;
     }
 
-    private function extractText(string $path, string $assetType): string
+    private function extractText(string $absolutePath, string $assetType): string
     {
         $temporaryPath = null;
 
         try {
-            $absolutePath = Storage::disk('public')->path($path);
             if (! is_file($absolutePath)) {
                 return '';
             }
@@ -231,10 +261,9 @@ class MultimodalScanService
         return $process->isSuccessful() ? trim($process->getOutput()) : '';
     }
 
-    private function extractBarcode(string $path): ?string
+    private function extractBarcode(string $absolutePath): ?string
     {
         try {
-            $absolutePath = Storage::disk('public')->path($path);
             if (! is_file($absolutePath)) {
                 return null;
             }

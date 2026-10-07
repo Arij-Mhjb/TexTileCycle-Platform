@@ -7,11 +7,14 @@ use App\Models\Detection;
 use App\Models\Product;
 use App\Models\Scan;
 use App\Services\CircularRecommendationService;
+use App\Services\MediaStorageService;
 use App\Services\MultimodalScanService;
 use App\Services\SmartScanService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
+use Throwable;
 
 class ScanController extends Controller
 {
@@ -30,39 +33,28 @@ class ScanController extends Controller
         return view('scans.create', ['item' => new Scan]);
     }
 
-    public function store(Request $request, SmartScanService $scanner, MultimodalScanService $multimodal): RedirectResponse
-    {
+    public function store(
+        Request $request,
+        SmartScanService $scanner,
+        MultimodalScanService $multimodal,
+        MediaStorageService $media
+    ): RedirectResponse {
         $data = $request->validate([
             'source_type' => 'required|in:barcode,qr,manual,image,multimodal',
             'value' => 'nullable|required_unless:source_type,image,multimodal|string|max:500',
-            'image' => 'nullable|required_if:source_type,image|image|max:5120',
-            'receipt_image' => 'nullable|required_if:source_type,multimodal|image|max:8192',
-            'label_image' => 'nullable|required_if:source_type,multimodal|image|max:8192',
-            'product_image' => 'nullable|required_if:source_type,multimodal|image|max:8192',
-            'product_back_image' => 'nullable|image|max:8192',
-            'damage_image' => 'nullable|image|max:8192',
-            'privacy_consent' => 'required_if:source_type,multimodal|accepted',
+            'image' => 'nullable|required_if:source_type,image|image|mimes:jpg,jpeg,png,webp|max:5120',
+            'receipt_image' => 'nullable|required_if:source_type,multimodal|image|mimes:jpg,jpeg,png,webp|max:8192',
+            'label_image' => 'nullable|required_if:source_type,multimodal|image|mimes:jpg,jpeg,png,webp|max:8192',
+            'product_image' => 'nullable|required_if:source_type,multimodal|image|mimes:jpg,jpeg,png,webp|max:8192',
+            'product_back_image' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:8192',
+            'damage_image' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:8192',
+            'privacy_consent' => 'exclude_unless:source_type,multimodal|required|accepted',
         ]);
 
         $value = $data['value'] ?? '';
         $isMultimodal = $data['source_type'] === 'multimodal';
         $matches = $isMultimodal ? collect() : $scanner->matches($value);
         $product = $matches->count() === 1 ? $matches->first() : null;
-        $path = $request->hasFile('image') ? $request->file('image')->store('scans', 'public') : null;
-
-        $scan = Scan::create([
-            'user_id' => $request->user()->id,
-            'product_id' => $product?->id,
-            'source_type' => $data['source_type'],
-            'image_path' => $path,
-            'raw_text' => $value,
-            'status' => $isMultimodal ? 'analysing' : ($product ? 'completed' : ($matches->count() > 1 ? 'multiple_matches' : 'not_found')),
-            'ai_status' => $isMultimodal ? 'analysing' : 'not_requested',
-            'confidence' => $product ? $scanner->confidence($product, $value) : null,
-            'result_summary' => $matches->count() > 1 ? $matches->pluck('name')->join(', ') : null,
-            'scanned_at' => now(),
-        ]);
-
         $assetFields = [
             'receipt_image' => 'receipt',
             'label_image' => 'composition_label',
@@ -71,13 +63,46 @@ class ScanController extends Controller
             'damage_image' => 'damage',
         ];
 
-        foreach ($assetFields as $field => $type) {
-            if ($request->hasFile($field)) {
-                $scan->assets()->create([
-                    'type' => $type,
-                    'path' => $request->file($field)->store('scans/'.$scan->id, 'public'),
-                ]);
+        $uploadedMedia = [];
+        DB::beginTransaction();
+        try {
+            $scan = Scan::create([
+                'user_id' => $request->user()->id,
+                'product_id' => $product?->id,
+                'source_type' => $data['source_type'],
+                'raw_text' => $value,
+                'status' => $isMultimodal ? 'analysing' : ($product ? 'completed' : ($matches->count() > 1 ? 'multiple_matches' : 'not_found')),
+                'ai_status' => $isMultimodal ? 'analysing' : 'not_requested',
+                'confidence' => $product ? $scanner->confidence($product, $value) : null,
+                'result_summary' => $matches->count() > 1 ? $matches->pluck('name')->join(', ') : null,
+                'scanned_at' => now(),
+            ]);
+
+            if ($request->hasFile('image')) {
+                $stored = $media->storeScanImage($request->file('image'), $scan->user_id, $scan->uuid, 'product_front');
+                $uploadedMedia[] = $stored;
+                $scan->update($this->scanImageColumns($stored));
             }
+
+            foreach ($assetFields as $field => $type) {
+                if ($request->hasFile($field)) {
+                    $stored = $media->storeScanImage($request->file($field), $scan->user_id, $scan->uuid, $type);
+                    $uploadedMedia[] = $stored;
+                    $scan->assets()->create(['type' => $type, ...$stored]);
+                }
+            }
+
+            DB::commit();
+        } catch (Throwable $exception) {
+            DB::rollBack();
+            foreach ($uploadedMedia as $stored) {
+                $media->delete($stored['path'], $stored['storage_disk'], $stored['cloudinary_public_id'], $stored['delivery_type']);
+            }
+            report($exception);
+
+            return back()->withInput()->withErrors([
+                'images' => 'Le stockage sécurisé des images a échoué. Aucun scan incomplet n’a été conservé. Veuillez réessayer.',
+            ]);
         }
 
         if ($isMultimodal) {
@@ -135,11 +160,28 @@ class ScanController extends Controller
         return view('scans.show', compact('scan', 'recommendation', 'points', 'catalogueProducts'));
     }
 
-    public function reanalyse(Request $request, Scan $scan, MultimodalScanService $multimodal): RedirectResponse
-    {
+    public function reanalyse(
+        Request $request,
+        Scan $scan,
+        MultimodalScanService $multimodal,
+        MediaStorageService $media
+    ): RedirectResponse {
         $this->guard($request, $scan);
         abort_unless($scan->source_type === 'multimodal', 422);
         abort_if($scan->consumer_confirmed_at, 422, 'Les données déjà confirmées ne peuvent plus être remplacées.');
+
+        $scan->load('assets');
+        $hasAvailableImage = $scan->assets->contains(fn ($asset) => $media->exists(
+            $asset->path,
+            $asset->storage_disk,
+            $asset->cloudinary_public_id,
+            $asset->delivery_type,
+        ));
+        if (! $hasAvailableImage) {
+            return back()->withErrors([
+                'images' => 'Image originale indisponible après l’ancien déploiement. La réanalyse ne peut pas être lancée.',
+            ]);
+        }
 
         $scan->update([
             'status' => 'analysing',
@@ -219,10 +261,24 @@ class ScanController extends Controller
         return to_route('scans.show', $scan)->with('success', 'Produit confirmé.');
     }
 
-    public function destroy(Request $request, Scan $scan): RedirectResponse
+    public function destroy(Request $request, Scan $scan, MediaStorageService $media): RedirectResponse
     {
         $this->guard($request, $scan);
+        $scan->load('assets');
+        $references = $scan->assets->map(fn ($asset) => [
+            $asset->path, $asset->storage_disk, $asset->cloudinary_public_id, $asset->delivery_type,
+        ])->all();
+        if ($scan->image_path) {
+            $references[] = [
+                $scan->image_path, $scan->image_storage_disk,
+                $scan->image_cloudinary_public_id, $scan->image_delivery_type,
+            ];
+        }
         $scan->delete();
+
+        foreach ($references as [$path, $disk, $publicId, $deliveryType]) {
+            $media->delete($path, $disk, $publicId, $deliveryType);
+        }
 
         return to_route('scans.index')->with('success', 'Scan supprimé.');
     }
@@ -230,5 +286,18 @@ class ScanController extends Controller
     private function guard(Request $request, Scan $scan): void
     {
         abort_unless($request->user()->isAdmin() || $scan->user_id === $request->user()->id, 403);
+    }
+
+    private function scanImageColumns(array $stored): array
+    {
+        return [
+            'image_path' => $stored['path'],
+            'image_storage_disk' => $stored['storage_disk'],
+            'image_cloudinary_public_id' => $stored['cloudinary_public_id'],
+            'image_secure_url' => $stored['secure_url'],
+            'image_delivery_type' => $stored['delivery_type'],
+            'image_format' => $stored['format'],
+            'image_version' => $stored['version'],
+        ];
     }
 }

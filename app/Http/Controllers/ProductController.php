@@ -4,9 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Models\Material;
 use App\Models\Product;
+use App\Services\MediaStorageService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
 class ProductController extends Controller
@@ -36,18 +37,31 @@ class ProductController extends Controller
         ]);
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request, MediaStorageService $media): RedirectResponse
     {
         $data = $this->validated($request);
         $materialIds = $data['material_ids'] ?? [];
         unset($data['material_ids'], $data['image'], $data['remove_image']);
 
-        if ($request->hasFile('image')) {
-            $data['image_path'] = $request->file('image')->store('products', 'public');
-        }
+        $stored = null;
+        try {
+            if ($request->hasFile('image')) {
+                $stored = $media->storeProductImage($request->file('image'));
+                $data += $this->productImageColumns($stored);
+            }
 
-        $product = Product::create($data);
-        $product->materials()->sync($materialIds);
+            DB::transaction(function () use ($data, $materialIds) {
+                $product = Product::create($data);
+                $product->materials()->sync($materialIds);
+            });
+        } catch (\Throwable $exception) {
+            if ($stored) {
+                $media->delete($stored['path'], $stored['storage_disk'], $stored['cloudinary_public_id'], $stored['delivery_type']);
+            }
+            report($exception);
+
+            return back()->withInput()->withErrors(['image' => 'Le produit n’a pas pu être enregistré avec sa photo.']);
+        }
 
         return to_route('products.index')->with('success', 'Produit créé avec succès.');
     }
@@ -60,36 +74,49 @@ class ProductController extends Controller
         ]);
     }
 
-    public function update(Request $request, Product $product): RedirectResponse
+    public function update(Request $request, Product $product, MediaStorageService $media): RedirectResponse
     {
         $data = $this->validated($request, $product);
         $materialIds = $data['material_ids'] ?? [];
         unset($data['material_ids'], $data['image'], $data['remove_image']);
 
-        $oldImagePath = $product->image_path;
-        if ($request->hasFile('image')) {
-            $data['image_path'] = $request->file('image')->store('products', 'public');
-        } elseif ($request->boolean('remove_image')) {
-            $data['image_path'] = null;
+        $oldImage = $this->productImageReference($product);
+        $stored = null;
+        try {
+            if ($request->hasFile('image')) {
+                $stored = $media->storeProductImage($request->file('image'));
+                $data += $this->productImageColumns($stored);
+            } elseif ($request->boolean('remove_image')) {
+                $data += $this->productImageColumns(null);
+            }
+
+            DB::transaction(function () use ($product, $data, $materialIds) {
+                $product->update($data);
+                $product->materials()->sync($materialIds);
+            });
+        } catch (\Throwable $exception) {
+            if ($stored) {
+                $media->delete($stored['path'], $stored['storage_disk'], $stored['cloudinary_public_id'], $stored['delivery_type']);
+            }
+            report($exception);
+
+            return back()->withInput()->withErrors(['image' => 'La mise à jour du produit et de sa photo a échoué.']);
         }
 
-        $product->update($data);
-        $product->materials()->sync($materialIds);
-
-        if ($oldImagePath && $oldImagePath !== $product->image_path) {
-            Storage::disk('public')->delete($oldImagePath);
+        if (($stored || $request->boolean('remove_image')) && $oldImage[0]) {
+            $media->delete(...$oldImage);
         }
 
         return to_route('products.index')->with('success', 'Produit mis à jour.');
     }
 
-    public function destroy(Product $product): RedirectResponse
+    public function destroy(Product $product, MediaStorageService $media): RedirectResponse
     {
-        if ($product->image_path) {
-            Storage::disk('public')->delete($product->image_path);
-        }
-
+        $image = $this->productImageReference($product);
         $product->delete();
+        if ($image[0]) {
+            $media->delete(...$image);
+        }
 
         return back()->with('success', 'Produit supprimé.');
     }
@@ -116,5 +143,28 @@ class ProductController extends Controller
             'material_ids' => 'nullable|array',
             'material_ids.*' => 'exists:materials,id',
         ]);
+    }
+
+    private function productImageColumns(?array $stored): array
+    {
+        return [
+            'image_path' => $stored['path'] ?? null,
+            'image_storage_disk' => $stored['storage_disk'] ?? null,
+            'image_cloudinary_public_id' => $stored['cloudinary_public_id'] ?? null,
+            'image_secure_url' => $stored['secure_url'] ?? null,
+            'image_delivery_type' => $stored['delivery_type'] ?? null,
+            'image_format' => $stored['format'] ?? null,
+            'image_version' => $stored['version'] ?? null,
+        ];
+    }
+
+    private function productImageReference(Product $product): array
+    {
+        return [
+            $product->image_path,
+            $product->image_storage_disk,
+            $product->image_cloudinary_public_id,
+            $product->image_delivery_type,
+        ];
     }
 }

@@ -81,6 +81,22 @@ DB_URL=postgresql://...
 
 Le fichier `.env` local ne doit jamais être envoyé sur GitHub.
 
+### Stockage persistant des médias
+
+Render possède un disque local éphémère. Les nouvelles photos Smart Scan et les nouvelles photos produit sont donc envoyées vers Cloudinary et seules leurs références durables sont conservées en base.
+
+Configurer dans le tableau de bord Render, sans placer les valeurs dans GitHub :
+
+```env
+FILESYSTEM_DISK=cloudinary
+CLOUDINARY_URL=cloudinary://<api_key>:<api_secret>@<cloud_name>
+CLOUDINARY_SECURE=true
+```
+
+À la place de `CLOUDINARY_URL`, les variables séparées `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY` et `CLOUDINARY_API_SECRET` sont aussi supportées. Les tickets sont téléversés en ressource Cloudinary `authenticated`; les autres photos utilisent également des URLs HTTPS signées générées côté serveur. Les anciens chemins locaux sont conservés : une image encore présente reste lisible, tandis qu’une image déjà perdue affiche un remplacement sans provoquer d’erreur serveur.
+
+Le démarrage de production exécute uniquement `php artisan migrate --force`. Le seeding ne s’exécute que si `RUN_SEED=true` est explicitement défini.
+
 ## Comptes de démonstration
 
 Après le seeding :

@@ -17,7 +17,10 @@
                     <div>
                         <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
                             @foreach ($return->scan?->assets ?? [] as $asset)
-                                <a href="{{ $asset->url }}" target="_blank"><img src="{{ $asset->url }}" class="h-28 w-full rounded-xl object-cover"></a>
+                                <figure>
+                                    <a href="{{ $asset->url }}" target="_blank"><img src="{{ $asset->url }}" class="h-28 w-full rounded-xl object-cover"></a>
+                                    @unless($asset->is_available)<figcaption class="mt-1 text-xs font-semibold text-amber-700">Image originale indisponible après l’ancien déploiement</figcaption>@endunless
+                                </figure>
                             @endforeach
                         </div>
                         <div class="mt-5 rounded-2xl bg-slate-50 p-5">

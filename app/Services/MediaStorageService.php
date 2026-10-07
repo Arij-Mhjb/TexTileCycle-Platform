@@ -1,0 +1,286 @@
+<?php
+
+namespace App\Services;
+
+use Cloudinary\Asset\DeliveryType;
+use Cloudinary\Cloudinary;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
+use RuntimeException;
+use Throwable;
+
+class MediaStorageService
+{
+    private const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+
+    public function __construct(private ?Cloudinary $client = null) {}
+
+    public function storeScanImage(
+        UploadedFile $file,
+        int $userId,
+        string $scanUuid,
+        string $kind
+    ): array {
+        $folder = match ($kind) {
+            'receipt' => 'receipt',
+            'composition_label' => 'composition',
+            default => 'product',
+        };
+
+        return $this->upload(
+            $file,
+            "textilecycle/scans/{$userId}/{$scanUuid}/{$folder}",
+            $kind === 'receipt' ? DeliveryType::AUTHENTICATED : DeliveryType::UPLOAD
+        );
+    }
+
+    public function storeProductImage(UploadedFile $file): array
+    {
+        return $this->upload($file, 'textilecycle/products', DeliveryType::UPLOAD);
+    }
+
+    public function url(
+        ?string $path,
+        ?string $disk = null,
+        ?string $publicId = null,
+        ?string $secureUrl = null,
+        ?string $deliveryType = null,
+        ?string $format = null,
+        int|string|null $version = null
+    ): string {
+        if ($disk === 'cloudinary' && $publicId) {
+            try {
+                $asset = $this->cloudinary()->image($publicId)
+                    ->deliveryType($deliveryType ?: DeliveryType::UPLOAD)
+                    ->signUrl();
+
+                if ($format) {
+                    $asset->extension($format);
+                }
+                if ($version) {
+                    $asset->version($version);
+                }
+
+                return $asset->toUrl();
+            } catch (Throwable $exception) {
+                $this->reportStorageError('url', $exception);
+
+                return asset('images/placeholders/media-unavailable.svg');
+            }
+        }
+
+        $localDisk = $this->localDisk($disk);
+        if ($localDisk && $this->isSafeLocalPath($path) && Storage::disk($localDisk)->exists($path)) {
+            return Storage::disk($localDisk)->url($path);
+        }
+
+        return asset('images/placeholders/media-unavailable.svg');
+    }
+
+    public function exists(
+        ?string $path,
+        ?string $disk = null,
+        ?string $publicId = null,
+        ?string $deliveryType = null
+    ): bool {
+        if ($disk === 'cloudinary') {
+            if (! $this->isOwnedCloudinaryId($publicId)) {
+                return false;
+            }
+
+            try {
+                $this->cloudinary()->adminApi()->asset($publicId, [
+                    'resource_type' => 'image',
+                    'type' => $deliveryType ?: DeliveryType::UPLOAD,
+                ]);
+
+                return true;
+            } catch (Throwable $exception) {
+                $this->reportStorageError('exists', $exception);
+
+                return false;
+            }
+        }
+
+        $localDisk = $this->localDisk($disk);
+
+        return $localDisk && $this->isSafeLocalPath($path) && Storage::disk($localDisk)->exists($path);
+    }
+
+    public function delete(
+        ?string $path,
+        ?string $disk = null,
+        ?string $publicId = null,
+        ?string $deliveryType = null
+    ): bool {
+        if ($disk === 'cloudinary') {
+            if (! $this->isOwnedCloudinaryId($publicId)) {
+                return false;
+            }
+
+            try {
+                $result = $this->cloudinary()->uploadApi()->destroy($publicId, [
+                    'resource_type' => 'image',
+                    'type' => $deliveryType ?: DeliveryType::UPLOAD,
+                    'invalidate' => true,
+                ]);
+
+                return in_array($result['result'] ?? null, ['ok', 'not found'], true);
+            } catch (Throwable $exception) {
+                $this->reportStorageError('delete', $exception);
+
+                return false;
+            }
+        }
+
+        $localDisk = $this->localDisk($disk);
+
+        return (bool) ($localDisk && $this->isSafeLocalPath($path) && Storage::disk($localDisk)->delete($path));
+    }
+
+    public function downloadToTemporaryFile(
+        ?string $path,
+        ?string $disk = null,
+        ?string $publicId = null,
+        ?string $secureUrl = null,
+        ?string $deliveryType = null,
+        ?string $format = null,
+        int|string|null $version = null
+    ): ?string {
+        $temporaryPath = sys_get_temp_dir().'/textilecycle-media-'.Str::uuid().'.'.($format ?: 'img');
+
+        try {
+            if ($disk === 'cloudinary') {
+                if (! $this->isOwnedCloudinaryId($publicId)) {
+                    return null;
+                }
+
+                // The URL is always generated from our stored public ID. An arbitrary remote
+                // URL supplied by a user is never accepted here.
+                $downloadUrl = $this->url(
+                    $path,
+                    $disk,
+                    $publicId,
+                    $secureUrl,
+                    $deliveryType,
+                    $format,
+                    $version
+                );
+                if (str_contains($downloadUrl, '/images/placeholders/media-unavailable.svg')) {
+                    return null;
+                }
+                $response = Http::timeout(25)->retry(2, 200)->get($downloadUrl);
+                if (! $response->successful()) {
+                    return null;
+                }
+                file_put_contents($temporaryPath, $response->body(), LOCK_EX);
+            } else {
+                $localDisk = $this->localDisk($disk);
+                if (! $localDisk || ! $this->isSafeLocalPath($path) || ! Storage::disk($localDisk)->exists($path)) {
+                    return null;
+                }
+                file_put_contents($temporaryPath, Storage::disk($localDisk)->get($path), LOCK_EX);
+            }
+
+            $mime = (new \finfo(FILEINFO_MIME_TYPE))->file($temporaryPath);
+            if (! in_array($mime, self::ALLOWED_MIME_TYPES, true)) {
+                @unlink($temporaryPath);
+
+                return null;
+            }
+
+            return $temporaryPath;
+        } catch (Throwable $exception) {
+            @unlink($temporaryPath);
+            $this->reportStorageError('download', $exception);
+
+            return null;
+        }
+    }
+
+    private function upload(UploadedFile $file, string $folder, string $deliveryType): array
+    {
+        $mime = $file->getMimeType();
+        if (! $file->isValid() || ! in_array($mime, self::ALLOWED_MIME_TYPES, true)) {
+            throw new RuntimeException('Le fichier envoyé n’est pas une image JPEG, PNG ou WebP valide.');
+        }
+
+        try {
+            $result = $this->cloudinary()->uploadApi()->upload($file->getRealPath(), [
+                'resource_type' => 'image',
+                'folder' => $folder,
+                'public_id' => (string) Str::uuid(),
+                'unique_filename' => false,
+                'overwrite' => false,
+                'type' => $deliveryType,
+            ]);
+
+            return [
+                'path' => $result['public_id'],
+                'storage_disk' => 'cloudinary',
+                'cloudinary_public_id' => $result['public_id'],
+                'secure_url' => $result['secure_url'] ?? null,
+                'delivery_type' => $result['type'] ?? $deliveryType,
+                'format' => $result['format'] ?? $file->guessExtension(),
+                'version' => $result['version'] ?? null,
+            ];
+        } catch (Throwable $exception) {
+            $this->reportStorageError('upload', $exception);
+            throw new RuntimeException('Le stockage sécurisé de l’image a échoué. Veuillez réessayer.', 0, $exception);
+        }
+    }
+
+    private function cloudinary(): Cloudinary
+    {
+        if ($this->client) {
+            return $this->client;
+        }
+
+        $url = config('services.cloudinary.url');
+        $configuration = $url ?: [
+            'cloud' => [
+                'cloud_name' => config('services.cloudinary.cloud_name'),
+                'api_key' => config('services.cloudinary.api_key'),
+                'api_secret' => config('services.cloudinary.api_secret'),
+            ],
+            'url' => ['secure' => (bool) config('services.cloudinary.secure', true)],
+        ];
+
+        return $this->client = new Cloudinary($configuration);
+    }
+
+    private function isOwnedCloudinaryId(?string $publicId): bool
+    {
+        return is_string($publicId)
+            && str_starts_with($publicId, 'textilecycle/')
+            && ! str_contains($publicId, '..')
+            && ! str_contains($publicId, '://');
+    }
+
+    private function isSafeLocalPath(?string $path): bool
+    {
+        return is_string($path)
+            && $path !== ''
+            && ! str_starts_with($path, '/')
+            && ! str_contains($path, '..')
+            && ! str_contains($path, '://');
+    }
+
+    private function localDisk(?string $disk): ?string
+    {
+        $disk ??= 'public';
+
+        return in_array($disk, ['public', 'local'], true) ? $disk : null;
+    }
+
+    private function reportStorageError(string $operation, Throwable $exception): void
+    {
+        Log::warning('Échec du stockage média.', [
+            'operation' => $operation,
+            'exception' => $exception::class,
+        ]);
+    }
+}

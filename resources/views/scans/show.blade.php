@@ -5,13 +5,16 @@
             <div><p class="text-xs font-black uppercase tracking-[.2em] text-emerald-600">Smart Scan #{{ $scan->id }}</p><h1 class="mt-2 text-3xl font-black">Analyse du textile</h1></div>
             <div class="flex flex-wrap items-center gap-3">
                 <span class="rounded-full bg-sky-50 px-4 py-2 text-sm font-black text-sky-700">{{ $scan->confidence ?? 0 }} % de confiance · données non vérifiées</span>
-                @if ($scan->source_type === 'multimodal' && ! $scan->consumer_confirmed_at)
+                @php($hasReanalysableImage = $scan->assets->contains(fn ($asset) => $asset->is_available))
+                @if ($scan->source_type === 'multimodal' && ! $scan->consumer_confirmed_at && $hasReanalysableImage)
                     <form method="POST" action="{{ route('scans.reanalyse', $scan) }}">
                         @csrf
                         <button class="rounded-xl border border-emerald-600 px-4 py-2 text-sm font-black text-emerald-700 hover:bg-emerald-50">
                             Relancer l’analyse
                         </button>
                     </form>
+                @elseif ($scan->source_type === 'multimodal' && ! $scan->consumer_confirmed_at)
+                    <button disabled title="Aucune image source disponible" class="cursor-not-allowed rounded-xl border border-slate-300 px-4 py-2 text-sm font-black text-slate-400">Relancer l’analyse</button>
                 @endif
             </div>
         </div>
@@ -22,6 +25,9 @@
                     <figure class="overflow-hidden rounded-2xl border bg-white">
                         <img src="{{ $asset->url }}" alt="{{ $asset->type }}" class="h-36 w-full object-cover">
                         <figcaption class="p-3 text-xs font-black uppercase text-slate-500">{{ str($asset->type)->replace('_',' ')->headline() }}</figcaption>
+                        @unless ($asset->is_available)
+                            <p class="px-3 pb-3 text-xs font-semibold normal-case text-amber-700">Image originale indisponible après l’ancien déploiement</p>
+                        @endunless
                     </figure>
                 @endforeach
             </section>

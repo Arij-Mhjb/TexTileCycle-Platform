@@ -11,7 +11,7 @@
                 </div>
                 <div class="mt-5 grid gap-5 lg:grid-cols-[1fr_.8fr]">
                     <div>
-                        <div class="grid grid-cols-3 gap-2">@foreach(collect($return->scan?->assets ?? [])->where('type','!=','receipt') as $asset)<img src="{{ $asset->url }}" class="h-28 w-full rounded-xl object-cover">@endforeach</div>
+                        <div class="grid grid-cols-3 gap-2">@foreach(collect($return->scan?->assets ?? [])->where('type','!=','receipt') as $asset)<figure><img src="{{ $asset->url }}" class="h-28 w-full rounded-xl object-cover">@unless($asset->is_available)<figcaption class="mt-1 text-xs font-semibold text-amber-700">Image originale indisponible après l’ancien déploiement</figcaption>@endunless</figure>@endforeach</div>
                         <p class="mt-4 text-sm"><strong>État vérifié :</strong> {{ $return->condition }} · <strong>Admin :</strong> {{ $return->admin_review_note ?: 'Conforme' }}</p>
                     </div>
                     <div class="rounded-2xl bg-slate-50 p-5">
