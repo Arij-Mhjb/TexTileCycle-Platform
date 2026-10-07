@@ -1,285 +1,453 @@
+<div align="center">
+
 # TexTileCycle
 
-## Inscription marque et orientation vers les labels
+**La seconde vie du textile devient visible.**
 
-L’inscription **Marque** comprend un questionnaire en six étapes (compte, périmètre, matières, origine animale, environnement, preuves). Les sous-questions apparaissent selon les réponses ; le serveur vérifie les mêmes conditions et ne conserve pas les réponses devenues hors périmètre.
+Plateforme de circularité textile, de passeports numériques et de préparation aux labels.
 
-Après envoi, la marque reste déconnectée, voit le message de prise en charge et reçoit un email. Le compte reste bloqué jusqu’à la décision administrateur. Les marques existantes conservent leur accès.
+**[Découvrir l’application déployée](https://textilecycle.onrender.com/)** · **[Scénario matières → labels](docs/circular-material-label-journey.md)** · **[Captures de production](docs/screenshots/README.md)**
 
-Dans **Administration → Inscriptions marques**, l’administrateur consulte les réponses, les pistes IA, les preuves manquantes et les transformations proposées. Il sélectionne les labels (y compris des labels non proposés par l’IA), consigne son motif puis active le compte. L’analyse originale et la sélection finale sont conservées séparément. L’activation programme un email à la marque et un rapport de traçabilité à `BRAND_AUDIT_EMAIL` (par défaut `arij.mhjb1@gmail.com`). Après connexion, la marque retrouve uniquement les démarches retenues dans **Mes labels**. Aucune certification n’est délivrée par ce processus.
+Projet **Applications Web Avancées — ESPRIT · 5TWIN4 · TechForGood · 2026–2027**
 
-### Configuration à renseigner dans `.env`
+`Laravel 12` · `PHP ≥ 8.2` · `Blade` · `Tailwind CSS 3` · `Alpine.js` · `PostgreSQL / MySQL`
 
-```env
-BRAND_AI_API_KEY=your-server-side-openai-key
-BRAND_AI_MODEL=gpt-4o-mini
-BRAND_AUDIT_EMAIL=arij.mhjb1@gmail.com
-QUEUE_CONNECTION=database
-DB_QUEUE_RETRY_AFTER=180
-MAIL_MAILER=smtp
-MAIL_HOST=your-smtp-host
-MAIL_PORT=587
-MAIL_USERNAME=your-smtp-user
-MAIL_PASSWORD=your-smtp-password
-MAIL_FROM_ADDRESS=your-verified-sender@example.com
-MAIL_FROM_NAME=TexTileCycle
-APP_URL=http://127.0.0.1:8000
-```
+</div>
 
-Configurer le transport TLS/SSL selon le fournisseur SMTP. Ne jamais ajouter les secrets au dépôt ni utiliser une variable `VITE_` pour la clé IA. La configuration locale `MAIL_MAILER=log` écrit les emails dans les logs et **ne les envoie pas**.
+![Accueil de TexTileCycle sur Render](docs/screenshots/deployed-home.jpg)
 
-```bash
-php artisan migrate
-php artisan config:clear
-php artisan queue:work --tries=3 --timeout=150
-```
+## Sommaire
 
-Le worker doit rester actif pour traiter l’analyse et les emails. Dans l’image Docker, Supervisor lance Apache et le worker automatiquement. En production, définir `DB_QUEUE_RETRY_AFTER` à une valeur supérieure au timeout du worker et configurer `APP_URL` avec l’URL publique. Après une modification de configuration sur un déploiement en cours, reconstruire le cache de configuration et redémarrer le worker.
+- [Présentation](#présentation)
+- [Démonstration et captures](#démonstration-et-captures)
+- [Rôles et fonctionnalités](#rôles-et-fonctionnalités)
+- [Scénario complet : une matière contribue à une démarche label](#scénario-complet--une-matière-contribue-à-une-démarche-label)
+- [Autres parcours métier](#autres-parcours-métier)
+- [Architecture et technologies](#architecture-et-technologies)
+- [Installation locale](#installation-locale)
+- [Configuration des services](#configuration-des-services)
+- [Déploiement sur Render](#déploiement-sur-render)
+- [Tests et qualité](#tests-et-qualité)
+- [Organisation du dépôt](#organisation-du-dépôt)
+- [Dépannage](#dépannage)
+- [Contribution et crédits](#contribution-et-crédits)
 
-Sans clé OpenAI, le dossier affiche « IA non configurée » et reste disponible pour une revue manuelle. Après configuration, l’administrateur peut relancer l’analyse. En cas d’erreur API, le job réessaie puis marque le dossier en échec ; il ne crée pas de faux résultats. Les notifications email ont trois tentatives ; les échecs sont consultables avec `php artisan queue:failed` et peuvent être rejoués avec `php artisan queue:retry <id>`.
+## Présentation
 
-Les recommandations sont une orientation sur déclarations, à vérifier auprès des organismes officiels. La recyclabilité seule ne suffit pas pour GRS/RCS. Une gamme contenant des matières animales doit être transformée et les ingrédients, auxiliaires et pratiques de tests contrôlés pour viser vegan. Le questionnaire n’envoie pas l’email ni le mot de passe du compte à OpenAI.
+TexTileCycle relie consommateurs, marques, collecteurs et administrateurs pour documenter le cycle de vie d’un textile : identification, composition, retour, collecte, transformation et incorporation dans de nouveaux produits.
 
-Plateforme Laravel 12 de circularité textile responsable. Elle relie consommateurs, marques, ateliers, associations et partenaires de recyclage pour tracer le cycle de vie d’un vêtement.
+Le projet répond à trois besoins :
 
-## Stack
+1. **Comprendre un produit** grâce au catalogue et au Smart Scan de tickets, étiquettes, codes-barres ou QR codes.
+2. **Organiser sa seconde vie** avec des programmes de réparation, don, reprise et recyclage, des points partenaires et des retours suivis.
+3. **Construire un dossier vérifiable** en reliant les matières reçues aux produits, aux feuilles de route et aux preuves examinées par l’administration.
 
-- Laravel 12 et Eloquent
-- Laravel Breeze pour l’authentification Blade
-- Blade Components
-- Tailwind CSS 3 et Alpine.js
-- Chart.js pour les statistiques administrateur
-- Thèmes clair et sombre persistants
-- MySQL avec XAMPP en développement local
-- PostgreSQL sur Render en production
+Les vues d’impact mettent en avant les ODD **6 — Eau**, **7 — Énergie**, **12 — Consommation et production responsables** et **13 — Climat**. Les valeurs de présentation de l’accueil illustrent l’expérience ; elles ne constituent pas un audit des résultats de production.
 
-## Modules métier
+> TexTileCycle accompagne une préparation interne aux labels. Une réception de matière, un score ou une validation de preuves dans l’application ne délivre aucune certification et n’autorise pas l’usage d’un logo de label.
 
-| Module | Entités et relation |
+## Démonstration et captures
+
+**Application : [https://textilecycle.onrender.com/](https://textilecycle.onrender.com/)**
+
+Les cinq captures de ce README ont été prises dans un navigateur sur la version réellement déployée, le **8 octobre 2026**. Elles montrent les pages publiques, sans compte créé ni données métier modifiées. Le détail de provenance est conservé dans [le registre des captures](docs/screenshots/README.md).
+
+Les fonctionnalités des espaces privés sont documentées à partir du code de `main`. Cette visite publique ne confirme pas la révision Git exécutée par Render ni le fonctionnement des intégrations privées en production.
+
+### Un cycle textile documenté
+
+![Présentation du cycle textile dans l’application déployée](docs/screenshots/deployed-cycle.jpg)
+
+### Connexion
+
+![Page de connexion de l’application déployée](docs/screenshots/deployed-login.jpg)
+
+### Inscription consommateur
+
+![Inscription consommateur de l’application déployée](docs/screenshots/deployed-register.jpg)
+
+### Entrée du parcours marque
+
+Le choix « Marque » ouvre un questionnaire en six étapes et annonce la validation administrative nécessaire avant l’accès au compte.
+
+![Première étape de l’inscription marque déployée](docs/screenshots/deployed-brand-onboarding.jpg)
+
+## Rôles et fonctionnalités
+
+| Rôle | Responsabilités principales |
 | --- | --- |
-| Catalogue | Product ↔ Material, plusieurs-à-plusieurs |
-| Smart Scan | Scan → Detection, un-à-plusieurs |
-| Recyclage | RecoveryProgram → CollectionPoint, un-à-plusieurs |
-| Collecte | ProductReturn → TreatmentResult, un-à-un |
-| Conformité | Assessment → Evidence, un-à-plusieurs |
-| Passeport proposé | Scan → PassportProposal → PassportEvent |
-| Preuve de dépôt | ProductReturn → ReturnEvidence |
+| **Consommateur** | Consulter le catalogue, identifier un textile, confirmer les informations du scan, suivre son passeport, déclarer un retour et un dépôt avec photo, consulter les points et la seconde vie déclarée. |
+| **Marque** | Compléter son onboarding, gérer ses produits et compositions, soumettre les passeports, publier des besoins en matières, réserver et réceptionner des textiles compatibles, documenter leur transformation et constituer les preuves de ses feuilles de route. |
+| **Collecteur** | Contrôler le dépôt, le QR, l’état et la pesée ; documenter la remise des textiles du centre vers la marque. |
+| **Administrateur** | Examiner les inscriptions, retenir les labels proposés, vérifier les produits et passeports, contrôler les matières et preuves, approuver les étapes ou demander une correction et consulter les statistiques. |
 
-## Workflow Smart Scan et passeport proposé
+Les ateliers, associations et recycleurs interviennent comme partenaires du parcours circulaire et points de collecte. Ils ne sont pas tous des rôles de connexion distincts.
 
-Un scan multimodal suit désormais ce parcours contrôlé :
+### Principaux modules
 
-1. OCR local, lecture code-barres et suggestion Gemini facultative ;
-2. correction puis confirmation définitive par le consommateur ;
-3. contrôle de TexTileCycle avec approbation, refus ou demande de complément ;
-4. validation/correction par la marque lorsqu’elle est identifiée ;
-5. publication du passeport et ouverture du retour circulaire seulement après validation ;
-6. preuve photo du dépôt, contrôle QR/poids/état par le collecteur et historique complet.
+| Module | Fonctionnement |
+| --- | --- |
+| **Catalogue et passeports** | Recherche et filtres, fiche produit, composition, origine, réparabilité, réemploi et consignes de fin de vie. Les données absentes sont indiquées comme non renseignées. |
+| **Smart Scan** | OCR, lecture de codes, recherche manuelle, suggestions IA facultatives et confirmation humaine. Historique des scans et contrôle des passeports proposés. |
+| **Collecte et retours** | Programmes, points partenaires, déclaration, photos privées, contrôle QR, pesée, résultats et suivi des récompenses. |
+| **Échange de matières** | Besoins des marques, compatibilité, réservation, transfert, réception et contrôle final avant attribution des points. |
+| **Brand Studio** | Produits en brouillon, composition à 100 %, soumission et revue, versions, import CSV, duplication, archivage et profil de marque. |
+| **Orientation produit-label** | Règles déterministes versionnées, explications IA facultatives et création d’une feuille de route depuis une recommandation retenue. |
+| **Feuilles de route** | Périmètre de produits, étapes, responsables, échéances, actions, résultats et pièces privées avec revue administrative. |
+| **Dossiers documentaires** | Preuves versionnées et pondérées, commentaires, historique et score distinct de celui des feuilles de route. |
 
-Le ticket, le prix, l’enseigne et la date d’achat ne sont jamais exposés à la marque. Les preuves de dépôt et tickets sont stockés en ressources authentifiées.
+## Scénario complet : une matière contribue à une démarche label
 
-## Installation locale avec XAMPP et MySQL
+La réception crée un **bilan matière traçable**. La progression vers un label résulte ensuite de l’approbation des étapes documentées.
 
-### 1. Préparer XAMPP
+### Déroulement par acteur
 
-1. Démarrer **Apache** et **MySQL** depuis le panneau XAMPP.
-2. Ouvrir [http://localhost/phpmyadmin](http://localhost/phpmyadmin).
-3. Créer une base nommée `textilecycle` avec l’interclassement `utf8mb4_unicode_ci`.
+| Étape | Acteur | Action et résultat |
+| --- | --- | --- |
+| **1. Préparer** | Marque | Choisir un label retenu, définir les produits concernés, la situation initiale et l’objectif, puis créer une feuille de route. |
+| **2. Exprimer le besoin** | Marque | Depuis l’étape de collecte, publier une demande : matière, pureté, états acceptés, quantité recherchée et bonus de points. La demande conserve le périmètre et sa version. |
+| **3. Déposer** | Consommateur | Identifier le textile, confirmer ses informations, obtenir le passeport validé si nécessaire, déclarer le retour dans un point autorisé et joindre une photo de dépôt. |
+| **4. Contrôler** | Collecteur et admin | Confirmer QR, photo, état et poids réel ; vérifier la matière avant sa proposition aux marques. |
+| **5. Réserver et transférer** | Marque et collecteur | Réserver une proposition compatible. Pour un textile déjà au centre, le collecteur prouve sa remise à la marque avec le code de transfert, une photo et une note. |
+| **6. Réceptionner** | Marque | Confirmer la réception puis le contrôle final. L’échange validé attribue les points une seule fois et crée la matière en stock. |
+| **7. Affecter** | Marque | Associer la matière à un seul périmètre de feuille de route compatible. L’association peut provenir de la demande si sa version est toujours valide. |
+| **8. Transformer** | Marque | Documenter l’envoi au partenaire, la sortie recyclée puis les quantités incorporées aux produits, avec descriptions et justificatifs privés. |
+| **9. Soumettre** | Marque | Préparer les preuves des étapes depuis le bilan, compléter les actions et résultats par produit, puis soumettre à la revue. |
+| **10. Examiner** | Admin | Approuver les preuves ou demander une correction. Seules les étapes approuvées augmentent la progression. |
+| **11. Suivre** | Consommateur | Consulter séparément sa récompense et la seconde vie déclarée, sans accéder aux documents internes de production. |
 
-### 2. Installer le projet
-
-```bash
-composer install
-cp .env.example .env
-php artisan key:generate
-npm install
-npm run build
-php artisan migrate --seed
-php artisan storage:link
-php artisan serve
+```mermaid
+flowchart TD
+    A["Matière réceptionnée et validée"] --> B["Bilan unique et périmètre produit"]
+    B --> C["Collecte : pesée et traçabilité"]
+    B --> D["Transformation : sortie recyclée"]
+    B --> E["Incorporation : quantités par produit"]
+    C --> F["Soumission des preuves"]
+    D --> F
+    E --> F
+    F --> G{"Revue administrative"}
+    G -->|Correction| F
+    G -->|Approbation| H["Étapes validées et progression"]
 ```
 
-Sous Windows, si la commande `php` n’est pas reconnue :
+### Exemple chiffré
 
-```powershell
-C:\xampp\php\php.exe artisan key:generate
-C:\xampp\php\php.exe artisan migrate --seed
-C:\xampp\php\php.exe artisan storage:link
-C:\xampp\php\php.exe artisan serve
-```
+Une marque recherche **50 kg**. Un retour apporte **10 kg pesés** ; le partenaire produit **8 kg recyclés**, dont **7 kg** sont incorporés dans le produit du plan.
 
-L’application locale sera accessible sur [http://127.0.0.1:8000](http://127.0.0.1:8000).
+| Indicateur | Valeur | Interprétation |
+| --- | --- | --- |
+| Entrée physique | 10 kg | Quantité réceptionnée et pesée. |
+| Sortie recyclée | 8 kg | Résultat documenté de la transformation. |
+| Incorporation | 7 kg | Quantité réellement affectée aux produits couverts. |
+| Progression d’un plan à 7 étapes | 43 % | Trois étapes approuvées sur sept, après revue. |
 
-### Configuration MySQL locale
+Ces quantités restent **10 / 8 / 7 kg** si plusieurs étapes référencent le même bilan. Elles ne deviennent pas 25 kg de collecte. Les récompenses suivent les règles du retour et de la demande, séparément de la progression label.
 
-Le fichier `.env.example` utilise désormais :
+### Règles de cohérence
 
-```env
-DB_CONNECTION=mysql
-DB_HOST=127.0.0.1
-DB_PORT=3306
-DB_DATABASE=textilecycle
-DB_USERNAME=root
-DB_PASSWORD=
-```
+- Un textile réservé ne peut pas être réservé une seconde fois ; les réservations tiennent compte du besoin restant.
+- La réception ne peut pas précéder la remise documentée. Le mode `hub_transfer` ne demande pas un second dépôt au consommateur ; le mode `consumer_transfer` suit un transfert direct distinct.
+- Une pesée estimée ne suffit pas pour la preuve de collecte d’une feuille de route.
+- La sortie recyclée ne dépasse pas l’entrée ; l’incorporation totale ne dépasse pas la sortie recyclée.
+- Une matière est affectée intégralement à un seul périmètre. Le fractionnement entre plusieurs plans n’est pas proposé.
+- Une correction conserve l’historique et remet les étapes concernées en revue ; elle ne modifie pas silencieusement une approbation.
+- Après affectation, un nouveau périmètre exige une autre feuille de route. L’archivage conserve l’historique et bloque les nouvelles actions jusqu’à restauration.
 
-La configuration suppose l’utilisateur MySQL `root` sans mot de passe, valeur par défaut de nombreuses installations XAMPP locales. Si votre installation possède un mot de passe, renseignez uniquement votre fichier local `.env`.
+**Progression d’une feuille de route :** `étapes approuvées / nombre total d’étapes × 100`.
 
-## Production Render
+Le tableau de bord label utilise la moyenne des plans actifs. Le score pondéré d’un dossier documentaire général reste un indicateur distinct. Un dossier à 100 % peut porter le statut interne `verified_evidence` (« Preuves vérifiées ») ; il ne devient pas une certification officielle.
 
-Render continue d’utiliser PostgreSQL grâce aux variables définies dans son tableau de bord :
+→ [Scénario détaillé, exceptions et règles de traçabilité](docs/circular-material-label-journey.md).
 
-```env
-DB_CONNECTION=pgsql
-DB_URL=postgresql://...
-```
+## Autres parcours métier
 
-Le fichier `.env` local ne doit jamais être envoyé sur GitHub.
+### Smart Scan et passeport proposé
 
-### Stockage persistant des médias
+1. Analyser le ticket ou l’étiquette avec l’OCR local et la lecture de codes ; Gemini peut compléter les champs encore vides.
+2. Faire corriger et confirmer les informations par le consommateur.
+3. Soumettre le passeport à TexTileCycle : approbation, refus ou demande de complément.
+4. Faire valider ou corriger par la marque lorsqu’elle est identifiée.
+5. Publier le passeport et ouvrir le retour circulaire après les validations nécessaires.
+6. Documenter le dépôt et le contrôle du collecteur.
 
-Render possède un disque local éphémère. Les nouvelles photos Smart Scan et les nouvelles photos produit sont donc envoyées vers Cloudinary et seules leurs références durables sont conservées en base.
+Le ticket, le prix, l’enseigne et la date d’achat ne sont pas exposés à la marque. Les tickets et preuves sont servis par des accès authentifiés.
 
-Configurer dans le tableau de bord Render, sans placer les valeurs dans GitHub :
+### Onboarding marque
 
-```env
-FILESYSTEM_DISK=cloudinary
-CLOUDINARY_URL=cloudinary://<api_key>:<api_secret>@<cloud_name>
-CLOUDINARY_SECURE=true
-```
+Le questionnaire comporte six étapes : **compte, périmètre, matières, origine animale, environnement et preuves**. Les questions conditionnelles sont également contrôlées côté serveur.
 
-À la place de `CLOUDINARY_URL`, les variables séparées `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY` et `CLOUDINARY_API_SECRET` sont aussi supportées. Les tickets sont téléversés en ressource Cloudinary `authenticated`; les autres photos utilisent également des URLs HTTPS signées générées côté serveur. Les anciens chemins locaux sont conservés : une image encore présente reste lisible, tandis qu’une image déjà perdue affiche un remplacement sans provoquer d’erreur serveur.
+Après l’envoi, le compte reste en attente et déconnecté. L’administrateur examine les déclarations, les pistes IA et les pièces ; il retient les labels, motive sa décision et active le compte. L’analyse originale et la sélection finale restent séparées. L’activation programme les emails de notification et de traçabilité. La marque retrouve les démarches retenues dans **Mes labels**.
 
-### Suggestions IA gratuites pour Smart Scan
+### Publication des produits
 
-Le Smart Scan conserve Tesseract et ZBar en analyse locale, puis peut demander à Gemini Vision de compléter uniquement les champs encore vides. Les valeurs locales ou issues du catalogue ne sont jamais écrasées et toutes les suggestions restent soumises à la confirmation du consommateur.
+Une marque crée un brouillon puis le soumet. L’administrateur vérifie et publie ou demande une correction. Modifier un produit publié crée une nouvelle version et le remet en brouillon. La marque ne publie pas directement.
 
-Créer gratuitement une clé dans Google AI Studio, puis ajouter dans Render :
-
-```env
-GEMINI_AI_ENABLED=true
-GEMINI_API_KEY=<votre_cle_google_ai_studio>
-GEMINI_MODEL=gemini-3.5-flash-lite
-SMART_SCAN_ASYNC=false
-```
-
-Ne placez jamais la clé dans GitHub. Sans clé, en cas de quota épuisé ou d’erreur réseau, l’application revient automatiquement à l’OCR local. Le palier gratuit est soumis aux quotas de Google et les données transmises peuvent être utilisées par Google pour améliorer ses produits ; le formulaire Smart Scan en informe donc explicitement l’utilisateur.
-
-Pour traiter l’analyse hors de la requête HTTP, définir `SMART_SCAN_ASYNC=true` et lancer un worker :
-
-```bash
-php artisan queue:work --tries=3 --timeout=120
-```
-
-Sans worker, conserver `SMART_SCAN_ASYNC=false` : l’analyse reste synchrone et fonctionnelle.
-
-Le démarrage de production exécute uniquement `php artisan migrate --force`. Le seeding ne s’exécute que si `RUN_SEED=true` est explicitement défini.
-
-## Comptes de démonstration
-
-Après le seeding :
-
-```text
-Administrateur : admin@textilecycle.test / password
-Marque          : brand@textilecycle.test / password
-Consommateur    : consumer@textilecycle.test / password
-```
-
-## Structure de l’interface
-
-- `resources/views/layouts/app.blade.php` : layout du centre de pilotage administrateur
-- `resources/views/components/consumer-layout.blade.php` : expérience dédiée aux consommateurs
-- `resources/views/layouts/guest.blade.php` : layout d’authentification
-- `resources/views/components/layout` : sidebar, header et footer
-- `resources/views/components/ui` : champs, états, titres et actions communs
-
-## Crédits visuels
-
-- Logo TexTileCycle fourni par l’équipe du projet.
-- Photographies de tri, don, eau, énergie et climat : Julia M Cameron, Burcu, Adrinil Dennis, NEOSiAM et Yeşim Çolak, via Pexels.
-- Icônes officielles des ODD 6, 7, 12 et 13 : Nations Unies. Leur présence n’implique aucune approbation du contenu par l’ONU.
-
-## Équipe
-
-L’authentification, l’intégration front office/back office et le dépôt Git sont des tâches communes. Les cinq modules peuvent ensuite être répartis entre les membres de l’équipe.
-
-
-## Catalogue et Smart Scan
-
-Le catalogue public authentifié propose la recherche et les filtres par catégorie, origine, score de recyclabilité, caractère recyclable, réutilisable et réparable. Une fiche produit affiche la marque, la composition en pourcentage, l’origine et les consignes de fin de vie. Toute information absente est présentée comme « Non renseigné ».
-
-Le Smart Scan accepte quatre entrées : code-barres, QR code, recherche manuelle et photo. Les correspondances exactes sur SKU, code-barres et QR obtiennent une confiance de 100 %. Les recherches textuelles peuvent retourner plusieurs candidats. Chaque résultat est conservé dans l’historique de l’utilisateur. La photo est stockée pour analyse sans inventer une reconnaissance lorsque aucun moteur OCR n’est configuré.
-
-## Espace marque et preuves
-
-Une inscription peut créer un compte consommateur ou marque. Une marque dispose de son espace `/brand`, gère uniquement ses produits et peut constituer des dossiers associés à des référentiels externes. La progression est calculée ainsi :
-
-```text
-étapes disposant d’une preuve approuvée / nombre total d’étapes × 100
-```
-
-À 100 %, le statut interne devient `verified_evidence`. TexTileCycle affiche « Preuves vérifiées » et ne se présente jamais comme organisme certificateur.
-
-## Commandes de vérification
-
-```bash
-php artisan migrate:fresh --seed
-php artisan test
-npm run build
-```
-
-Sur Render, conserver `DB_CONNECTION=pgsql`. En local XAMPP, conserver `DB_CONNECTION=mysql`. Les migrations sont compatibles avec les deux moteurs.
-
-
-## Brand Studio professionnel
-
-L’espace marque comprend désormais :
-
-- un score de complétude calculé sur les données produit ;
-- une composition obligatoirement égale à 100 % ;
-- le workflow `brouillon → vérification → publication` ;
-- les demandes de correction administrateur ;
-- le versionnement des passeports publiés ;
-- la duplication, l’archivage récupérable et l’import CSV ;
-- un profil public de marque enrichi ;
-- des preuves privées, versionnées et pondérées ;
-- un dialogue traçable autour des preuves ;
-- un journal d’activité et des notifications internes.
-
-Les modifications d’un produit publié créent une nouvelle version et remettent le produit en brouillon. Une marque ne peut jamais publier directement un produit : elle le soumet, puis un administrateur le vérifie.
-
-### Format d’import CSV
+L’import CSV exige `name`, `sku` et `category`. Les lignes importées restent en brouillon :
 
 ```csv
 name,sku,category,description,origin,barcode,recyclability_score,recycling_instructions
 T-shirt circulaire,TS-001,T-shirt,Description,Tunisie,6190000000001,85,Réemploi puis collecte
 ```
 
-Les colonnes `name`, `sku` et `category` sont obligatoires. Les produits importés restent en brouillon.
+## Architecture et technologies
 
-### Vérification continue
+| Couche | Technologies et responsabilités |
+| --- | --- |
+| **Serveur** | Laravel 12, PHP ≥ 8.2, Eloquent, validation, contrôleurs, services métier et contrôle des rôles. |
+| **Interface** | Blade, Breeze, Tailwind CSS 3, Alpine.js, Chart.js ; thèmes clair et sombre. |
+| **Assets** | Vite 7, Node.js et npm ; build reproductible avec `package-lock.json`. |
+| **Données** | MySQL en local, PostgreSQL sur Render ; SQLite pour les tests. |
+| **Médias** | Cloudinary en production ; stockage local configurable pour le développement et les preuves. |
+| **Analyse** | Tesseract OCR, ZBar et ImageMagick ; Gemini et OpenAI facultatifs selon le module. |
+| **Asynchrone** | File Laravel en base de données, worker, notifications et emails SMTP. |
+| **Exécution** | Docker multi-stage : assets Node 22, PHP 8.3, Apache et Supervisor. |
+| **Validation** | PHPUnit 11, tests Laravel et workflow GitHub Actions. |
 
-La GitHub Action `.github/workflows/tests.yml` exécute automatiquement l’installation, le build front, les migrations SQLite et les tests Laravel sur chaque pull request et chaque mise à jour de `main`.
+Les entités métier principales relient `Product` à `Material`, `Scan` à `Detection`, `RecoveryProgram` à `CollectionPoint`, et `ProductReturn` à ses preuves et résultats. L’échange relie demandes et propositions à un `MaterialUsage` unique ; ce bilan et ses événements alimentent les preuves des feuilles de route.
 
-## Feuilles de route par produit
+## Installation locale
 
-Dans Brand Studio, ouvrez **Feuilles de route** ou un passeport produit / label, puis sélectionnez le label et les produits couverts. Renseignez la situation de départ, l’objectif et les dates. Les modèles de préparation proposent des étapes adaptées aux labels recyclés, vegan ou génériques ; ils ne remplacent pas les critères officiels.
+### Prérequis
 
-Chaque étape possède un objectif modifiable, un responsable et une échéance. La marque soumet des actions, des résultats pour chaque produit et des pièces privées. Un lot collecté vérifié peut être associé, avec des poids distincts pour la collecte, la sortie recyclée et l’incorporation déclarée. Ces valeurs ne sont pas additionnées automatiquement entre étapes et ne confèrent pas de certification.
+- PHP **8.2 ou supérieur**, Composer 2 et les extensions Laravel usuelles : Ctype, cURL, DOM, Fileinfo, Filter, Hash, Mbstring, OpenSSL, PCRE, PDO, Session, Tokenizer et XML.
+- Le pilote PDO de la base choisie (`pdo_mysql`, `pdo_pgsql` ou `pdo_sqlite`) ; ZIP et BCMath comme dans l’image Docker.
+- Node.js **22 LTS ≥ 22.12** et npm pour Vite 7.
+- MySQL avec une base `textilecycle` en `utf8mb4`, ou une autre base configurée explicitement.
+- Pour l’analyse locale d’images : Tesseract, ZBar et ImageMagick. L’image Docker les installe déjà.
 
-L’administrateur examine les soumissions dans **Feuilles de route**, les approuve ou demande une correction avec commentaire. Seule la dernière soumission du périmètre courant peut être validée. Modifier les produits couverts, la situation de départ, le périmètre ou l’objectif crée une nouvelle version et remet les validations à zéro ; les soumissions antérieures restent consultables. L’archivage et la restauration conservent cet historique.
+Avec XAMPP, démarrer MySQL et créer la base dans phpMyAdmin. `php artisan serve` peut servir l’application sans utiliser Apache XAMPP.
 
-Les pièces utilisent `ROADMAP_PROOF_STORAGE=local` en développement et Cloudinary par défaut en production. Si le stockage local est choisi en production, le disque privé doit être persistant. Appliquer les migrations avec `php artisan migrate`.
+### Installer et lancer
 
-### Orientation IA produit-label
+```bash
+git clone https://github.com/walaeddine-riahi/Esprit-5twin4-TechForGood.git
+cd Esprit-5twin4-TechForGood
+composer install
+cp .env.example .env
+php artisan key:generate
+npm ci
+```
 
-Après avoir renseigné les produits et leurs compositions, la marque ouvre **IA produit-label** et lance l’analyse. Le moteur applique d’abord des règles déterministes versionnées (composition recyclée, biologique, animale et pertinence du label), puis peut demander à OpenAI d’enrichir les explications avec `PRODUCT_LABEL_AI_API_KEY`. OpenAI ne peut pas modifier la décision ou les seuils calculés par les règles. Si l’API est absente ou indisponible, l’analyse déterministe reste utilisable.
+Le dépôt est privé : le clonage nécessite un accès GitHub autorisé. Configurer ensuite `.env` avant les migrations :
 
-Une recommandation acceptée préremplit le produit, le label, la situation de départ et les écarts. La feuille créée conserve un instantané de l’analyse, une composition cible, un cahier des charges, les avantages et risques environnementaux et réputationnels, puis des étapes datées avec points de complétion et preuves privées. Ces scores expriment un niveau de préparation interne. Ils ne constituent ni une éligibilité définitive, ni une certification, ni l’autorisation d’utiliser un logo.
+```env
+APP_ENV=local
+APP_DEBUG=true
+APP_URL=http://127.0.0.1:8000
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=textilecycle
+DB_USERNAME=root
+DB_PASSWORD=
+FILESYSTEM_DISK=public
+PRODUCT_MEDIA_STORAGE=public
+ROADMAP_PROOF_STORAGE=local
+QUEUE_CONNECTION=database
+DB_QUEUE_RETRY_AFTER=180
+MAIL_MAILER=log
+```
 
-Les repères doivent rester alignés sur les sources officielles : [Textile Exchange pour GRS/RCS](https://textileexchange.org/recycled-claim-global-recycled-standard/), [GOTS](https://global-standard.org/images/resource-library/documents/standard-and-manual/GOTS_v8.0_signed.pdf), [OEKO-TEX STANDARD 100](https://www.oeko-tex.com/en/our-standards/oeko-tex-standard-100) et [EU Ecolabel textiles](https://green-forum.ec.europa.eu/green-business/eu-ecolabel/product-groups-and-criteria/clothing-and-textiles_en).
+Les overrides de stockage ci-dessus permettent un démarrage local sans Cloudinary ; `.env.example` propose Cloudinary par défaut. Adapter l’utilisateur et le mot de passe MySQL à l’installation.
 
+```bash
+php artisan migrate
+php artisan storage:link
+npm run build
+php artisan serve
+```
 
-## Retours de matières et préparation au label
+Dans un second terminal, lancer le worker pour les analyses et notifications asynchrones :
 
-Le parcours relie demandes, collecte, réception, bilan de transformation, incorporation et revue administrative. Consulter le [scénario complet et les règles de traçabilité](docs/circular-material-label-journey.md). Les quantités sont comptées une seule fois et les étapes n’avancent qu’après approbation des preuves.
+```bash
+php artisan queue:work --tries=3 --timeout=150
+```
+
+Ouvrir **http://127.0.0.1:8000**. Pour le développement avec rechargement des assets, utiliser `npm run dev` dans un autre terminal, ou `composer run dev` pour lancer serveur, worker, logs et Vite ensemble.
+
+Sous PowerShell, remplacer `cp .env.example .env` par `Copy-Item .env.example .env`. Si PHP n’est pas dans le PATH, utiliser par exemple `C:\xampp\php\php.exe artisan migrate`.
+
+### Données et comptes de démonstration locaux
+
+Sur une base de développement, charger les données avec :
+
+```bash
+php artisan db:seed
+```
+
+| Profil | Adresse de démonstration | Mot de passe local |
+| --- | --- | --- |
+| Administrateur | `admin@textilecycle.test` | `password` |
+| Marque | `brand@textilecycle.test` | `password` |
+| Consommateur | `consumer@textilecycle.test` | `password` |
+
+Ces identifiants sont ceux des seeders locaux ; leur disponibilité sur Render n’a pas été vérifiée. Le collecteur intervient dans le scénario et les tests ; cette table ne lui invente pas de compte de démonstration. Ne pas utiliser les comptes de seed en exploitation réelle.
+
+## Configuration des services
+
+### Stockage Cloudinary
+
+En production, les médias doivent survivre aux redéploiements. Configurer :
+
+```env
+FILESYSTEM_DISK=cloudinary
+PRODUCT_MEDIA_STORAGE=cloudinary
+ROADMAP_PROOF_STORAGE=cloudinary
+CLOUDINARY_URL=cloudinary://<api_key>:<api_secret>@<cloud_name>
+CLOUDINARY_SECURE=true
+```
+
+Les variables séparées `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY` et `CLOUDINARY_API_SECRET` peuvent remplacer `CLOUDINARY_URL`. Les tickets sont des ressources Cloudinary `authenticated` ; les URLs sont signées côté serveur. Les anciens chemins locaux encore présents restent lisibles, et un média perdu dispose d’un remplacement visuel.
+
+Les preuves locales de feuilles de route nécessitent un disque privé persistant si ce mode est choisi en production.
+
+### Smart Scan : Gemini facultatif
+
+```env
+GEMINI_AI_ENABLED=true
+GEMINI_API_KEY=<cle_serveur>
+GEMINI_MODEL=gemini-3.5-flash-lite
+SMART_SCAN_ASYNC=false
+```
+
+Le modèle ci-dessus est la valeur configurée dans le dépôt ; sa disponibilité et ses quotas dépendent du fournisseur. Sans clé, en cas de quota ou d’erreur réseau, le parcours conserve l’analyse locale. Les suggestions complètent les champs vides sans écraser les données locales ou du catalogue et restent soumises à confirmation.
+
+Pour déplacer l’analyse vers la file, définir `SMART_SCAN_ASYNC=true` et maintenir un worker actif. Le formulaire informe l’utilisateur du recours au service externe.
+
+### Orientation marque et produit-label : OpenAI facultatif
+
+```env
+BRAND_AI_API_KEY=<cle_serveur>
+BRAND_AI_MODEL=gpt-4o-mini
+BRAND_AUDIT_EMAIL=audit@example.com
+PRODUCT_LABEL_AI_API_KEY=<cle_serveur>
+PRODUCT_LABEL_AI_MODEL=gpt-4o-mini
+```
+
+Sans clé d’onboarding, le dossier indique « IA non configurée » et reste disponible pour revue manuelle. L’admin peut relancer l’analyse après configuration. Les échecs sont tracés ; aucun résultat IA fictif n’est produit. Le questionnaire n’envoie pas l’email ou le mot de passe du compte à OpenAI.
+
+L’analyse produit-label applique d’abord des règles déterministes versionnées. OpenAI peut enrichir les explications, mais ne modifie pas les décisions ou seuils des règles. Une recommandation acceptée peut préremplir la feuille de route et conserver un instantané de l’analyse.
+
+### Emails et file de traitement
+
+```env
+MAIL_MAILER=smtp
+MAIL_HOST=<hote_smtp>
+MAIL_PORT=587
+MAIL_USERNAME=<utilisateur_smtp>
+MAIL_PASSWORD=<mot_de_passe_smtp>
+MAIL_FROM_ADDRESS=notifications@example.com
+MAIL_FROM_NAME=TexTileCycle
+QUEUE_CONNECTION=database
+DB_QUEUE_RETRY_AFTER=180
+```
+
+Configurer `MAIL_SCHEME` selon le transport du fournisseur. `MAIL_MAILER=log` écrit les emails dans les logs et ne les envoie pas. `DB_QUEUE_RETRY_AFTER` doit dépasser le timeout de 150 secondes du worker Docker.
+
+Les clés restent côté serveur, dans `.env` ou dans les variables de Render. Ne pas les committer ni les exposer avec un préfixe `VITE_`.
+
+## Déploiement sur Render
+
+Le dépôt contient un `Dockerfile` et un démarrage dans `docker/start.sh`. Le build compile les assets puis installe les dépendances PHP de production. Supervisor maintient Apache et le worker.
+
+### Variables essentielles
+
+```env
+APP_ENV=production
+APP_DEBUG=false
+APP_URL=https://textilecycle.onrender.com
+APP_KEY=<cle_laravel_stable>
+DB_CONNECTION=pgsql
+DB_URL=<url_postgresql_persistante>
+FILESYSTEM_DISK=cloudinary
+PRODUCT_MEDIA_STORAGE=cloudinary
+ROADMAP_PROOF_STORAGE=cloudinary
+CLOUDINARY_URL=<configuration_cloudinary>
+QUEUE_CONNECTION=database
+DB_QUEUE_RETRY_AFTER=180
+RUN_SEED=false
+```
+
+Ajouter les variables SMTP et les intégrations IA utilisées. Générer `APP_KEY` une fois avec `php artisan key:generate --show` et conserver la même clé entre déploiements.
+
+### Démarrage de l’image
+
+1. Vérifier `APP_KEY`, la connexion de base et Cloudinary ; refuser SQLite pour éviter une base éphémère.
+2. Préparer les répertoires Laravel et leurs droits.
+3. Mettre en cache la configuration et exécuter `php artisan migrate --force`.
+4. Charger les données de démonstration uniquement si `RUN_SEED=true` est explicitement défini.
+5. Compiler les vues, créer le lien de stockage et configurer le port fourni par Render, par défaut `10000`.
+6. Démarrer Apache et le worker sous Supervisor.
+
+La migration du parcours matières-labels est additive et se trouve dans `database/migrations/2026_10_08_000900_link_materials_to_label_roadmaps.php`.
+
+Après un déploiement, vérifier les migrations, le fonctionnement du worker, l’envoi des emails et un parcours métier avec un compte autorisé. La disponibilité de l’accueil seule ne valide pas ces services.
+
+## Tests et qualité
+
+```bash
+composer test
+npm run build
+php artisan view:cache
+```
+
+Les tests couvrent notamment l’onboarding, les produits, le Smart Scan, les passeports, la confidentialité des médias, l’échange de matières, les récompenses, l’orientation produit-label et les feuilles de route.
+
+Le scénario circulaire vérifie les quatre rôles, les états, les bilans de masse, la double affectation, les corrections avec nouvelle revue et la double validation des points.
+
+**Dernière validation locale de l’amélioration métier** — commit `6129149` : **92 tests réussis, 1 610 assertions**, build Vite et compilation Blade réussis. Ce résultat est un instantané de validation, pas un statut CI dynamique.
+
+Le workflow [Application tests](.github/workflows/tests.yml) est configuré sur les pull requests et les mises à jour de `main`. Consulter l’onglet Actions pour connaître le résultat effectif de chaque exécution ; la présence du workflow ne garantit pas son démarrage.
+
+## Organisation du dépôt
+
+| Chemin | Contenu |
+| --- | --- |
+| `app/Models/` | Entités et relations Eloquent. |
+| `app/Http/Controllers/` | Parcours administrateur, marque, consommateur et collecteur. |
+| `app/Services/` | Analyse, compatibilité, médias, règles et logique métier. |
+| `app/Jobs/` | Traitements asynchrones. |
+| `resources/views/` | Écrans Blade et composants d’interface. |
+| `resources/css/`, `resources/js/` | Styles et comportement front. |
+| `routes/` | Routes web et authentification. |
+| `database/migrations/` | Évolution du schéma. |
+| `database/seeders/` | Catalogue et scénarios de démonstration. |
+| `tests/Feature/`, `tests/Unit/` | Validation fonctionnelle et unitaire. |
+| `docker/` | Démarrage de production et Supervisor. |
+| `docs/` | Scénarios métier et captures de la version déployée. |
+| `.github/workflows/` | Configuration de l’intégration continue. |
+
+## Dépannage
+
+| Symptôme | Vérification ou action |
+| --- | --- |
+| Erreur de connexion à la base | Vérifier le service MySQL/PostgreSQL, le pilote PDO, les droits et les variables `DB_*`, puis `php artisan config:clear` en local. |
+| Assets absents | Exécuter `npm ci` puis `npm run build`, ou maintenir Vite actif en développement. |
+| Upload local envoyé vers Cloudinary | Vérifier les overrides `FILESYSTEM_DISK`, `PRODUCT_MEDIA_STORAGE` et `ROADMAP_PROOF_STORAGE`, puis vider le cache de configuration. |
+| Analyse IA non disponible | Vérifier la clé, le modèle, les quotas et les jobs ; le mode local ou déterministe reste disponible selon le module. |
+| Email non reçu | Vérifier que le mailer n’est pas `log`, que SMTP est configuré et que le worker fonctionne. |
+| Job en échec | Consulter `php artisan queue:failed`, corriger la cause puis rejouer avec `php artisan queue:retry <id>`. |
+| Worker conserve une ancienne configuration | Reconstruire le cache adapté à l’environnement, puis `php artisan queue:restart`. |
+| Preuve locale inaccessible après déploiement | Utiliser Cloudinary ou un disque privé persistant ; un disque éphémère ne conserve pas les fichiers. |
+| Marque nouvellement inscrite sans accès | Faire examiner et activer son dossier par l’administrateur. |
+| Réception validée sans progression label | Affecter le bilan, documenter les étapes et soumettre leurs preuves ; l’approbation administrative déclenche la progression. |
+
+## Contribution et crédits
+
+### Contribuer
+
+1. Créer une branche depuis `main`.
+2. Documenter le problème, le comportement attendu et les conséquences sur les rôles ou les preuves.
+3. Ajouter les tests métier nécessaires et exécuter les vérifications.
+4. Ouvrir une pull request avec une description des changements et de leur validation.
+
+Pour les captures, utiliser un compte de démonstration autorisé, ne pas publier de pièces privées ou de données personnelles, et mettre à jour le registre de provenance. Les noms des membres et leur répartition détaillée ne sont pas renseignés ici faute de liste validée dans le dépôt.
+
+### Projet et visuels
+
+- Projet académique **ESPRIT — Applications Web Avancées, 5TWIN4, TechForGood, 2026–2027**.
+- Logo TexTileCycle fourni par l’équipe du projet.
+- Photographies : Julia M Cameron, Burcu, Adrinil Dennis, NEOSiAM et Yeşim Çolak, via Pexels.
+- Icônes ODD : Nations Unies ; leur présence n’implique aucune approbation du projet par l’ONU.
+- Les métadonnées `composer.json` déclarent **MIT** pour le code. Aucun fichier `LICENSE` dédié n’accompagne actuellement le dépôt ; les médias et logos conservent leurs conditions propres.
+
