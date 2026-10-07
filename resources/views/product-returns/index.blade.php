@@ -7,7 +7,7 @@
                 <input name="search" value="{{ request('search') }}" placeholder="Référence ou produit…" class="field !mt-0">
                 <select name="status" class="field !mt-0">
                     <option value="">Tous les statuts</option>
-                    @foreach (['declared'=>'Déclaré','dropoff_expected'=>'Dépôt attendu','received'=>'Reçu','inspected'=>'Contrôlé','routed'=>'Orienté','completed'=>'Terminé','rejected'=>'Refusé','cancelled'=>'Annulé'] as $value => $label)
+                    @foreach (['declared'=>'Déclaré','dropoff_expected'=>'Dépôt attendu','deposit_declared'=>'Dépôt déclaré','received'=>'Reçu','inspected'=>'Contrôlé','routed'=>'Orienté','completed'=>'Terminé','rejected'=>'Refusé','cancelled'=>'Annulé'] as $value => $label)
                         <option value="{{ $value }}" @selected(request('status') === $value)>{{ $label }}</option>
                     @endforeach
                 </select>
@@ -51,3 +51,4 @@
         @endif
     </div>
 </x-role-layout>
+

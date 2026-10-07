@@ -35,10 +35,11 @@
         <section class="rounded-2xl border border-amber-200 bg-amber-50 p-5">
             <p class="text-xs font-black uppercase tracking-[.2em] text-amber-700">Validation partenaire / administration</p>
             <div class="mt-4 grid gap-5 md:grid-cols-2">
-                <x-ui.select name="status" label="Nouveau statut" :value="$item->status" :options="['declared'=>'Déclaré','dropoff_expected'=>'Dépôt attendu','received'=>'Reçu','inspected'=>'Contrôlé','routed'=>'Orienté','completed'=>'Terminé','rejected'=>'Refusé','cancelled'=>'Annulé']" required/>
+                <x-ui.select name="status" label="Nouveau statut" :value="$item->status" :options="['declared'=>'Déclaré','dropoff_expected'=>'Dépôt attendu','deposit_declared'=>'Dépôt déclaré','received'=>'Reçu','inspected'=>'Contrôlé','routed'=>'Orienté','completed'=>'Terminé','rejected'=>'Refusé','cancelled'=>'Annulé']" required/>
                 <x-ui.input name="confirmed_weight_kg" label="Poids confirmé (kg)" type="number" :value="$item->confirmed_weight_kg" min="0" step="0.01"/>
                 <div class="md:col-span-2"><x-ui.textarea name="status_note" label="Note de traçabilité"/></div>
             </div>
         </section>
     @endif
 </div>
+
