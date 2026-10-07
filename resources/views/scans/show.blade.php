@@ -130,7 +130,11 @@
                     </form>
                 @endif
                 @if($scan->passportProposal->isReady() && $scan->passportProposal->product)
-                    <a href="{{ route('product-returns.create',['scan'=>$scan->id,'product'=>$scan->passportProposal->product_id]) }}" class="mt-6 inline-flex rounded-xl bg-emerald-700 px-5 py-3 font-black text-white">Préparer le retour circulaire</a>
+                    @if($scan->passportProposal->collectionPoints->isNotEmpty())
+                        <a href="{{ route('product-returns.create',['scan'=>$scan->id,'product'=>$scan->passportProposal->product_id]) }}" class="mt-6 inline-flex rounded-xl bg-emerald-700 px-5 py-3 font-black text-white">Préparer le retour circulaire</a>
+                    @else
+                        <p class="mt-6 rounded-xl bg-amber-50 p-4 text-sm font-bold text-amber-800">Passeport validé, mais aucun point partenaire n’a encore été affecté par TexTileCycle.</p>
+                    @endif
                 @endif
             </section>
         @elseif ($scan->product)

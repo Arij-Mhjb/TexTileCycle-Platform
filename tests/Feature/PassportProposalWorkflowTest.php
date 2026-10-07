@@ -25,13 +25,15 @@ class PassportProposalWorkflowTest extends TestCase
         $admin = User::factory()->create(['role' => 'admin']);
         $scan = $this->scan($consumer, ['brand' => 'Marque inconnue']);
         $workflow = app(PassportProposalWorkflowService::class);
+        $point = $this->point();
 
         $proposal = $workflow->createFromScan($scan, $consumer);
-        $proposal = $workflow->adminReview($proposal, $admin, 'approve', ['note' => 'Données cohérentes']);
+        $proposal = $workflow->adminReview($proposal, $admin, 'approve', ['note' => 'Données cohérentes', 'collection_point_ids' => [$point->id]]);
 
         $this->assertTrue($proposal->isReady());
         $this->assertSame('published', $proposal->product->status);
         $this->assertSame('Tunisia', $proposal->product->origin);
+        $this->assertTrue($proposal->collectionPoints->contains($point));
         $this->assertDatabaseHas('passport_events', ['passport_proposal_id' => $proposal->id, 'event' => 'admin_approve']);
     }
 
@@ -43,8 +45,9 @@ class PassportProposalWorkflowTest extends TestCase
         $brand = Brand::create(['user_id' => $brandUser->id, 'name' => 'Eco Brand', 'slug' => 'eco-brand', 'is_active' => true]);
         $workflow = app(PassportProposalWorkflowService::class);
         $proposal = $workflow->createFromScan($this->scan($consumer, ['brand' => 'Eco Brand']), $consumer);
+        $point = $this->point();
 
-        $proposal = $workflow->adminReview($proposal, $admin, 'approve', ['brand_id' => $brand->id]);
+        $proposal = $workflow->adminReview($proposal, $admin, 'approve', ['brand_id' => $brand->id, 'collection_point_ids' => [$point->id]]);
         $this->assertSame('brand_pending', $proposal->status);
         $this->assertSame('draft', $proposal->product->status);
 
@@ -94,6 +97,28 @@ class PassportProposalWorkflowTest extends TestCase
         ]);
     }
 
+    public function test_ready_passport_accepts_only_the_partner_point_selected_by_admin(): void
+    {
+        $consumer = User::factory()->create(['role' => 'consumer']);
+        $admin = User::factory()->create(['role' => 'admin']);
+        $approvedPoint = $this->point('recycling', 'autorise');
+        $otherPoint = $this->point('recycling', 'non-autorise');
+        $passportWorkflow = app(PassportProposalWorkflowService::class);
+        $scan = $this->scan($consumer);
+        $proposal = $passportWorkflow->createFromScan($scan, $consumer);
+        $proposal = $passportWorkflow->adminReview($proposal, $admin, 'approve', [
+            'collection_point_ids' => [$approvedPoint->id],
+        ]);
+
+        $this->expectException(ValidationException::class);
+        app(ProductReturnWorkflowService::class)->create($consumer, [
+            'scan_id' => $scan->id,
+            'product_id' => $proposal->product_id,
+            'collection_point_id' => $otherPoint->id,
+            'action' => 'recycling',
+        ]);
+    }
+
     private function scan(User $consumer, array $overrides = []): Scan
     {
         return Scan::create([
@@ -114,15 +139,15 @@ class PassportProposalWorkflowTest extends TestCase
         ]);
     }
 
-    private function point(): CollectionPoint
+    private function point(string $type = 'recycling', string $suffix = ''): CollectionPoint
     {
         $program = RecoveryProgram::create([
-            'name' => 'Recyclage', 'organization_name' => 'Centre', 'type' => 'recycling',
+            'name' => 'Programme '.$type.' '.$suffix, 'organization_name' => 'Centre '.$suffix, 'type' => $type,
             'reward_points' => 50, 'is_active' => true,
         ]);
 
         return CollectionPoint::create([
-            'recovery_program_id' => $program->id, 'name' => 'Point test',
+            'recovery_program_id' => $program->id, 'name' => 'Point test '.$suffix,
             'address' => '1 rue test', 'city' => 'Tunis', 'is_active' => true,
         ]);
     }

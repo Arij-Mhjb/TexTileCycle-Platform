@@ -14,12 +14,13 @@
         </div>
     </section>
 
-    <section>
+    <section x-data="{ action: @js(old('action', $item->action)), point: @js((string) old('collection_point_id', $item->collection_point_id)), points: @js($pointOptions) }">
         <p class="text-xs font-black uppercase tracking-[.2em] text-emerald-600">2 · Solution circulaire</p>
         <div class="mt-4 grid gap-5 md:grid-cols-2">
-            <x-ui.select name="action" label="Action choisie" :value="$item->action ?: 'recycling'" :options="['repair'=>'Réparation','donation'=>'Don','reuse'=>'Réemploi','take_back'=>'Reprise par la marque','recycling'=>'Recyclage']" required/>
-            <x-ui.select name="collection_point_id" label="Point partenaire" :value="$item->collection_point_id" :options="$points->mapWithKeys(fn($x)=>[$x->id=>$x->name.' · '.$x->city.' · '.($x->recoveryProgram?->reward_points ?? 0).' pts'])" required/>
+            <label class="block"><span class="text-sm font-bold text-slate-700">Action choisie <span class="text-rose-500">*</span></span><select name="action" x-model="action" @change="point = ''" required class="field"><option value="">Sélectionner</option>@foreach($allowedActions as $value=>$label)<option value="{{ $value }}">{{ $label }}</option>@endforeach</select><x-input-error :messages="$errors->get('action')" class="mt-1"/></label>
+            <label class="block"><span class="text-sm font-bold text-slate-700">Point partenaire <span class="text-rose-500">*</span></span><select name="collection_point_id" x-model="point" required class="field"><option value="">Sélectionner un point compatible</option><template x-for="partnerPoint in points.filter(item => item.type === action)" :key="partnerPoint.id"><option :value="String(partnerPoint.id)" x-text="partnerPoint.label"></option></template></select><x-input-error :messages="$errors->get('collection_point_id')" class="mt-1"/></label>
         </div>
+        @if($points->isEmpty())<p class="mt-3 rounded-xl bg-amber-50 p-4 text-sm font-bold text-amber-800">Aucun point partenaire n’a été autorisé pour ce passeport. Contactez TexTileCycle.</p>@endif
     </section>
 
     <section>

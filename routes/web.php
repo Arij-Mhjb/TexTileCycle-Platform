@@ -69,6 +69,7 @@ Route::middleware(['auth','verified'])->group(function(){
         Route::patch('/admin/material-reviews/{productReturn}',[AdminMaterialReviewController::class,'update'])->name('admin.material-reviews.update');
         Route::get('/admin/passport-proposals',[AdminPassportProposalController::class,'index'])->name('admin.passport-proposals.index');
         Route::get('/admin/passport-proposals/{passportProposal}',[AdminPassportProposalController::class,'show'])->name('admin.passport-proposals.show');
+        Route::patch('/admin/passport-proposals/{passportProposal}/partner-points',[AdminPassportProposalController::class,'updateCollectionPoints'])->name('admin.passport-proposals.partner-points');
         Route::patch('/admin/passport-proposals/{passportProposal}',[AdminPassportProposalController::class,'review'])->name('admin.passport-proposals.review');
     });
 

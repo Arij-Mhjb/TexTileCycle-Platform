@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Brand;
 use App\Models\BrandNotification;
 use App\Models\ConsumerNotification;
+use App\Models\CollectionPoint;
 use App\Models\Material;
 use App\Models\PassportProposal;
 use App\Models\Product;
@@ -17,6 +18,23 @@ use Illuminate\Validation\ValidationException;
 
 class PassportProposalWorkflowService
 {
+    public function assignCollectionPoints(PassportProposal $proposal, User $admin, array $pointIds): PassportProposal
+    {
+        abort_unless($admin->isAdmin(), 403);
+        $eligiblePointIds = $this->eligiblePointIds($pointIds);
+        $proposal->collectionPoints()->sync($eligiblePointIds);
+        $this->event(
+            $proposal,
+            $admin,
+            'partner_points_updated',
+            $proposal->status,
+            $proposal->status,
+            $eligiblePointIds->count().' point(s) partenaire(s) autorisé(s).'
+        );
+
+        return $proposal->fresh('collectionPoints.recoveryProgram');
+    }
+
     public function consumerSupplement(PassportProposal $proposal, User $consumer, array $data): PassportProposal
     {
         abort_unless($consumer->isConsumer() && $proposal->consumer_id === $consumer->id, 403);
@@ -112,6 +130,8 @@ class PassportProposalWorkflowService
                 $proposal->save();
                 $this->notifyConsumer($proposal, 'Proposition refusée', $input['note'] ?? 'La proposition ne peut pas être validée en l’état.');
             } else {
+                $eligiblePointIds = $this->eligiblePointIds($input['collection_point_ids'] ?? []);
+                $proposal->collectionPoints()->sync($eligiblePointIds);
                 $product = $this->resolveProduct($proposal, $data);
                 $proposal->product_id = $product->id;
                 $proposal->scan->update(['product_id' => $product->id]);
@@ -257,6 +277,22 @@ class PassportProposalWorkflowService
         }
 
         return $sku;
+    }
+
+    private function eligiblePointIds(array $ids)
+    {
+        $pointIds = collect($ids)->map(fn ($id) => (int) $id)->unique()->values();
+        $eligiblePointIds = CollectionPoint::whereIn('id', $pointIds)
+            ->where('is_active', true)
+            ->whereHas('recoveryProgram', fn ($program) => $program->where('is_active', true))
+            ->pluck('id');
+        if ($pointIds->isEmpty() || $eligiblePointIds->count() !== $pointIds->count()) {
+            throw ValidationException::withMessages([
+                'collection_point_ids' => 'Sélectionnez au moins un point partenaire actif correspondant au produit.',
+            ]);
+        }
+
+        return $eligiblePointIds;
     }
 
     private function provenance(array $data): array

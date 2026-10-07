@@ -133,7 +133,7 @@ class ScanController extends Controller
     public function show(Request $request, Scan $scan, CircularRecommendationService $recommendations): View
     {
         $this->guard($request, $scan);
-        $scan->load('product.materials', 'detections.product', 'assets', 'passportProposal.events');
+        $scan->load('product.materials', 'detections.product', 'assets', 'passportProposal.events', 'passportProposal.collectionPoints');
 
         $condition = data_get($scan->extracted_data, 'condition');
         $recommendation = $scan->product ? $recommendations->recommend($scan->product, $condition) : null;

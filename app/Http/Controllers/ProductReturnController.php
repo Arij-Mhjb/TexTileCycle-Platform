@@ -176,14 +176,40 @@ class ProductReturnController extends Controller
 
     private function formData(ProductReturn $item): array
     {
+        $pointsQuery = CollectionPoint::where('is_active', true)
+            ->whereHas('recoveryProgram', fn ($program) => $program->where('is_active', true))
+            ->with('recoveryProgram');
+
+        if ($item->scan_id) {
+            $scan = Scan::with('passportProposal.collectionPoints')->find($item->scan_id);
+            $approvedPointIds = $scan?->passportProposal?->collectionPoints->pluck('id');
+            if ($scan?->passportProposal) {
+                $approvedPointIds->isNotEmpty()
+                    ? $pointsQuery->whereIn('id', $approvedPointIds)
+                    : $pointsQuery->whereRaw('1 = 0');
+            }
+        }
+
+        $points = $pointsQuery->orderBy('name')->get();
+        $actionLabels = collect([
+            'repair' => 'Réparation', 'donation' => 'Don', 'reuse' => 'Réemploi',
+            'take_back' => 'Reprise par la marque', 'recycling' => 'Recyclage',
+        ]);
+        $allowedActions = $actionLabels->only($points->pluck('recoveryProgram.type')->unique()->all());
+        if (! $allowedActions->has($item->action)) {
+            $item->action = $allowedActions->keys()->first();
+        }
+
         return [
             'item' => $item,
             'products' => Product::where('status', 'published')->where('is_active', true)->orderBy('name')->get(),
-            'points' => CollectionPoint::where('is_active', true)
-                ->whereHas('recoveryProgram', fn ($program) => $program->where('is_active', true))
-                ->with('recoveryProgram')
-                ->orderBy('name')
-                ->get(),
+            'points' => $points,
+            'allowedActions' => $allowedActions,
+            'pointOptions' => $points->map(fn ($point) => [
+                'id' => $point->id,
+                'type' => $point->recoveryProgram->type,
+                'label' => $point->name.' · '.$point->city.' · '.$point->recoveryProgram->reward_points.' pts',
+            ])->values(),
         ];
     }
 

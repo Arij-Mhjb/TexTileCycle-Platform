@@ -176,6 +176,12 @@ class ProductReturnWorkflowService
                     'scan_id' => 'Le passeport doit être validé par TexTileCycle et la marque avant le dépôt.',
                 ]);
             }
+
+            if ($proposal && ! $proposal->collectionPoints()->whereKey($data['collection_point_id'])->exists()) {
+                throw ValidationException::withMessages([
+                    'collection_point_id' => 'Ce point partenaire n’a pas été autorisé lors de la validation du passeport.',
+                ]);
+            }
         }
 
         $point = CollectionPoint::with('recoveryProgram')->findOrFail($data['collection_point_id']);

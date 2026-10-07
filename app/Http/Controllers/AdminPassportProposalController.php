@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Brand;
+use App\Models\CollectionPoint;
 use App\Models\PassportProposal;
 use App\Models\Product;
 use App\Services\PassportProposalWorkflowService;
@@ -25,9 +26,12 @@ class AdminPassportProposalController extends Controller
     public function show(PassportProposal $passportProposal): View
     {
         return view('admin.passport-proposals.show', [
-            'proposal' => $passportProposal->load(['consumer', 'brand', 'product', 'scan.assets', 'events.actor']),
+            'proposal' => $passportProposal->load(['consumer', 'brand', 'product', 'scan.assets', 'events.actor', 'collectionPoints.recoveryProgram']),
             'brands' => Brand::where('is_active', true)->orderBy('name')->get(),
             'products' => Product::orderBy('name')->get(),
+            'collectionPoints' => CollectionPoint::where('is_active', true)
+                ->whereHas('recoveryProgram', fn ($program) => $program->where('is_active', true))
+                ->with('recoveryProgram')->orderBy('city')->orderBy('name')->get(),
         ]);
     }
 
@@ -40,6 +44,20 @@ class AdminPassportProposalController extends Controller
         $workflow->adminReview($passportProposal, $request->user(), $data['decision'], $data);
 
         return to_route('admin.passport-proposals.show', $passportProposal)->with('success', 'Décision enregistrée et historisée.');
+    }
+
+    public function updateCollectionPoints(
+        Request $request,
+        PassportProposal $passportProposal,
+        PassportProposalWorkflowService $workflow
+    ): RedirectResponse {
+        $data = $request->validate([
+            'collection_point_ids' => 'required|array|min:1',
+            'collection_point_ids.*' => 'integer|distinct|exists:collection_points,id',
+        ]);
+        $workflow->assignCollectionPoints($passportProposal, $request->user(), $data['collection_point_ids']);
+
+        return to_route('admin.passport-proposals.show', $passportProposal)->with('success', 'Points partenaires autorisés mis à jour.');
     }
 
     private function rules(): array
@@ -58,6 +76,8 @@ class AdminPassportProposalController extends Controller
             'condition' => 'nullable|in:good,wearable,minor_damage,damaged,unusable,unknown',
             'composition_text' => 'nullable|string|max:3000',
             'defects_text' => 'nullable|string|max:2000',
+            'collection_point_ids' => 'required_if:decision,approve|array|min:1',
+            'collection_point_ids.*' => 'integer|distinct|exists:collection_points,id',
         ];
     }
 
