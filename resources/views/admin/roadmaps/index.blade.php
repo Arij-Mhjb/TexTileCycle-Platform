@@ -1,0 +1,4 @@
+<x-app-layout>
+<x-ui.page-heading title="Feuilles de route des marques" description="Périmètres produits, objectifs et preuves de préparation."/>
+<div class="mt-6 space-y-4">@forelse($roadmaps as $roadmap)<a href="{{ route('admin.roadmaps.show',$roadmap) }}" class="block rounded-2xl border bg-white p-5 dark:bg-slate-900"><p class="text-sm font-bold text-emerald-700">{{ $roadmap->brand->name }} · {{ $roadmap->label_snapshot['name'] }}</p><h2 class="mt-1 text-xl font-black">{{ $roadmap->name }}</h2><p class="mt-2 text-sm">{{ $roadmap->products->count() }} produits · {{ $roadmap->steps->where('status','submitted')->count() }} étapes à examiner · {{ $roadmap->progress() }} % approuvées · {{ $roadmap->status==='archived'?'Archivée':'Active' }}</p></a>@empty<p class="rounded-xl border bg-white p-6">Aucune feuille de route pour le moment.</p>@endforelse</div><div class="mt-5">{{ $roadmaps->links() }}</div>
+</x-app-layout>

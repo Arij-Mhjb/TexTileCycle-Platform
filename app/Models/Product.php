@@ -32,6 +32,11 @@ class Product extends Model
         return $this->belongsTo(Brand::class, 'brand_id');
     }
 
+    public function roadmaps(): BelongsToMany
+    {
+        return $this->belongsToMany(LabelRoadmap::class)->withPivot('snapshot');
+    }
+
     public function materials(): BelongsToMany
     {
         return $this->belongsToMany(Material::class)

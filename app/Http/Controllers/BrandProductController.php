@@ -177,11 +177,12 @@ class BrandProductController extends Controller
             'category' => 'required|string|max:100', 'description' => 'nullable|string', 'origin' => 'nullable|string|max:150',
             'image' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:4096', 'recyclability_score' => 'nullable|integer|min:0|max:100', 'recycling_instructions' => 'nullable|string',
             'repairable' => 'nullable|boolean', 'reusable' => 'nullable|boolean', 'recyclable' => 'nullable|boolean',
-            'materials' => 'nullable|array', 'materials.*' => 'nullable|numeric|min:0|max:100',
+            'materials' => 'nullable|array', 'materials.*' => 'nullable|numeric|min:0|max:100|decimal:0,2',
         ]);
         $materials = array_filter($request->input('materials', []), fn ($v) => (float) $v > 0);
-        if ($materials && abs(array_sum($materials) - 100) > 0.01) {
-            throw ValidationException::withMessages(['materials' => 'La composition doit totaliser exactement 100 %. Total actuel : '.array_sum($materials).' %.']);
+        $total = round(array_sum($materials), 2);
+        if ($materials && abs($total - 100) > 0.01) {
+            throw ValidationException::withMessages(['materials' => "La composition doit totaliser exactement 100 %. Total actuel : {$total} %."]);
         }
         foreach (['repairable', 'reusable', 'recyclable'] as $field) {
             $data[$field] = $request->boolean($field);

@@ -39,6 +39,28 @@ class MediaStorageService
 
     public function storeProductImage(UploadedFile $file): array
     {
+        if (config('media.product_storage') === 'public') {
+            $mime = $file->getMimeType();
+            if (! $file->isValid() || ! in_array($mime, self::ALLOWED_MIME_TYPES, true)) {
+                throw new RuntimeException('Le fichier envoyé n’est pas une image JPEG, PNG ou WebP valide.');
+            }
+
+            $path = $file->store('products', 'public');
+            if (! $path) {
+                throw new RuntimeException('La photo n’a pas pu être enregistrée dans le stockage local.');
+            }
+
+            return [
+                'path' => $path,
+                'storage_disk' => 'public',
+                'cloudinary_public_id' => null,
+                'secure_url' => null,
+                'delivery_type' => null,
+                'format' => $file->guessExtension(),
+                'version' => null,
+            ];
+        }
+
         return $this->upload($file, 'textilecycle/products', DeliveryType::UPLOAD);
     }
 
@@ -239,6 +261,55 @@ class MediaStorageService
         } catch (Throwable $exception) {
             $this->reportStorageError('upload', $exception);
             throw new RuntimeException('Le stockage sécurisé de l’image a échoué. Veuillez réessayer.', 0, $exception);
+        }
+    }
+
+    public function storeRoadmapProof(UploadedFile $file, int $roadmapId): array
+    {
+        $name = $file->getClientOriginalName();
+        if (config('roadmaps.proof_storage') === 'local') {
+            $path = $file->store('roadmap-proofs/'.$roadmapId, 'local');
+            if (! $path) {
+                throw new RuntimeException('La preuve n’a pas pu être enregistrée.');
+            }
+
+            return ['storage' => 'local', 'path' => $path, 'name' => $name];
+        }
+
+        $result = $this->cloudinary()->uploadApi()->upload($file->getRealPath(), [
+            'resource_type' => 'raw',
+            'type' => 'authenticated',
+            'folder' => 'textilecycle/roadmaps/'.$roadmapId,
+            'public_id' => (string) Str::uuid().'.'.$file->guessExtension(),
+            'overwrite' => false,
+        ]);
+
+        return ['storage' => 'cloudinary', 'path' => $result['public_id'], 'version' => $result['version'] ?? null, 'name' => $name];
+    }
+
+    public function readRoadmapProof(array $file): string
+    {
+        if ($file['storage'] === 'local') {
+            abort_unless(str_starts_with($file['path'], 'roadmap-proofs/') && ! str_contains($file['path'], '..') && Storage::disk('local')->exists($file['path']), 404);
+
+            return Storage::disk('local')->get($file['path']);
+        }
+
+        abort_unless(str_starts_with($file['path'], 'textilecycle/roadmaps/') && ! str_contains($file['path'], '..'), 404);
+        $asset = $this->cloudinary()->raw($file['path'])->deliveryType('authenticated')->signUrl();
+        if (! empty($file['version'])) {
+            $asset->version($file['version']);
+        }
+
+        return Http::connectTimeout(10)->timeout(30)->get($asset->toUrl())->throw()->body();
+    }
+
+    public function deleteRoadmapProof(array $file): void
+    {
+        if ($file['storage'] === 'local' && str_starts_with($file['path'], 'roadmap-proofs/') && ! str_contains($file['path'], '..')) {
+            Storage::disk('local')->delete($file['path']);
+        } elseif ($file['storage'] === 'cloudinary' && str_starts_with($file['path'], 'textilecycle/roadmaps/') && ! str_contains($file['path'], '..')) {
+            $this->cloudinary()->uploadApi()->destroy($file['path'], ['resource_type' => 'raw', 'type' => 'authenticated']);
         }
     }
 

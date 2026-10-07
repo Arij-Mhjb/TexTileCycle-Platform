@@ -48,6 +48,9 @@ Route::middleware(['auth','verified'])->group(function(){
     Route::get('/dashboard',DashboardRedirectController::class)->name('dashboard');
 
     Route::middleware('role:admin')->group(function(){
+        Route::get('/admin/roadmaps', [\App\Http\Controllers\AdminRoadmapController::class, 'index'])->name('admin.roadmaps.index');
+        Route::get('/admin/roadmaps/{roadmap}', [\App\Http\Controllers\AdminRoadmapController::class, 'show'])->name('admin.roadmaps.show');
+        Route::patch('/admin/roadmap-submissions/{submission}', [\App\Http\Controllers\AdminRoadmapController::class, 'review'])->name('admin.roadmaps.review');
         Route::get('/admin/brand-applications', [\App\Http\Controllers\AdminBrandApplicationController::class, 'index'])->name('admin.brand-applications.index');
         Route::get('/admin/brand-applications/{application}', [\App\Http\Controllers\AdminBrandApplicationController::class, 'show'])->name('admin.brand-applications.show');
         Route::post('/admin/brand-applications/{application}/analyse', [\App\Http\Controllers\AdminBrandApplicationController::class, 'analyse'])->name('admin.brand-applications.analyse');
@@ -74,6 +77,10 @@ Route::middleware(['auth','verified'])->group(function(){
     });
 
     Route::middleware('role:brand')->prefix('brand')->name('brand.')->group(function(){
+        Route::resource('roadmaps', \App\Http\Controllers\BrandRoadmapController::class)->parameters(['roadmaps' => 'roadmap']);
+        Route::post('/roadmaps/{roadmap}/restore', [\App\Http\Controllers\BrandRoadmapController::class, 'restore'])->name('roadmaps.restore');
+        Route::patch('/roadmap-steps/{step}', [\App\Http\Controllers\BrandRoadmapController::class, 'step'])->name('roadmaps.steps.update');
+        Route::post('/roadmap-steps/{step}/submissions', [\App\Http\Controllers\BrandRoadmapController::class, 'submit'])->name('roadmaps.steps.submit');
         Route::get('/',BrandDashboardController::class)->name('dashboard');
         Route::resource('products',BrandProductController::class)->except('show');
         Route::get('/products-trash',[BrandProductController::class,'trash'])->name('products.trash');
@@ -134,6 +141,7 @@ Route::middleware(['auth','verified'])->group(function(){
         Route::patch('/returns/{productReturn}',[CollectorReturnController::class,'update'])->name('returns.update');
     });
     Route::middleware('role:admin,brand')->get('/evidences/{evidence}/download',EvidenceDownloadController::class)->name('evidences.download');
+    Route::middleware('role:admin,brand')->get('/roadmap-proofs/{submission}/{index}', \App\Http\Controllers\RoadmapProofController::class)->whereNumber('index')->name('roadmaps.proofs.download');
 });
 
 Route::middleware('auth')->group(function(){

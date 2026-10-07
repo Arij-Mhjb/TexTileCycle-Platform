@@ -261,3 +261,13 @@ Les colonnes `name`, `sku` et `category` sont obligatoires. Les produits import�
 
 La GitHub Action `.github/workflows/tests.yml` exécute automatiquement l’installation, le build front, les migrations SQLite et les tests Laravel sur chaque pull request et chaque mise à jour de `main`.
 
+## Feuilles de route par produit
+
+Dans Brand Studio, ouvrez **Feuilles de route** ou un passeport produit / label, puis sélectionnez le label et les produits couverts. Renseignez la situation de départ, l’objectif et les dates. Les modèles de préparation proposent des étapes adaptées aux labels recyclés, vegan ou génériques ; ils ne remplacent pas les critères officiels.
+
+Chaque étape possède un objectif modifiable, un responsable et une échéance. La marque soumet des actions, des résultats pour chaque produit et des pièces privées. Un lot collecté vérifié peut être associé, avec des poids distincts pour la collecte, la sortie recyclée et l’incorporation déclarée. Ces valeurs ne sont pas additionnées automatiquement entre étapes et ne confèrent pas de certification.
+
+L’administrateur examine les soumissions dans **Feuilles de route**, les approuve ou demande une correction avec commentaire. Seule la dernière soumission du périmètre courant peut être validée. Modifier les produits couverts, la situation de départ, le périmètre ou l’objectif crée une nouvelle version et remet les validations à zéro ; les soumissions antérieures restent consultables. L’archivage et la restauration conservent cet historique.
+
+Les pièces utilisent `ROADMAP_PROOF_STORAGE=local` en développement et Cloudinary par défaut en production. Si le stockage local est choisi en production, le disque privé doit être persistant. Appliquer les migrations avec `php artisan migrate`.
+
