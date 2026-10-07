@@ -34,16 +34,55 @@ class ProductReturn extends Model
         ];
     }
 
-    public function user(): BelongsTo { return $this->belongsTo(User::class); }
-    public function scan(): BelongsTo { return $this->belongsTo(Scan::class); }
-    public function product(): BelongsTo { return $this->belongsTo(Product::class); }
-    public function collectionPoint(): BelongsTo { return $this->belongsTo(CollectionPoint::class); }
-    public function adminReviewer(): BelongsTo { return $this->belongsTo(User::class, 'admin_reviewed_by'); }
-    public function treatmentResult(): HasOne { return $this->hasOne(TreatmentResult::class); }
-    public function rewardTransaction(): HasOne { return $this->hasOne(RewardTransaction::class); }
-    public function statusHistory(): HasMany { return $this->hasMany(ReturnStatusHistory::class)->oldest(); }
-    public function materialMatches(): HasMany { return $this->hasMany(MaterialMatch::class); }
-    public function evidences(): HasMany { return $this->hasMany(ReturnEvidence::class); }
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
+    }
+
+    public function scan(): BelongsTo
+    {
+        return $this->belongsTo(Scan::class);
+    }
+
+    public function product(): BelongsTo
+    {
+        return $this->belongsTo(Product::class);
+    }
+
+    public function collectionPoint(): BelongsTo
+    {
+        return $this->belongsTo(CollectionPoint::class);
+    }
+
+    public function adminReviewer(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'admin_reviewed_by');
+    }
+
+    public function treatmentResult(): HasOne
+    {
+        return $this->hasOne(TreatmentResult::class);
+    }
+
+    public function rewardTransaction(): HasOne
+    {
+        return $this->hasOne(RewardTransaction::class);
+    }
+
+    public function statusHistory(): HasMany
+    {
+        return $this->hasMany(ReturnStatusHistory::class)->oldest();
+    }
+
+    public function materialMatches(): HasMany
+    {
+        return $this->hasMany(MaterialMatch::class);
+    }
+
+    public function evidences(): HasMany
+    {
+        return $this->hasMany(ReturnEvidence::class);
+    }
 
     public function canConsumerEdit(): bool
     {

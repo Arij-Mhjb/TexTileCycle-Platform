@@ -271,3 +271,10 @@ L’administrateur examine les soumissions dans **Feuilles de route**, les appro
 
 Les pièces utilisent `ROADMAP_PROOF_STORAGE=local` en développement et Cloudinary par défaut en production. Si le stockage local est choisi en production, le disque privé doit être persistant. Appliquer les migrations avec `php artisan migrate`.
 
+### Orientation IA produit-label
+
+Après avoir renseigné les produits et leurs compositions, la marque ouvre **IA produit-label** et lance l’analyse. Le moteur applique d’abord des règles déterministes versionnées (composition recyclée, biologique, animale et pertinence du label), puis peut demander à OpenAI d’enrichir les explications avec `PRODUCT_LABEL_AI_API_KEY`. OpenAI ne peut pas modifier la décision ou les seuils calculés par les règles. Si l’API est absente ou indisponible, l’analyse déterministe reste utilisable.
+
+Une recommandation acceptée préremplit le produit, le label, la situation de départ et les écarts. La feuille créée conserve un instantané de l’analyse, une composition cible, un cahier des charges, les avantages et risques environnementaux et réputationnels, puis des étapes datées avec points de complétion et preuves privées. Ces scores expriment un niveau de préparation interne. Ils ne constituent ni une éligibilité définitive, ni une certification, ni l’autorisation d’utiliser un logo.
+
+Les repères doivent rester alignés sur les sources officielles : [Textile Exchange pour GRS/RCS](https://textileexchange.org/recycled-claim-global-recycled-standard/), [GOTS](https://global-standard.org/images/resource-library/documents/standard-and-manual/GOTS_v8.0_signed.pdf), [OEKO-TEX STANDARD 100](https://www.oeko-tex.com/en/our-standards/oeko-tex-standard-100) et [EU Ecolabel textiles](https://green-forum.ec.europa.eu/green-business/eu-ecolabel/product-groups-and-criteria/clothing-and-textiles_en).

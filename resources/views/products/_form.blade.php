@@ -23,7 +23,16 @@
 
     <div class="grid gap-5 md:grid-cols-2">
         <x-ui.input name="name" label="Nom du produit" :value="$item->name" required />
-        <x-ui.input name="brand" label="Marque" :value="$item->brand" required />
+        @if($item->exists && $item->brand_id)
+            <div>
+                <label class="text-sm font-bold text-slate-700 dark:text-slate-200">Marque affectée</label>
+                <div class="field mt-1 bg-slate-50 dark:bg-slate-900">{{ $item->brandProfile->name }}</div>
+                <input type="hidden" name="brand_id" value="{{ $item->brand_id }}">
+                <p class="mt-1 text-xs text-slate-500">Le produit est visible dans le catalogue de cette marque.</p>
+            </div>
+        @else
+            <x-ui.select name="brand_id" label="Affecter à une marque" :value="$item->brand_id" :options="$brands->pluck('name', 'id')->all()" placeholder="Choisir la marque propriétaire" required />
+        @endif
         <x-ui.input name="sku" label="Référence / SKU" :value="$item->sku" required />
         <x-ui.input name="category" label="Catégorie" :value="$item->category" required />
         <x-ui.input name="year" label="Année" type="number" :value="$item->year" min="1900" :max="date('Y') + 1" />

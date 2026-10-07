@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Label;
 use App\Models\LabelRoadmap;
 use App\Models\MaterialMatch;
+use App\Models\ProductLabelRecommendation;
 use App\Models\RoadmapStep;
 use App\Services\ActivityService;
 use App\Services\LabelRoadmapService;
@@ -34,7 +35,13 @@ class BrandRoadmapController extends Controller
 
     public function create(Request $r)
     {
-        return view('brand.roadmaps.form', ['roadmap' => new LabelRoadmap, 'labels' => $this->labels($r), 'products' => $r->user()->brand->products()->with('materials')->orderBy('name')->get(), 'selectedLabel' => $r->integer('label_id')]);
+        $recommendation = $r->filled('recommendation_id')
+            ? ProductLabelRecommendation::with('product', 'label')->where('brand_id', $r->user()->brand->id)->findOrFail($r->integer('recommendation_id'))
+            : null;
+
+        return view('brand.roadmaps.form', ['roadmap' => new LabelRoadmap, 'labels' => $this->labels($r),
+            'products' => $r->user()->brand->products()->with('materials')->orderBy('name')->get(),
+            'selectedLabel' => $recommendation?->label_id ?? $r->integer('label_id'), 'recommendation' => $recommendation]);
     }
 
     private function validated(Request $r, bool $creating): array
@@ -44,6 +51,7 @@ class BrandRoadmapController extends Controller
             'products.*' => ['required', 'integer', 'distinct', Rule::exists('products', 'id')->where('brand_id', $r->user()->brand->id)->whereNull('deleted_at')]];
         if ($creating) {
             $rules['label_id'] = ['required', 'integer', Rule::in($this->labels($r)->pluck('id')->all())];
+            $rules['recommendation_id'] = ['nullable', 'integer', Rule::exists('product_label_recommendations', 'id')->where('brand_id', $r->user()->brand->id)];
         }
 
         return $r->validate($rules);
@@ -71,7 +79,7 @@ class BrandRoadmapController extends Controller
         abort_unless($roadmap->status === 'active', 409);
         $roadmap->load('products');
 
-        return view('brand.roadmaps.form', ['roadmap' => $roadmap, 'labels' => $this->labels($r), 'products' => $r->user()->brand->products()->with('materials')->orderBy('name')->get(), 'selectedLabel' => $roadmap->label_id]);
+        return view('brand.roadmaps.form', ['roadmap' => $roadmap, 'labels' => $this->labels($r), 'products' => $r->user()->brand->products()->with('materials')->orderBy('name')->get(), 'selectedLabel' => $roadmap->label_id, 'recommendation' => null]);
     }
 
     public function update(Request $r, LabelRoadmap $roadmap, LabelRoadmapService $service)
@@ -155,6 +163,6 @@ class BrandRoadmapController extends Controller
             }throw $e;
         }
 
-        return back()->with('success','Résultats et preuves soumis. L’administrateur doit les vérifier.');
+        return back()->with('success', 'Résultats et preuves soumis. L’administrateur doit les vérifier.');
     }
 }

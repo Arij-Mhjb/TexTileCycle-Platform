@@ -19,14 +19,54 @@ class Brand extends Model
         return ['is_active' => 'boolean'];
     }
 
-    public function user(): BelongsTo { return $this->belongsTo(User::class); }
-    public function application(): HasOne { return $this->hasOne(BrandApplication::class); }
-    public function approvedLabels(): BelongsToMany { return $this->belongsToMany(Label::class)->withTimestamps(); }
-    public function roadmaps(): HasMany { return $this->hasMany(LabelRoadmap::class); }
-    public function products(): HasMany { return $this->hasMany(Product::class); }
-    public function activities(): HasMany { return $this->hasMany(ActivityLog::class)->latest(); }
-    public function materialRequests(): HasMany { return $this->hasMany(MaterialRequest::class); }
-    public function passportProposals(): HasMany { return $this->hasMany(PassportProposal::class); }
-    public function getRouteKeyName(): string { return 'slug'; }
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
+    }
+
+    public function application(): HasOne
+    {
+        return $this->hasOne(BrandApplication::class);
+    }
+
+    public function approvedLabels(): BelongsToMany
+    {
+        return $this->belongsToMany(Label::class)->withTimestamps();
+    }
+
+    public function roadmaps(): HasMany
+    {
+        return $this->hasMany(LabelRoadmap::class);
+    }
+
+    public function productLabelRecommendations(): HasMany
+    {
+        return $this->hasMany(ProductLabelRecommendation::class);
+    }
+
+    public function products(): HasMany
+    {
+        return $this->hasMany(Product::class);
+    }
+
+    public function activities(): HasMany
+    {
+        return $this->hasMany(ActivityLog::class)->latest();
+    }
+
+    public function materialRequests(): HasMany
+    {
+        return $this->hasMany(MaterialRequest::class);
+    }
+
+    public function passportProposals(): HasMany
+    {
+        return $this->hasMany(PassportProposal::class);
+    }
+
+    public function getRouteKeyName(): string
+    {
+        return 'slug';
+    }
 }
 

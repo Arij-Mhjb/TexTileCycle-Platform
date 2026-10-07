@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Brand;
 use App\Models\Material;
 use App\Models\Product;
 use App\Services\MediaStorageService;
@@ -34,12 +35,15 @@ class ProductController extends Controller
         return view('products.create', [
             'item' => new Product,
             'materials' => Material::orderBy('name')->get(),
+            'brands' => Brand::orderBy('name')->get(),
         ]);
     }
 
     public function store(Request $request, MediaStorageService $media): RedirectResponse
     {
         $data = $this->validated($request);
+        $brand = Brand::findOrFail($data['brand_id']);
+        $data['brand'] = $brand->name;
         $materialIds = $data['material_ids'] ?? [];
         unset($data['material_ids'], $data['image'], $data['remove_image']);
 
@@ -71,12 +75,15 @@ class ProductController extends Controller
         return view('products.edit', [
             'item' => $product->load('materials'),
             'materials' => Material::orderBy('name')->get(),
+            'brands' => Brand::orderBy('name')->get(),
         ]);
     }
 
     public function update(Request $request, Product $product, MediaStorageService $media): RedirectResponse
     {
         $data = $this->validated($request, $product);
+        $brand = Brand::findOrFail($data['brand_id']);
+        $data['brand'] = $brand->name;
         $materialIds = $data['material_ids'] ?? [];
         unset($data['material_ids'], $data['image'], $data['remove_image']);
 
@@ -125,7 +132,7 @@ class ProductController extends Controller
     {
         return $request->validate([
             'name' => 'required|string|max:150',
-            'brand' => 'required|string|max:120',
+            'brand_id' => 'required|integer|exists:brands,id',
             'sku' => 'required|string|max:80|unique:products,sku,'.($product?->id ?? 'NULL'),
             'category' => 'required|string|max:100',
             'description' => 'nullable|string',

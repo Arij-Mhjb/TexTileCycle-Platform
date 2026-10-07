@@ -3,11 +3,13 @@
 namespace Tests\Feature;
 
 use App\Models\Brand;
+use App\Models\CollectionPoint;
 use App\Models\Material;
 use App\Models\MaterialMatch;
 use App\Models\MaterialRequest;
 use App\Models\Product;
 use App\Models\ProductReturn;
+use App\Models\RecoveryProgram;
 use App\Models\User;
 use App\Services\MaterialMatchingService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -42,6 +44,14 @@ class AiMaterialCompatibilityTest extends TestCase
 
     private function textile(User $consumer, string $materialName, float $percentage, string $category, string $condition, string $reference): ProductReturn
     {
+        $program = RecoveryProgram::firstOrCreate(
+            ['name' => 'Programme test IA'],
+            ['organization_name' => 'TexTileCycle', 'type' => 'recycling', 'description' => 'Collecte utilisée par les tests de compatibilité.']
+        );
+        $point = CollectionPoint::firstOrCreate(
+            ['name' => 'Point test IA'],
+            ['recovery_program_id' => $program->id, 'address' => '1 rue du Test', 'city' => 'Paris', 'is_active' => true]
+        );
         $material = Material::create(['name' => $materialName, 'type' => 'recycled', 'recyclable' => true]);
         $product = Product::create([
             'name' => $reference, 'slug' => strtolower($reference), 'brand' => 'Primark', 'sku' => $reference,
@@ -50,7 +60,7 @@ class AiMaterialCompatibilityTest extends TestCase
         $product->materials()->attach($material->id, ['percentage' => $percentage]);
 
         return ProductReturn::create([
-            'user_id' => $consumer->id, 'product_id' => $product->id, 'reference' => $reference,
+            'user_id' => $consumer->id, 'product_id' => $product->id, 'collection_point_id' => $point->id, 'reference' => $reference,
             'qr_token' => fake()->uuid(), 'status' => 'marketplace', 'action' => 'recycling',
             'condition' => $condition, 'weight_kg' => 1, 'admin_review_status' => 'verified',
             'admin_verified_at' => now(),
