@@ -18,7 +18,7 @@
                 <label class="font-bold md:col-span-2">Défauts visibles<textarea name="defects_text" rows="3" class="mt-2 w-full rounded-xl border-slate-300">{{ old('defects_text',collect(data_get($data,'defects',[]))->implode("\n")) }}</textarea></label>
                 <fieldset class="md:col-span-2 rounded-2xl border border-emerald-200 bg-emerald-50/60 p-5">
                     <legend class="px-2 font-black text-emerald-900">Points partenaires autorisés pour ce produit</legend>
-                    <p class="mb-4 text-sm text-emerald-800">Sélection obligatoire pour approuver. Walaeddine ne pourra choisir que ces points, avec l’action circulaire réellement prise en charge par leur programme.</p>
+                    <p class="mb-4 text-sm text-emerald-800">Sélection obligatoire pour approuver. {{ $proposal->consumer->name }} ne pourra choisir que ces points, avec l’action circulaire réellement prise en charge par leur programme.</p>
                     @php($selectedPoints = collect(old('collection_point_ids', $proposal->collectionPoints->pluck('id')->all()))->map(fn($id)=>(int)$id))
                     @php($actionLabels = ['repair'=>'Réparation','donation'=>'Don','reuse'=>'Réemploi','take_back'=>'Reprise par la marque','recycling'=>'Recyclage'])
                     <div class="grid gap-4 lg:grid-cols-2">
