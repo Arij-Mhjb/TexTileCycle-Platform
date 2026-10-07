@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\MaterialRequest;
+use App\Services\MaterialMatchingService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -19,7 +20,7 @@ class BrandMaterialRequestController extends Controller
         ]);
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request, MaterialMatchingService $matching): RedirectResponse
     {
         $brand = $request->user()->brand()->firstOrFail();
         $data = $request->validate([
@@ -36,14 +37,16 @@ class BrandMaterialRequestController extends Controller
             'expires_at' => 'nullable|date|after:today',
         ]);
 
-        $brand->materialRequests()->create([
+        $materialRequest = $brand->materialRequests()->create([
             ...collect($data)->except(['categories_text'])->all(),
             'categories' => collect(explode(',', $data['categories_text'] ?? ''))->map(fn ($value) => trim($value))->filter()->values()->all(),
             'remaining_kg' => $data['quantity_kg'],
             'status' => 'open',
         ]);
+        $compatible = $matching->matchRequest($materialRequest);
 
-        return back()->with('success', 'Demande de matière publiée.');
+        return redirect()->route('brand.material-matches.index')
+            ->with('success', 'Demande publiée et retours existants analysés par l’IA : '.$compatible.' compatible(s).');
     }
 
     public function destroy(Request $request, MaterialRequest $materialRequest): RedirectResponse

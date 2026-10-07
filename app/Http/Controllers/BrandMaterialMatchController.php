@@ -4,23 +4,48 @@ namespace App\Http\Controllers;
 
 use App\Models\MaterialMatch;
 use App\Services\MaterialExchangeService;
+use App\Services\MaterialMatchingService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class BrandMaterialMatchController extends Controller
 {
-    public function index(Request $request): View
+    public function index(Request $request, MaterialMatchingService $matching): View
     {
         $brand = $request->user()->brand()->firstOrFail();
+        $verdict = in_array($request->query('verdict'), ['compatible', 'partial', 'incompatible'], true)
+            ? $request->query('verdict')
+            : null;
+        $base = MaterialMatch::query()
+            ->whereHas('request', fn ($query) => $query->where('brand_id', $brand->id));
+
+        // Rattrapage unique pour les demandes créées avant l'ajout de l'analyse IA.
+        if ((clone $base)->doesntExist()) {
+            $brand->materialRequests()
+                ->where('status', 'open')
+                ->where('remaining_kg', '>', 0)
+                ->where(fn ($query) => $query->whereNull('expires_at')->orWhere('expires_at', '>', now()))
+                ->get()
+                ->each(fn ($materialRequest) => $matching->matchRequest($materialRequest));
+        }
 
         return view('brand.material-matches', [
-            'matches' => MaterialMatch::with([
+            'matches' => (clone $base)->with([
                 'request', 'productReturn.product.materials', 'productReturn.scan.assets',
                 'productReturn.collectionPoint',
-            ])->whereHas('request', fn ($query) => $query->where('brand_id', $brand->id))
+            ])->when($verdict, fn ($query) => $query->where('ai_verdict', $verdict))
+                ->orderByRaw("CASE ai_verdict WHEN 'compatible' THEN 1 WHEN 'partial' THEN 2 ELSE 3 END")
                 ->latest()
-                ->paginate(15),
+                ->paginate(15)
+                ->withQueryString(),
+            'verdict' => $verdict,
+            'counts' => [
+                'all' => (clone $base)->count(),
+                'compatible' => (clone $base)->where('ai_verdict', 'compatible')->count(),
+                'partial' => (clone $base)->where('ai_verdict', 'partial')->count(),
+                'incompatible' => (clone $base)->where('ai_verdict', 'incompatible')->count(),
+            ],
         ]);
     }
 
