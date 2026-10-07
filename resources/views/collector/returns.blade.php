@@ -4,6 +4,7 @@
         <h1 class="mt-2 text-3xl font-black">Dépôts à traiter</h1>
         <p class="mt-2 text-slate-500">Contrôlez le QR, le poids et l’état. Chaque action et chaque preuve sont historisées.</p>
 
+        @if($errors->any())<div role="alert" class="mt-4 rounded-xl bg-red-50 p-4 text-sm text-red-700">@foreach($errors->all() as $error)<p>{{ $error }}</p>@endforeach</div>@endif
         <div class="mt-8 space-y-5">
             @forelse($items as $item)
                 <article class="panel p-6">
@@ -16,6 +17,16 @@
                         <div class="mt-5 flex gap-3 overflow-x-auto">@foreach($item->evidences as $evidence)<a href="{{ $evidence->url }}" target="_blank" rel="noopener" class="shrink-0"><img src="{{ $evidence->url }}" alt="Preuve {{ $evidence->type }}" class="h-24 w-24 rounded-xl object-cover"><span class="mt-1 block max-w-24 truncate text-xs text-slate-400">{{ str($evidence->type)->replace('_',' ') }}</span></a>@endforeach</div>
                     @endif
 
+                    @php($reserved=$item->materialMatches->firstWhere('status','accepted'))
+                    @if($item->status === 'reserved_by_brand' && $reserved && $item->logistics_mode === 'hub_transfer')
+                        <div class="mt-5 rounded-xl bg-sky-50 p-4"><h3 class="font-bold">Remettre la matière à {{ $reserved->request->brand->name }}</h3><p class="mt-2 text-sm">{{ $reserved->request->dropoff_address ?: 'Remise organisée avec la marque' }}</p><p class="mt-2 break-all font-mono text-xs">Code attendu : {{ $reserved->transfer_token }}</p>
+                        <form method="POST" enctype="multipart/form-data" action="{{ route('collector.material-transfers.store',$reserved) }}" class="mt-4 grid gap-3 md:grid-cols-3">@csrf
+                            <x-ui.input name="transfer_token" label="Code de remise" required/><x-ui.input name="note" label="Transporteur, destinataire et date" required/>
+                            <label class="text-sm font-bold">Photo de remise<input type="file" name="evidence" accept="image/jpeg,image/png,image/webp" required class="mt-2 block w-full"></label>
+                            <button class="rounded-xl bg-sky-700 px-4 py-3 font-bold text-white">Confirmer la remise</button>
+                        </form></div>
+                    @elseif(in_array($item->status,['marketplace','in_transit']))<p class="mt-5 text-sm text-slate-500">{{ $item->status === 'marketplace' ? 'Matière vérifiée : en attente d’une réservation par une marque.' : 'Remise enregistrée : en attente de la réception par la marque.' }}</p>@endif
+                    @if(in_array($item->status,['dropoff_expected','deposit_declared','received','inspected','routed']))
                     <form method="POST" action="{{ route('collector.returns.update',$item) }}" enctype="multipart/form-data" class="mt-6 grid gap-4 md:grid-cols-3">
                         @csrf @method('PATCH')
                         <x-ui.select name="status" label="Nouvelle étape" :options="collect([
@@ -28,6 +39,7 @@
                         <x-ui.input name="note" label="Note de traçabilité"/>
                         <div class="md:col-span-3"><button class="rounded-xl bg-emerald-700 px-5 py-3 font-black text-white">Enregistrer l’étape</button></div>
                     </form>
+                    @endif
                 </article>
             @empty
                 <x-ui.empty message="Aucun dépôt à traiter pour vos points de collecte."/>
@@ -36,3 +48,4 @@
         <div class="mt-6">{{ $items->links() }}</div>
     </div>
 </x-role-layout>
+

@@ -6,8 +6,8 @@ use App\Models\CollectionPoint;
 use App\Models\Product;
 use App\Models\ProductReturn;
 use App\Models\Scan;
-use App\Services\ProductReturnWorkflowService;
 use App\Services\MediaStorageService;
+use App\Services\ProductReturnWorkflowService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -69,7 +69,7 @@ class ProductReturnController extends Controller
         return view('product-returns.show', [
             'item' => $productReturn->load([
                 'product.materials', 'collectionPoint.recoveryProgram', 'statusHistory.user',
-                'rewardTransaction', 'treatmentResult', 'scan.assets', 'materialMatches.request.brand', 'evidences.user',
+                'rewardTransaction', 'treatmentResult', 'scan.assets', 'materialMatches.request.brand', 'materialMatches.usage', 'evidences.user',
             ]),
         ]);
     }
@@ -231,4 +231,3 @@ class ProductReturnController extends Controller
         }
     }
 }
-

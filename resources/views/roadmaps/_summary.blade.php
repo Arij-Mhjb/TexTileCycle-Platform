@@ -10,3 +10,6 @@
 @if($roadmap->specification['target_composition'])<div class="mt-5"><h3 class="font-bold">Composition cible proposée</h3><div class="mt-2 grid gap-2 md:grid-cols-2">@foreach($roadmap->specification['target_composition'] as $target)<p class="rounded-lg bg-slate-50 p-3 text-sm"><span class="text-slate-500">{{ $target['name'] }} {{ $target['percentage'] }} %</span><br><strong>→ {{ $target['target_material'] }} {{ $target['target_percentage'] }} %</strong></p>@endforeach</div></div>@endif
 <p class="mt-5 rounded-lg bg-amber-50 p-3 text-xs text-amber-900">{{ $roadmap->specification['badge_condition'] }}</p></section>@endif
 @if($roadmap->impact_summary)<section class="mt-5 grid gap-4 md:grid-cols-2"><div class="rounded-xl bg-emerald-50 p-5"><h2 class="font-black text-emerald-900">Avantages et conséquences pour la planète</h2><ul class="mt-3 space-y-2 text-sm text-emerald-950">@foreach($roadmap->impact_summary['environmental'] as $impact)<li>• {{ $impact }}</li>@endforeach</ul></div><div class="rounded-xl bg-violet-50 p-5"><h2 class="font-black text-violet-900">Réputation de la marque</h2><ul class="mt-3 space-y-2 text-sm text-violet-950">@foreach($roadmap->impact_summary['reputation'] as $impact)<li>• {{ $impact }}</li>@endforeach</ul></div></section>@endif
+
+
+@include('roadmaps._materials')

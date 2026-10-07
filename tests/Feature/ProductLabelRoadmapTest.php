@@ -171,14 +171,16 @@ class ProductLabelRoadmapTest extends TestCase
         $request = MaterialRequest::create(['brand_id' => $this->owner->brand->id, 'title' => 'Polyester', 'material_name' => 'polyester', 'minimum_percentage' => 70, 'quantity_kg' => 10, 'remaining_kg' => 0, 'status' => 'active']);
         $match = MaterialMatch::create(['material_request_id' => $request->id, 'product_return_id' => $return->id, 'match_score' => 90, 'status' => 'verified']);
         $payload = ['scope_version' => 1, 'actions' => 'Recyclage avec un partenaire', 'results' => 'Matière incorporée aux prototypes', 'product_results' => [$this->product->id => 'Prototype avec matière recyclée'], 'material_match_id' => $match->id, 'material_name' => 'Polyester', 'recycled_output_kg' => 10, 'incorporated_kg' => 7, 'proofs' => [UploadedFile::fake()->create('lot.pdf', 10, 'application/pdf')]];
-        $this->post(route('brand.roadmaps.steps.submit', $plan->steps->first()), $payload)->assertSessionHasErrors('recycled_output_kg');
+        $this->post(route('brand.roadmaps.steps.submit', $plan->steps->first()), $payload)->assertSessionHasErrors('material_match_id');
         $this->assertDatabaseCount('roadmap_submissions', 0);
         $this->assertCount(0, Storage::disk('local')->allFiles());
-        $this->submit($plan, ['material_match_id' => $match->id, 'material_name' => 'Polyester', 'recycled_output_kg' => 8, 'incorporated_kg' => 7]);
+        $payload['recycled_output_kg'] = null;
+        $payload['incorporated_kg'] = null;
+        $this->post(route('brand.roadmaps.steps.submit', $plan->steps->firstWhere('material_stage', 'collection')), $payload)->assertSessionHasNoErrors();
         $submission = RoadmapSubmission::firstOrFail();
         $this->assertSame('9.00', $submission->material_record['verified_collected_kg']);
-        $this->assertEquals(8, $submission->material_record['recycled_output_kg']);
-        $this->assertEquals(7, $submission->material_record['incorporated_kg']);
+        $this->assertNull($submission->material_record['recycled_output_kg']);
+        $this->assertNull($submission->material_record['incorporated_kg']);
         $this->assertSame(0, $plan->fresh()->progress());
         $this->get(route('brand.roadmaps.show', $plan))->assertOk()->assertSee('LOT-1');
     }

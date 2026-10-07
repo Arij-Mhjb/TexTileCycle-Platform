@@ -81,12 +81,16 @@
                     </div>
                     <span class="rounded-full bg-sky-50 px-4 py-2 text-sm font-black text-sky-700">{{ str($activeMatch->status)->replace('_',' ')->headline() }}</span>
                 </div>
+                @if($activeMatch->status === 'verified')
+                    <div class="mt-4 rounded-xl bg-emerald-50 p-4"><p class="font-bold">Échange terminé — vos points sont validés</p><p class="mt-2 text-sm">Seconde vie : {{ $activeMatch->usage?->statusLabel() ?? 'Réception validée, utilisation à documenter' }}.</p><p class="mt-2 text-xs">Les étapes de transformation sont déclarées et documentées par la marque. Elles ne constituent pas une certification.</p></div>
+                @endif
                 <div class="mt-5 rounded-2xl bg-slate-950 p-5 text-white">
                     <p class="text-xs font-bold uppercase tracking-widest text-emerald-300">QR de transfert</p>
                     <p class="mt-3 break-all font-mono">{{ $activeMatch->transfer_token }}</p>
                     @if($activeMatch->due_at)<p class="mt-2 text-sm text-slate-400">À transférer avant le {{ $activeMatch->due_at->format('d/m/Y') }}</p>@endif
                 </div>
-                @if(auth()->user()->isConsumer() && $activeMatch->status === 'accepted')
+                @if($activeMatch->status === 'accepted' && $item->logistics_mode === 'hub_transfer')<p class="mt-4 text-sm text-slate-600">Votre textile est au point de collecte. Le collecteur organise et confirme sa remise à la marque ; aucune nouvelle action de dépôt n’est nécessaire.</p>@endif
+                @if(auth()->user()->isConsumer() && $activeMatch->status === 'accepted' && $item->logistics_mode === 'consumer_transfer')
                     <form method="POST" action="{{ route('consumer.material-transfers.store',$activeMatch) }}" class="mt-4">
                         @csrf
                         <button class="rounded-xl bg-emerald-600 px-5 py-3 font-black text-white">J’ai déposé ou remis le textile</button>
@@ -109,4 +113,5 @@
         @endif
     </div>
 </x-role-layout>
+
 

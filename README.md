@@ -278,3 +278,8 @@ Après avoir renseigné les produits et leurs compositions, la marque ouvre **IA
 Une recommandation acceptée préremplit le produit, le label, la situation de départ et les écarts. La feuille créée conserve un instantané de l’analyse, une composition cible, un cahier des charges, les avantages et risques environnementaux et réputationnels, puis des étapes datées avec points de complétion et preuves privées. Ces scores expriment un niveau de préparation interne. Ils ne constituent ni une éligibilité définitive, ni une certification, ni l’autorisation d’utiliser un logo.
 
 Les repères doivent rester alignés sur les sources officielles : [Textile Exchange pour GRS/RCS](https://textileexchange.org/recycled-claim-global-recycled-standard/), [GOTS](https://global-standard.org/images/resource-library/documents/standard-and-manual/GOTS_v8.0_signed.pdf), [OEKO-TEX STANDARD 100](https://www.oeko-tex.com/en/our-standards/oeko-tex-standard-100) et [EU Ecolabel textiles](https://green-forum.ec.europa.eu/green-business/eu-ecolabel/product-groups-and-criteria/clothing-and-textiles_en).
+
+
+## Retours de matières et préparation au label
+
+Le parcours relie demandes, collecte, réception, bilan de transformation, incorporation et revue administrative. Consulter le [scénario complet et les règles de traçabilité](docs/circular-material-label-journey.md). Les quantités sont comptées une seule fois et les étapes n’avancent qu’après approbation des preuves.

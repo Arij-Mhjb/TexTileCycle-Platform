@@ -4,7 +4,9 @@ namespace App\Services;
 
 use App\Models\BrandNotification;
 use App\Models\ConsumerNotification;
+use App\Models\LabelRoadmap;
 use App\Models\MaterialMatch;
+use App\Models\MaterialRequest;
 use App\Models\ProductReturn;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
@@ -66,19 +68,29 @@ class MaterialExchangeService
 
     public function accept(MaterialMatch $match): MaterialMatch
     {
-        if ($match->status !== 'suggested') {
-            throw ValidationException::withMessages(['match' => 'Cette proposition n’est plus disponible.']);
-        }
-
-        $alreadyReserved = $match->productReturn->materialMatches()
-            ->where('id', '!=', $match->id)
-            ->whereIn('status', ['accepted', 'in_transit', 'brand_received', 'verified'])
-            ->exists();
-        if ($alreadyReserved) {
-            throw ValidationException::withMessages(['match' => 'Ce textile est déjà réservé par une autre marque.']);
-        }
-
         return DB::transaction(function () use ($match) {
+            ProductReturn::whereKey($match->product_return_id)->lockForUpdate()->firstOrFail();
+            $match = MaterialMatch::whereKey($match->id)->lockForUpdate()->firstOrFail();
+            $request = MaterialRequest::whereKey($match->material_request_id)->lockForUpdate()->firstOrFail();
+            if ($match->status !== 'suggested' || $match->productReturn->status !== 'marketplace'
+                || $match->productReturn->admin_review_status !== 'verified'
+                || $request->status !== 'open' || (float) $request->remaining_kg <= 0
+                || ($request->expires_at && $request->expires_at->isPast())) {
+                throw ValidationException::withMessages(['match' => 'Cette proposition ou cette demande n’est plus disponible.']);
+            }
+            $alreadyReserved = $match->productReturn->materialMatches()->where('id', '!=', $match->id)
+                ->whereIn('status', ['accepted', 'in_transit', 'brand_received', 'verified'])->exists();
+            if ($alreadyReserved) {
+                throw ValidationException::withMessages(['match' => 'Ce textile est déjà réservé par une autre marque.']);
+            }
+            $reservedKg = (float) MaterialMatch::where('material_request_id', $request->id)
+                ->whereIn('material_matches.status', ['accepted', 'in_transit', 'brand_received'])
+                ->join('product_returns', 'product_returns.id', '=', 'material_matches.product_return_id')
+                ->sum('product_returns.confirmed_weight_kg');
+            $weight = (float) $match->productReturn->confirmed_weight_kg;
+            if ($weight <= 0 || $weight > (float) $request->remaining_kg - $reservedKg + 0.001) {
+                throw ValidationException::withMessages(['match' => 'La pesée confirmée dépasse la quantité encore disponible pour cette demande.']);
+            }
             $match->loadMissing(['request.brand', 'productReturn.rewardTransaction']);
             $match->update([
                 'status' => 'accepted',
@@ -104,7 +116,7 @@ class MaterialExchangeService
                 'user_id' => $return->user_id,
                 'type' => 'brand_accepted',
                 'title' => 'Une marque accepte votre textile',
-                'message' => $match->request->brand->name.' a réservé votre textile. Consultez la destination de transfert.',
+                'message' => $match->request->brand->name.' a réservé votre textile. '.($return->logistics_mode === 'hub_transfer' ? 'Le point de collecte organise sa remise à la marque.' : 'Consultez la destination de transfert.'),
                 'url' => route('product-returns.show', $return),
             ]);
 
@@ -112,11 +124,16 @@ class MaterialExchangeService
         });
     }
 
-    public function transfer(MaterialMatch $match, User $consumer): MaterialMatch
+    public function transfer(MaterialMatch $match, User $actor): MaterialMatch
     {
-        abort_unless($match->productReturn->user_id === $consumer->id, 403);
+        $return = $match->productReturn;
+        $authorized = $actor->isAdmin() || ($actor->isCollector() && $return->logistics_mode === 'hub_transfer'
+            && $return->collectionPoint->operator_user_id === $actor->id)
+            || ($actor->isConsumer() && $return->logistics_mode === 'consumer_transfer' && $return->user_id === $actor->id);
+        abort_unless($authorized, 403);
 
-        return DB::transaction(function () use ($match, $consumer) {
+        return DB::transaction(function () use ($match, $actor) {
+            $match = MaterialMatch::whereKey($match->id)->lockForUpdate()->firstOrFail();
             if ($match->status !== 'accepted') {
                 throw ValidationException::withMessages(['transfer' => 'Ce transfert ne peut pas être confirmé.']);
             }
@@ -124,9 +141,9 @@ class MaterialExchangeService
             $match->update(['status' => 'in_transit', 'transferred_at' => now()]);
             $match->productReturn->update(['status' => 'in_transit']);
             $match->productReturn->statusHistory()->create([
-                'user_id' => $consumer->id,
+                'user_id' => $actor->id,
                 'status' => 'in_transit',
-                'note' => 'Dépôt ou transfert confirmé par le consommateur.',
+                'note' => $actor->isConsumer() ? 'Transfert direct confirmé par le consommateur.' : 'Remise à la marque confirmée par le point de collecte.',
             ]);
 
             BrandNotification::create([
@@ -143,11 +160,11 @@ class MaterialExchangeService
 
     public function receive(MaterialMatch $match): MaterialMatch
     {
-        if (! in_array($match->status, ['accepted', 'in_transit'], true)) {
-            throw ValidationException::withMessages(['match' => 'Cette matière ne peut pas être réceptionnée.']);
-        }
-
         return DB::transaction(function () use ($match) {
+            $match = MaterialMatch::whereKey($match->id)->lockForUpdate()->firstOrFail();
+            if ($match->status !== 'in_transit') {
+                throw ValidationException::withMessages(['match' => 'Cette matière ne peut pas être réceptionnée.']);
+            }
             $match->update(['status' => 'brand_received', 'brand_received_at' => now()]);
             $match->productReturn->update(['status' => 'brand_review']);
             $match->productReturn->statusHistory()->create([
@@ -170,11 +187,16 @@ class MaterialExchangeService
 
     public function verify(MaterialMatch $match, ?string $note = null): MaterialMatch
     {
-        if ($match->status !== 'brand_received') {
-            throw ValidationException::withMessages(['match' => 'La réception doit être confirmée avant la validation finale.']);
-        }
-
         return DB::transaction(function () use ($match, $note) {
+            $roadmap = $match->request->roadmapStep?->roadmap;
+            if ($roadmap) {
+                LabelRoadmap::whereKey($roadmap->id)->lockForUpdate()->firstOrFail();
+            }
+            $match = MaterialMatch::whereKey($match->id)->lockForUpdate()->firstOrFail();
+            if ($match->status !== 'brand_received') {
+                throw ValidationException::withMessages(['match' => 'La réception doit être confirmée avant la validation finale.']);
+            }
+            MaterialRequest::whereKey($match->material_request_id)->lockForUpdate()->firstOrFail();
             $match->loadMissing(['request', 'productReturn.rewardTransaction']);
             $match->update([
                 'status' => 'verified',
@@ -182,6 +204,7 @@ class MaterialExchangeService
                 'brand_review_note' => $note,
             ]);
 
+            app(MaterialUsageService::class)->initialize($match);
             $return = $match->productReturn;
             $return->update([
                 'status' => 'completed',
@@ -217,10 +240,17 @@ class MaterialExchangeService
     public function reject(MaterialMatch $match, string $note): MaterialMatch
     {
         return DB::transaction(function () use ($match, $note) {
+            ProductReturn::whereKey($match->product_return_id)->lockForUpdate()->firstOrFail();
+            $match = MaterialMatch::whereKey($match->id)->lockForUpdate()->firstOrFail();
+            if (! in_array($match->status, ['accepted', 'in_transit', 'brand_received'], true)) {
+                throw ValidationException::withMessages(['match' => 'Seul un échange réservé et non validé peut être refusé.']);
+            }
             $match->loadMissing(['request', 'productReturn.rewardTransaction']);
             $match->update(['status' => 'rejected', 'brand_review_note' => $note]);
             $return = $match->productReturn;
             $return->update(['status' => 'marketplace']);
+            $return->materialMatches()->where('status', 'unavailable')->where('ai_verdict', 'compatible')->update(['status' => 'suggested']);
+            $return->materialMatches()->where('status', 'unavailable')->where('ai_verdict', 'partial')->update(['status' => 'review_needed']);
 
             if ($return->rewardTransaction?->status === 'pending') {
                 $return->rewardTransaction->update([

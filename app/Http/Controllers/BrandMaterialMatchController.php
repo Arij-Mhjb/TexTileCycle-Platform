@@ -32,13 +32,14 @@ class BrandMaterialMatchController extends Controller
 
         return view('brand.material-matches', [
             'matches' => (clone $base)->with([
-                'request', 'productReturn.product.materials', 'productReturn.scan.assets',
+                'request.roadmapStep.roadmap', 'usage.events', 'usage.roadmap.products', 'productReturn.product.materials', 'productReturn.scan.assets',
                 'productReturn.collectionPoint',
             ])->when($verdict, fn ($query) => $query->where('ai_verdict', $verdict))
                 ->orderByRaw("CASE ai_verdict WHEN 'compatible' THEN 1 WHEN 'partial' THEN 2 ELSE 3 END")
                 ->latest()
                 ->paginate(15)
                 ->withQueryString(),
+            'roadmaps' => $brand->roadmaps()->where('status', 'active')->with('label', 'steps', 'products')->get(),
             'verdict' => $verdict,
             'counts' => [
                 'all' => (clone $base)->count(),

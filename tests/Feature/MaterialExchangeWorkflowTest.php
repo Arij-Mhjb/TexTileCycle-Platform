@@ -60,7 +60,7 @@ class MaterialExchangeWorkflowTest extends TestCase
         $this->assertSame('reserved_by_brand', $return->fresh()->status);
         $this->assertSame(175, $return->rewardTransaction()->firstOrFail()->points);
 
-        $match = $exchange->transfer($match, $consumer);
+        $match = $exchange->transfer($match, $admin);
         $match = $exchange->receive($match);
         $exchange->verify($match, 'Matière conforme.');
 

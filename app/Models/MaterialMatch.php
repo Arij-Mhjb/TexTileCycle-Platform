@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class MaterialMatch extends Model
 {
@@ -27,6 +28,11 @@ class MaterialMatch extends Model
             'brand_received_at' => 'datetime',
             'brand_verified_at' => 'datetime',
         ];
+    }
+
+    public function usage(): HasOne
+    {
+        return $this->hasOne(MaterialUsage::class);
     }
 
     public function request(): BelongsTo

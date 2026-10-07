@@ -44,6 +44,11 @@ class LabelRoadmap extends Model
         return $this->hasMany(RoadmapStep::class)->orderBy('position');
     }
 
+    public function materialUsages(): HasMany
+    {
+        return $this->hasMany(MaterialUsage::class);
+    }
+
     public function progress(): int
     {
         $steps = $this->steps;

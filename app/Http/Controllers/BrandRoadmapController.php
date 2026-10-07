@@ -67,8 +67,8 @@ class BrandRoadmapController extends Controller
     public function show(Request $r, LabelRoadmap $roadmap)
     {
         $this->own($r, $roadmap);
-        $roadmap->load('label', 'products', 'steps.submissions.reviewer');
-        $matches = MaterialMatch::with('productReturn.product')->where('status', 'verified')->whereHas('request', fn ($q) => $q->where('brand_id', $roadmap->brand_id))->get();
+        $roadmap->load('label', 'products', 'steps.submissions.reviewer', 'materialUsages.match.productReturn', 'materialUsages.events');
+        $matches = MaterialMatch::with('productReturn.product', 'usage')->where(fn ($q) => $q->whereDoesntHave('usage', fn ($u) => $u->whereNotNull('label_roadmap_id'))->orWhereHas('usage', fn ($u) => $u->where('label_roadmap_id', $roadmap->id)))->where('status', 'verified')->whereHas('request', fn ($q) => $q->where('brand_id', $roadmap->brand_id))->get();
 
         return view('brand.roadmaps.show', compact('roadmap', 'matches'));
     }
@@ -124,6 +124,7 @@ class BrandRoadmapController extends Controller
             $roadmap = LabelRoadmap::whereKey($step->label_roadmap_id)->lockForUpdate()->firstOrFail();
             abort_unless($roadmap->status === 'active', 409);
             $step = RoadmapStep::whereKey($step->id)->lockForUpdate()->firstOrFail();
+            abort_unless(! in_array($step->status, ['submitted', 'approved'], true), 409, 'Une étape soumise ou approuvée doit conserver les objectifs examinés.');
             $step->update($data);
             app(ActivityService::class)->log($r->user()->id, $roadmap->brand_id, 'roadmap.step.updated', $step);
         });
@@ -141,7 +142,7 @@ class BrandRoadmapController extends Controller
             'product_results' => 'required|array', 'product_results.*' => 'required|string|min:5|max:2000',
             'proofs' => 'required|array|min:1|max:4', 'proofs.*' => 'required|file|mimes:pdf,jpg,jpeg,png,webp,doc,docx,csv,txt|max:8192',
             'material_match_id' => ['nullable', 'integer', Rule::exists('material_matches', 'id')->where('status', 'verified')],
-            'material_name' => 'nullable|required_with:material_match_id|string|max:255',
+            'material_name' => 'nullable|string|max:255',
             'recycled_output_kg' => 'nullable|numeric|min:0|max:100000', 'incorporated_kg' => 'nullable|numeric|min:0|max:100000'];
         foreach ($roadmap->products()->pluck('products.id') as $id) {
             $rules['product_results.'.$id] = 'required|string|min:5|max:2000';

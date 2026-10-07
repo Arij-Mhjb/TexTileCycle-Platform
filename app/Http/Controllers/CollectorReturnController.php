@@ -2,19 +2,22 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\MaterialMatch;
 use App\Models\ProductReturn;
+use App\Services\MaterialExchangeService;
 use App\Services\MediaStorageService;
 use App\Services\ProductReturnWorkflowService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
 class CollectorReturnController extends Controller
 {
     public function index(Request $request): View
     {
-        $query = ProductReturn::with(['product', 'user', 'collectionPoint', 'evidences.user'])
-            ->whereIn('status', ['dropoff_expected', 'deposit_declared', 'received', 'inspected', 'routed'])
+        $query = ProductReturn::with(['product', 'user', 'collectionPoint', 'evidences.user', 'materialMatches.request.brand'])
+            ->whereIn('status', ['dropoff_expected', 'deposit_declared', 'received', 'inspected', 'routed', 'marketplace', 'reserved_by_brand', 'in_transit'])
             ->latest();
 
         if (! $request->user()->isAdmin()) {
@@ -31,6 +34,7 @@ class CollectorReturnController extends Controller
         MediaStorageService $media,
     ): RedirectResponse {
         $this->guard($request, $productReturn);
+        abort_unless(in_array($productReturn->status, ['dropoff_expected', 'deposit_declared', 'received', 'inspected', 'routed'], true), 409, 'Ce textile est déjà dans le circuit de transfert vers une marque.');
         $data = $request->validate([
             'status' => 'required|in:received,inspected,routed,completed,rejected',
             'qr_token' => 'nullable|string|max:100',
@@ -66,6 +70,29 @@ class CollectorReturnController extends Controller
         $workflow->transition($productReturn, $data['status'], $request->user(), $data['note'] ?? null);
 
         return back()->with('success', 'Étape enregistrée dans la traçabilité.');
+    }
+
+    public function transfer(Request $request, MaterialMatch $materialMatch, MaterialExchangeService $exchange, MediaStorageService $media): RedirectResponse
+    {
+        $return = $materialMatch->productReturn;
+        $this->guard($request, $return);
+        abort_unless($return->logistics_mode === 'hub_transfer', 403);
+        $data = $request->validate(['transfer_token' => 'required|string|max:100', 'evidence' => 'required|image|mimes:jpeg,png,webp|max:8192', 'note' => 'required|string|min:5|max:1000']);
+        if (! hash_equals((string) $materialMatch->transfer_token, $data['transfer_token'])) {
+            return back()->withErrors(['transfer_token' => 'Le code de transfert ne correspond pas à cette réservation.']);
+        }
+        $stored = $media->storeReturnEvidence($request->file('evidence'), $return->id, 'hub-transfer');
+        try {
+            DB::transaction(function () use ($exchange, $materialMatch, $request, $return, $stored, $data) {
+                $exchange->transfer($materialMatch, $request->user());
+                $return->evidences()->create([...$stored, 'user_id' => $request->user()->id, 'type' => 'collector_transfer', 'notes' => $data['note']]);
+            });
+        } catch (\Throwable $error) {
+            $media->delete($stored['path'], $stored['storage_disk'] ?? null, $stored['cloudinary_public_id'] ?? null, $stored['delivery_type'] ?? null);
+            throw $error;
+        }
+
+        return back()->with('success', 'Remise à la marque confirmée avec preuve. La marque doit encore confirmer sa réception.');
     }
 
     private function guard(Request $request, ProductReturn $return): void

@@ -3,11 +3,12 @@
         <div>
             <p class="text-xs font-black uppercase tracking-[.2em] text-emerald-600">Assistant IA de compatibilité</p>
             <h1 class="mt-2 text-3xl font-black">Retours analysés</h1>
-            <p class="mt-2 max-w-3xl text-slate-500">L’IA compare la composition, la pureté, la catégorie et l’état avec les demandes de Primark. Sa proposition aide à décider, mais la marque garde la validation finale.</p>
+            <p class="mt-2 max-w-3xl text-slate-500">L’IA compare la composition, la pureté, la catégorie et l’état avec les demandes de votre marque. Sa proposition aide à décider, mais la marque garde la validation finale.</p>
         </div>
         <a href="{{ route('brand.material-requests.index') }}" class="rounded-xl bg-slate-900 px-5 py-3 text-center font-black text-white">Créer une demande matière</a>
     </div>
 
+    @if($errors->any())<div role="alert" class="mt-4 rounded-xl bg-red-50 p-4 text-sm text-red-700">@foreach($errors->all() as $error)<p>{{ $error }}</p>@endforeach</div>@endif
     <div class="mt-7 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         @foreach([
             [null, 'Toutes', $counts['all'], 'bg-slate-900 text-white'],
@@ -73,7 +74,7 @@
                             <p class="text-sm font-bold text-rose-700">Ce retour ne respecte pas les critères de cette demande. Il n’est pas réservable.</p>
                         @elseif(in_array($match->status,['accepted','in_transit']))
                             <p class="text-sm"><strong>QR transfert :</strong><br><span class="break-all font-mono">{{ $match->transfer_token }}</span></p>
-                            <form method="POST" action="{{ route('brand.material-matches.receive',$match) }}" class="mt-4">@csrf<button class="w-full rounded-xl bg-sky-600 px-4 py-3 font-black text-white">Confirmer la réception</button></form>
+                            @if($match->status === 'in_transit')<form method="POST" action="{{ route('brand.material-matches.receive',$match) }}" class="mt-4">@csrf<button class="w-full rounded-xl bg-sky-600 px-4 py-3 font-black text-white">Confirmer la réception</button></form>@else<p class="mt-4 text-sm text-slate-600">En attente de la remise confirmée {{ $return->logistics_mode === 'hub_transfer' ? 'par le point de collecte' : 'par le consommateur' }}.</p>@endif
                         @elseif($match->status === 'brand_received')
                             <form method="POST" action="{{ route('brand.material-matches.verify',$match) }}" class="space-y-3">@csrf<textarea name="note" placeholder="Résultat du contrôle final" class="w-full rounded-xl border-slate-300"></textarea><button class="w-full rounded-xl bg-emerald-600 px-4 py-3 font-black text-white">Valider la matière et les points</button></form>
                             <form method="POST" action="{{ route('brand.material-matches.reject',$match) }}" class="mt-3 space-y-3">@csrf<textarea name="note" required placeholder="Motif du refus" class="w-full rounded-xl border-slate-300"></textarea><button class="w-full rounded-xl bg-rose-100 px-4 py-3 font-black text-rose-700">Refuser</button></form>
@@ -82,14 +83,16 @@
                         @endif
                     </div>
                 </div>
+                @if($match->status === 'verified')@include('brand._material-usage')@endif
             </article>
         @empty
             <div class="rounded-3xl border border-dashed bg-white p-10 text-center">
                 <h2 class="text-xl font-black">Aucune analyse IA disponible</h2>
                 <p class="mx-auto mt-2 max-w-xl text-slate-500">Créez d’abord une demande précisant la matière, le pourcentage minimal, les catégories et les états acceptés. L’IA analysera automatiquement tous les retours déjà vérifiés.</p>
-                <a href="{{ route('brand.material-requests.index') }}" class="mt-5 inline-flex rounded-xl bg-emerald-600 px-5 py-3 font-black text-white">Définir les critères Primark</a>
+                <a href="{{ route('brand.material-requests.index') }}" class="mt-5 inline-flex rounded-xl bg-emerald-600 px-5 py-3 font-black text-white">Définir mes critères</a>
             </div>
         @endforelse
     </div>
     <div class="mt-8">{{ $matches->links() }}</div>
 </x-brand-layout>
+

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\MaterialRequest;
+use App\Models\RoadmapStep;
 use App\Services\MaterialMatchingService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -16,7 +17,8 @@ class BrandMaterialRequestController extends Controller
 
         return view('brand.material-requests', [
             'brand' => $brand,
-            'requests' => $brand->materialRequests()->withCount('matches')->latest()->paginate(12),
+            'requests' => $brand->materialRequests()->with('roadmapStep.roadmap.label')->withCount('matches')->latest()->paginate(12),
+            'roadmaps' => $brand->roadmaps()->where('status', 'active')->with('label', 'products', 'steps')->get(),
         ]);
     }
 
@@ -24,6 +26,7 @@ class BrandMaterialRequestController extends Controller
     {
         $brand = $request->user()->brand()->firstOrFail();
         $data = $request->validate([
+            'roadmap_step_id' => 'nullable|integer|exists:roadmap_steps,id',
             'title' => 'required|string|max:255',
             'material_name' => 'required|string|max:255',
             'minimum_percentage' => 'required|numeric|min:0|max:100',
@@ -37,7 +40,13 @@ class BrandMaterialRequestController extends Controller
             'expires_at' => 'nullable|date|after:today',
         ]);
 
+        $step = ! empty($data['roadmap_step_id']) ? RoadmapStep::findOrFail($data['roadmap_step_id']) : null;
+        if ($step) {
+            abort_unless($step->roadmap->brand_id === $brand->id, 403);
+            abort_unless($step->roadmap->status === 'active' && $step->material_stage === 'collection', 422);
+        }
         $materialRequest = $brand->materialRequests()->create([
+            'roadmap_scope_version' => $step?->roadmap->scope_version,
             ...collect($data)->except(['categories_text'])->all(),
             'categories' => collect(explode(',', $data['categories_text'] ?? ''))->map(fn ($value) => trim($value))->filter()->values()->all(),
             'remaining_kg' => $data['quantity_kg'],

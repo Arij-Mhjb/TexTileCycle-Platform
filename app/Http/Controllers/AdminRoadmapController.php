@@ -16,7 +16,7 @@ class AdminRoadmapController extends Controller
 
     public function show(LabelRoadmap $roadmap)
     {
-        $roadmap->load('brand', 'label', 'products', 'steps.submissions.reviewer', 'steps.submissions.submitter');
+        $roadmap->load('brand', 'label', 'products', 'steps.submissions.reviewer', 'steps.submissions.submitter', 'materialUsages.match.productReturn', 'materialUsages.events');
 
         return view('admin.roadmaps.show', compact('roadmap'));
     }
@@ -26,6 +26,6 @@ class AdminRoadmapController extends Controller
         $data = $r->validate(['status' => 'required|in:approved,rejected', 'review_comment' => 'required|string|max:4000']);
         $service->review($r->user(), $submission, $data);
 
-        return back()->with('success','Décision enregistrée et marque notifiée.');
+        return back()->with('success', 'Décision enregistrée et marque notifiée.');
     }
 }

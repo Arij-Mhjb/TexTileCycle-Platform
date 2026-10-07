@@ -45,6 +45,7 @@ class LabelRoadmapService
             foreach ($definitions as $index => [$title,$instructions,$evidence]) {
                 $roadmap->steps()->create(['title' => $title, 'instructions' => $instructions, 'required_evidence' => $evidence,
                     'completion_points' => [$evidence, 'Résultat concret renseigné pour chaque produit du périmètre.', 'Au moins une preuve privée jointe et revue par un administrateur.'],
+                    'material_stage' => ['Tracer les matières et leur collecte' => 'collection', 'Documenter la transformation' => 'transformation', 'Produire et contrôler un lot pilote' => 'incorporation'][$title] ?? null,
                     'position' => $index + 1, 'due_date' => $roadmap->starts_on->copy()->addDays((int) round($days * ($index + 1) / count($definitions))),
                     'owner_name' => $user->name, 'goal' => $instructions, 'status' => 'todo']);
             }
@@ -86,6 +87,9 @@ class LabelRoadmapService
             $before = $roadmap->products()->pluck('products.id')->sort()->values()->all();
             $after = collect($data['products'])->map(fn ($v) => (int) $v)->sort()->values()->all();
             $changed = $before !== $after || $roadmap->scope_description !== $data['scope_description'] || $roadmap->baseline !== $data['baseline'] || $roadmap->objective !== $data['objective'];
+            if ($changed && $roadmap->materialUsages()->exists()) {
+                throw ValidationException::withMessages(['products' => 'Des matières sont affectées à ce périmètre. Conservez-le pour sa traçabilité et créez une nouvelle feuille de route pour un autre périmètre.']);
+            }
             $roadmap->update(collect($data)->except('products')->all());
             foreach ($roadmap->steps()->get() as $step) {
                 if ($step->due_date->lt($roadmap->starts_on)) {
@@ -109,6 +113,7 @@ class LabelRoadmapService
             $roadmap = LabelRoadmap::whereKey($step->label_roadmap_id)->lockForUpdate()->firstOrFail();
             $step = RoadmapStep::whereKey($step->id)->lockForUpdate()->firstOrFail();
             abort_unless($roadmap->status === 'active', 409);
+            abort_unless($step->status !== 'approved', 409, 'Cette étape est déjà approuvée.');
             $products = $roadmap->products()->get();
             abort_unless((int) $data['scope_version'] === $roadmap->scope_version, 409, 'Le périmètre a changé. Rechargez la feuille de route.');
             foreach ($products as $product) {
@@ -119,15 +124,7 @@ class LabelRoadmapService
             $material = null;
             if (! empty($data['material_match_id'])) {
                 $match = MaterialMatch::with('productReturn')->whereHas('request', fn ($q) => $q->where('brand_id', $roadmap->brand_id))->where('status', 'verified')->findOrFail($data['material_match_id']);
-                $material = ['match_id' => $match->id, 'return_reference' => $match->productReturn->reference, 'verified_collected_kg' => $match->productReturn->confirmed_weight_kg ?? $match->productReturn->weight_kg,
-                    'material_name' => $data['material_name'] ?? null, 'recycled_output_kg' => $data['recycled_output_kg'] ?? null, 'incorporated_kg' => $data['incorporated_kg'] ?? null];
-                $input = (float) $material['verified_collected_kg'];
-                if (isset($material['recycled_output_kg']) && (float) $material['recycled_output_kg'] > $input) {
-                    throw ValidationException::withMessages(['recycled_output_kg' => 'La sortie attribuée à ce lot ne peut pas dépasser son poids collecté.']);
-                }
-                if (isset($material['incorporated_kg']) && (! isset($material['recycled_output_kg']) || (float) $material['incorporated_kg'] > (float) $material['recycled_output_kg'])) {
-                    throw ValidationException::withMessages(['incorporated_kg' => 'Le poids incorporé ne peut pas dépasser la sortie recyclée documentée.']);
-                }
+                $material = app(MaterialUsageService::class)->evidence($match, $roadmap, $step, $data);
             } elseif (isset($data['recycled_output_kg']) || isset($data['incorporated_kg'])) {
                 throw ValidationException::withMessages(['material_match_id' => 'Associez un lot vérifié pour enregistrer ces poids.']);
             }

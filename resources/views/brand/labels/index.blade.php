@@ -16,10 +16,13 @@
     <h2 class="mt-1 text-xl font-bold">{{ $label->name }}</h2>
     <p class="mt-2 text-sm text-slate-600">{{ $label->description }}</p>
     @if($recommendation)<p class="mt-3 text-sm">{{ $recommendation['reason'] }}</p><ul class="mt-3 list-disc pl-5 text-sm text-slate-600">@foreach($recommendation['next_steps'] as $action)<li>{{ $action }}</li>@endforeach</ul>@endif
-    <div class="mt-4 flex justify-between text-sm"><span>{{ $label->steps_count }} étapes</span><strong>{{ $assessment ? $assessment->score.' %' : 'Préparer mon dossier' }}</strong></div>
+    @php($plans=$roadmaps->get($label->id,collect()))
+    <div class="mt-4 text-sm">@if($plans->isNotEmpty())<strong>{{ (int)round($plans->avg(fn($plan)=>$plan->progress())) }} % · préparation des feuilles de route</strong><p class="mt-1 text-xs text-slate-500">{{ $plans->count() }} périmètre(s) actif(s), moyenne des étapes approuvées.</p>@else<strong>Préparer ma feuille de route</strong>@endif
+    @if($assessment)<p class="mt-2 text-xs text-slate-500">Dossier documentaire général : {{ $assessment->score }} % des preuves pondérées.</p>@endif</div>
 </a>
 @empty
 <p class="rounded-2xl border bg-white p-6 text-slate-600">Aucune démarche retenue pour le moment. Consultez le commentaire de l’administrateur pour préparer la suite.</p>
 @endforelse
 </div>
 </x-brand-layout>
+

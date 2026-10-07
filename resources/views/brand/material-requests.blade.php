@@ -7,6 +7,11 @@
     <form method="POST" action="{{ route('brand.material-requests.store') }}" class="mt-7 rounded-3xl border bg-white p-6">
         @csrf
         <h2 class="text-xl font-black">Nouvelle demande</h2>
+        @if($errors->any())<div role="alert" class="mt-3 text-sm text-red-700">@foreach($errors->all() as $error)<p>{{ $error }}</p>@endforeach</div>@endif
+        <label class="mt-5 block text-sm font-bold">Objectif de collecte pour un label (facultatif)
+            <select name="roadmap_step_id" class="mt-2 w-full rounded-xl border-slate-300"><option value="">Demande générale — association possible après réception</option>
+            @foreach($roadmaps as $plan)@foreach($plan->steps->where('material_stage','collection') as $target)<option value="{{ $target->id }}" @selected((string)old('roadmap_step_id',request('roadmap_step_id')) === (string)$target->id)>{{ $plan->name }} · {{ $plan->label->name }} · {{ $plan->products->pluck('name')->join(', ') }}</option>@endforeach @endforeach</select>
+        </label><p class="mt-2 text-xs text-slate-500">La collecte alimentera les preuves de cette feuille de route, après réception et contrôle. Elle ne vaut pas certification.</p>
         <div class="mt-5 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             <label class="text-sm font-bold">Titre<input name="title" required class="mt-2 w-full rounded-xl border-slate-300"></label>
             <label class="text-sm font-bold">Matière recherchée<input name="material_name" placeholder="Coton" required class="mt-2 w-full rounded-xl border-slate-300"></label>
@@ -27,6 +32,7 @@
             <article class="rounded-2xl border bg-white p-5">
                 <div class="flex justify-between gap-3"><div><p class="text-xs font-black uppercase text-emerald-600">{{ $item->material_name }} · ≥ {{ $item->minimum_percentage }}%</p><h2 class="mt-2 text-xl font-black">{{ $item->title }}</h2></div><span class="rounded-full bg-emerald-50 px-3 py-1 text-xs font-black text-emerald-700">{{ $item->status }}</span></div>
                 <p class="mt-4 text-sm text-slate-500">{{ $item->remaining_kg }} / {{ $item->quantity_kg }} kg restants · {{ $item->matches_count }} proposition(s)</p>
+                @if($item->roadmapStep)<a class="mt-3 block text-sm font-bold text-emerald-700" href="{{ route('brand.roadmaps.show',$item->roadmapStep->roadmap) }}">{{ $item->roadmapStep->roadmap->name }} · {{ $item->roadmapStep->title }}</a>@endif
                 @if($item->status === 'open')<form method="POST" action="{{ route('brand.material-requests.destroy',$item) }}" class="mt-4">@csrf @method('DELETE')<button class="text-sm font-black text-rose-600">Clôturer</button></form>@endif
             </article>
         @empty
@@ -35,3 +41,4 @@
     </div>
     <div class="mt-8">{{ $requests->links() }}</div>
 </x-brand-layout>
+
