@@ -1,8 +1,8 @@
 <x-role-layout title="Smart Scan">
     <div class="mx-auto max-w-4xl">
-        <p class="text-xs font-black uppercase tracking-[.2em] text-emerald-600">Analyse privée locale</p>
+        <p class="text-xs font-black uppercase tracking-[.2em] text-emerald-600">Analyse assistée et contrôlée</p>
         <h1 class="mt-2 text-3xl font-black">Photographiez votre textile</h1>
-        <p class="mt-3 max-w-2xl text-slate-600">Le ticket, l’étiquette et le produit sont stockés de façon durable puis analysés temporairement par l’OCR. Vous confirmez toujours les informations avant le dépôt.</p>
+        <p class="mt-3 max-w-2xl text-slate-600">Le ticket, l’étiquette et le produit sont stockés de façon durable puis analysés temporairement par l’OCR et, si configuré, Gemini Vision. Vous confirmez toujours les informations avant le dépôt.</p>
 
         <form method="POST" enctype="multipart/form-data" action="{{ route('scans.store') }}" class="mt-7 space-y-7 rounded-3xl border bg-white p-7 shadow-sm">
             @csrf
@@ -41,7 +41,7 @@
 
             <label class="flex items-start gap-3 rounded-2xl border border-sky-200 bg-sky-50 p-4 text-sm text-sky-950">
                 <input type="checkbox" name="privacy_consent" value="1" required class="mt-1 rounded border-sky-300 text-emerald-600">
-                <span>J’autorise TexTileCycle à conserver ces images sur son stockage média sécurisé pour l’analyse OCR et les contrôles du retour. Le ticket utilise un accès authentifié et ne sera jamais montré aux marques.</span>
+                <span>J’autorise TexTileCycle à conserver ces images sur son stockage média sécurisé et à les transmettre temporairement à Gemini pour proposer les champs manquants. Le palier gratuit de Gemini peut utiliser les données pour améliorer ses produits. Le ticket utilise un accès authentifié et ne sera jamais montré aux marques.</span>
             </label>
 
             @if ($errors->any())
@@ -51,3 +51,4 @@
         </form>
     </div>
 </x-role-layout>
+

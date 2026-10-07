@@ -36,6 +36,13 @@ return [
         'secure' => env('CLOUDINARY_SECURE', true),
     ],
 
+    'gemini' => [
+        'enabled' => env('GEMINI_AI_ENABLED', true),
+        'key' => env('GEMINI_API_KEY'),
+        'model' => env('GEMINI_MODEL', 'gemini-3.5-flash-lite'),
+        'timeout' => env('GEMINI_TIMEOUT', 45),
+    ],
+
     'slack' => [
         'notifications' => [
             'bot_user_oauth_token' => env('SLACK_BOT_USER_OAUTH_TOKEN'),
@@ -44,3 +51,4 @@ return [
     ],
 
 ];
+

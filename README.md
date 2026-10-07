@@ -95,6 +95,20 @@ CLOUDINARY_SECURE=true
 
 À la place de `CLOUDINARY_URL`, les variables séparées `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY` et `CLOUDINARY_API_SECRET` sont aussi supportées. Les tickets sont téléversés en ressource Cloudinary `authenticated`; les autres photos utilisent également des URLs HTTPS signées générées côté serveur. Les anciens chemins locaux sont conservés : une image encore présente reste lisible, tandis qu’une image déjà perdue affiche un remplacement sans provoquer d’erreur serveur.
 
+### Suggestions IA gratuites pour Smart Scan
+
+Le Smart Scan conserve Tesseract et ZBar en analyse locale, puis peut demander à Gemini Vision de compléter uniquement les champs encore vides. Les valeurs locales ou issues du catalogue ne sont jamais écrasées et toutes les suggestions restent soumises à la confirmation du consommateur.
+
+Créer gratuitement une clé dans Google AI Studio, puis ajouter dans Render :
+
+```env
+GEMINI_AI_ENABLED=true
+GEMINI_API_KEY=<votre_cle_google_ai_studio>
+GEMINI_MODEL=gemini-3.5-flash-lite
+```
+
+Ne placez jamais la clé dans GitHub. Sans clé, en cas de quota épuisé ou d’erreur réseau, l’application revient automatiquement à l’OCR local. Le palier gratuit est soumis aux quotas de Google et les données transmises peuvent être utilisées par Google pour améliorer ses produits ; le formulaire Smart Scan en informe donc explicitement l’utilisateur.
+
 Le démarrage de production exécute uniquement `php artisan migrate --force`. Le seeding ne s’exécute que si `RUN_SEED=true` est explicitement défini.
 
 ## Comptes de démonstration
@@ -182,3 +196,4 @@ Les colonnes `name`, `sku` et `category` sont obligatoires. Les produits import�
 ### Vérification continue
 
 La GitHub Action `.github/workflows/tests.yml` exécute automatiquement l’installation, le build front, les migrations SQLite et les tests Laravel sur chaque pull request et chaque mise à jour de `main`.
+

@@ -192,7 +192,7 @@ class ScanController extends Controller
 
         return to_route('scans.show', $scan)->with(
             'success',
-            'Nouvelle analyse terminée avec amélioration d’image et lecture du code-barres.'
+            'Nouvelle analyse terminée avec OCR, lecture du code-barres et suggestions visuelles si Gemini est configuré.'
         );
     }
 
@@ -301,3 +301,4 @@ class ScanController extends Controller
         ];
     }
 }
+

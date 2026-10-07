@@ -11,7 +11,10 @@ use Throwable;
 
 class MultimodalScanService
 {
-    public function __construct(private MediaStorageService $media) {}
+    public function __construct(
+        private MediaStorageService $media,
+        private GeminiVisionService $gemini,
+    ) {}
 
     private const MATERIAL_ALIASES = [
         'Viscose' => ['viscose', 'viskoz', 'viscosa', 'rayon'],
@@ -31,6 +34,7 @@ class MultimodalScanService
     {
         $scan->load('assets');
         $sourceTexts = [];
+        $visionImages = [];
 
         if ($scan->raw_text && $scan->source_type !== 'multimodal') {
             $sourceTexts['manual'] = $scan->raw_text;
@@ -74,7 +78,7 @@ class MultimodalScanService
                 $unavailableAssets[] = $asset->type;
             } finally {
                 if ($temporaryPath && is_file($temporaryPath)) {
-                    @unlink($temporaryPath);
+                    $visionImages[] = ['path' => $temporaryPath, 'type' => $asset->type];
                 }
             }
         }
@@ -83,20 +87,45 @@ class MultimodalScanService
         $product = $this->bestProductMatch($rawText);
         $data = $this->extractStructuredData($sourceTexts, $product);
 
+        $aiStatus = 'local_analysis_completed';
+        $aiApplied = false;
+        try {
+            if ($this->gemini->enabled()) {
+                $aiStatus = 'gemini_analysis_completed';
+                $suggestions = $this->gemini->suggest($visionImages, $data);
+                if ($suggestions) {
+                    $data = $this->mergeAiSuggestions($data, $suggestions);
+                    $aiApplied = (bool) ($data['ai_applied'] ?? false);
+                }
+            }
+        } catch (Throwable $exception) {
+            report($exception);
+            $aiStatus = 'gemini_failed_local_fallback';
+            $data['warnings'][] = 'Les suggestions IA sont temporairement indisponibles. Les résultats OCR locaux restent utilisables.';
+        } finally {
+            foreach ($visionImages as $image) {
+                if (is_file($image['path'])) {
+                    @unlink($image['path']);
+                }
+            }
+        }
+
         $warnings = $data['warnings'] ?? [];
         if ($unavailableAssets) {
             $warnings[] = 'Certaines images sont indisponibles : '.collect($unavailableAssets)->unique()->join(', ').'.';
             $data['warnings'] = $warnings;
         }
-        if ($rawText === '') {
+        if ($rawText === '' && ! $aiApplied) {
             $warnings[] = 'Aucun texte lisible détecté. Recadrez le ticket ou l’étiquette, évitez les reflets et relancez l’analyse.';
             $data['warnings'] = $warnings;
             $data['confidence'] = 0;
         }
 
-        $explanation = $product
-            ? 'Produit rapproché du catalogue et informations extraites par OCR local multilingue.'
-            : 'Informations extraites des documents. Sélectionnez un produit du catalogue ou confirmez les valeurs proposées.';
+        $explanation = match (true) {
+            $aiApplied => 'OCR local et vision Gemini ont proposé les champs lisibles ou visuellement déductibles. Vérifiez chaque suggestion avant de confirmer.',
+            $product !== null => 'Produit rapproché du catalogue et informations extraites par OCR local multilingue.',
+            default => 'Informations extraites des documents. Sélectionnez un produit du catalogue ou confirmez les valeurs proposées.',
+        };
 
         if ($warnings) {
             $explanation .= ' Vérification requise : '.implode(' ', $warnings);
@@ -106,13 +135,110 @@ class MultimodalScanService
             'product_id' => $product?->id,
             'raw_text' => $rawText ?: $scan->raw_text,
             'status' => $product ? 'completed' : 'needs_confirmation',
-            'ai_status' => 'local_analysis_completed',
+            'ai_status' => $aiStatus,
             'confidence' => $data['confidence'],
             'extracted_data' => $data,
             'ai_explanation' => $explanation,
         ]);
 
         return $data;
+    }
+
+    /**
+     * Gemini complète uniquement les valeurs absentes. Une donnée OCR/catalogue
+     * existante reste toujours prioritaire et toute suggestion demeure à confirmer.
+     */
+    public function mergeAiSuggestions(array $local, array $suggestions): array
+    {
+        $fields = [
+            'brand', 'product_name', 'sku', 'barcode', 'category', 'color', 'size',
+            'retailer', 'purchase_date', 'purchase_price', 'currency', 'composition',
+            'condition', 'defects',
+        ];
+        $sources = $local['field_sources'] ?? [];
+        $confidences = $local['field_confidence'] ?? [];
+        $evidence = $local['field_evidence'] ?? [];
+        $applied = [];
+
+        foreach ($fields as $field) {
+            $localValue = $local[$field] ?? null;
+            $suggestedValue = $suggestions[$field] ?? null;
+            $suggestedConfidence = max(0, min(100, (int) data_get($suggestions, "field_confidence.{$field}", 0)));
+            $minimumConfidence = in_array($field, ['sku', 'barcode', 'purchase_date', 'purchase_price', 'composition'], true)
+                ? 80
+                : 60;
+            $missing = $localValue === null
+                || $localValue === ''
+                || $localValue === []
+                || ($field === 'condition' && $localValue === 'unknown');
+            $usable = ! ($suggestedValue === null || $suggestedValue === '' || $suggestedValue === [])
+                && ! ($field === 'condition' && $suggestedValue === 'unknown')
+                && $suggestedConfidence >= $minimumConfidence
+                && $this->validAiSuggestion($field, $suggestedValue);
+
+            if ($missing && $usable) {
+                $local[$field] = $suggestedValue;
+                $sources[$field] = 'gemini';
+                $confidences[$field] = $suggestedConfidence;
+                $evidence[$field] = data_get($suggestions, "field_evidence.{$field}");
+                $applied[] = $field;
+            } elseif (! $missing) {
+                $sources[$field] = $sources[$field] ?? 'local';
+            }
+        }
+
+        $local['field_sources'] = $sources;
+        $local['field_confidence'] = $confidences;
+        $local['field_evidence'] = $evidence;
+        $local['ai_suggestions'] = collect($suggestions)->only($fields)->all();
+        $local['ai_applied_fields'] = $applied;
+        $local['ai_applied'] = $applied !== [];
+
+        if ($applied !== []) {
+            $local['analysis_mode'] = 'local_ocr_plus_gemini_vision';
+            $aiConfidence = collect($applied)
+                ->map(fn ($field) => $confidences[$field] ?? 0)
+                ->filter(fn ($value) => $value > 0)
+                ->avg();
+            if ($aiConfidence) {
+                $local['confidence'] = min(95, (int) round(((int) ($local['confidence'] ?? 0) + $aiConfidence) / 2));
+            }
+        }
+
+        return $local;
+    }
+
+    private function validAiSuggestion(string $field, mixed $value): bool
+    {
+        return match ($field) {
+            'barcode' => is_string($value)
+                && ctype_digit($value)
+                && in_array(strlen($value), [8, 12, 13, 14], true),
+            'purchase_date' => $this->validIsoDate($value),
+            'purchase_price' => is_numeric($value) && (float) $value >= 0,
+            'currency' => is_string($value) && preg_match('/^[A-Z]{3}$/', $value) === 1,
+            'condition' => in_array($value, ['good', 'wearable', 'minor_damage', 'damaged', 'unusable'], true),
+            'composition' => is_array($value) && collect($value)->every(fn ($item) =>
+                is_array($item)
+                && filled($item['material'] ?? null)
+                && is_numeric($item['percentage'] ?? null)
+                && (float) $item['percentage'] >= 0
+                && (float) $item['percentage'] <= 100
+            ),
+            'defects' => is_array($value) && collect($value)->every(fn ($item) => is_string($item)),
+            default => is_string($value) || is_numeric($value),
+        };
+    }
+
+    private function validIsoDate(mixed $value): bool
+    {
+        if (! is_string($value)) {
+            return false;
+        }
+
+        $date = DateTimeImmutable::createFromFormat('!Y-m-d', $value);
+
+        return $date instanceof DateTimeImmutable && $date->format('Y-m-d') === $value;
     }
 
     /**
@@ -608,3 +734,4 @@ class MultimodalScanService
         return mb_strlen($uppercase) / max(1, mb_strlen($letters));
     }
 }
+

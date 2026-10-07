@@ -35,6 +35,8 @@
 
         @if (auth()->user()->isConsumer() && ! $scan->consumer_confirmed_at)
             @php($data = $scan->extracted_data ?? [])
+            @php($aiSource = fn ($field) => data_get($data, 'field_sources.'.$field) === 'gemini')
+            @php($fieldClass = fn ($field) => $aiSource($field) ? 'border-amber-400 bg-amber-50' : 'border-slate-300')
             <form method="POST" action="{{ route('scans.confirm-data', $scan) }}" class="panel mt-7 p-6">
                 @csrf
                 <div class="flex items-start justify-between gap-4">
@@ -51,6 +53,25 @@
                         </ul>
                     </div>
                 @endif
+                @if (data_get($data, 'ai_applied'))
+                    <div class="mt-5 rounded-2xl border border-violet-200 bg-violet-50 p-4 text-sm text-violet-950">
+                        <p class="font-black">Suggestions Gemini à vérifier</p>
+                        <p class="mt-1">Les champs ambrés ont été complétés depuis les images. Ils ne sont enregistrés qu’après votre confirmation.</p>
+                        <div class="mt-3 grid gap-2 md:grid-cols-2">
+                            @foreach (data_get($data, 'ai_applied_fields', []) as $field)
+                                <div class="rounded-xl bg-white/70 px-3 py-2">
+                                    <span class="font-black">{{ str($field)->replace('_', ' ')->headline() }}</span>
+                                    @if (data_get($data, 'field_confidence.'.$field))
+                                        <span class="ml-1 text-violet-700">· {{ data_get($data, 'field_confidence.'.$field) }} %</span>
+                                    @endif
+                                    @if (data_get($data, 'field_evidence.'.$field))
+                                        <p class="mt-1 text-xs text-violet-800">{{ data_get($data, 'field_evidence.'.$field) }}</p>
+                                    @endif
+                                </div>
+                            @endforeach
+                        </div>
+                    </div>
+                @endif
                 <div class="mt-6 grid gap-5 md:grid-cols-2">
                     <label class="font-bold">Produit du catalogue
                         <select name="product_id" class="mt-2 w-full rounded-xl border-slate-300">
@@ -60,29 +81,29 @@
                             @endforeach
                         </select>
                     </label>
-                    <label class="font-bold">Marque<input name="brand" value="{{ old('brand', data_get($data,'brand')) }}" class="mt-2 w-full rounded-xl border-slate-300"></label>
-                    <label class="font-bold">Nom du produit<input name="product_name" value="{{ old('product_name', data_get($data,'product_name')) }}" class="mt-2 w-full rounded-xl border-slate-300"></label>
-                    <label class="font-bold">SKU<input name="sku" value="{{ old('sku', data_get($data,'sku')) }}" class="mt-2 w-full rounded-xl border-slate-300"></label>
-                    <label class="font-bold">Code-barres<input name="barcode" value="{{ old('barcode', data_get($data,'barcode')) }}" class="mt-2 w-full rounded-xl border-slate-300"></label>
-                    <label class="font-bold">Catégorie<input name="category" value="{{ old('category', data_get($data,'category')) }}" class="mt-2 w-full rounded-xl border-slate-300"></label>
-                    <label class="font-bold">Couleur<input name="color" value="{{ old('color', data_get($data,'color')) }}" class="mt-2 w-full rounded-xl border-slate-300"></label>
-                    <label class="font-bold">Taille<input name="size" value="{{ old('size', data_get($data,'size')) }}" class="mt-2 w-full rounded-xl border-slate-300"></label>
-                    <label class="font-bold">Enseigne<input name="retailer" value="{{ old('retailer', data_get($data,'retailer')) }}" class="mt-2 w-full rounded-xl border-slate-300"></label>
-                    <label class="font-bold">Date d’achat<input type="date" name="purchase_date" value="{{ old('purchase_date', data_get($data,'purchase_date')) }}" class="mt-2 w-full rounded-xl border-slate-300"></label>
-                    <label class="font-bold">Prix d’achat<input type="number" step="0.01" min="0" name="purchase_price" value="{{ old('purchase_price', data_get($data,'purchase_price')) }}" class="mt-2 w-full rounded-xl border-slate-300"></label>
-                    <label class="font-bold">Devise<input name="currency" maxlength="3" value="{{ old('currency', data_get($data,'currency')) }}" placeholder="EUR, TND…" class="mt-2 w-full rounded-xl border-slate-300 uppercase"></label>
+                    <label class="font-bold">Marque<input name="brand" value="{{ old('brand', data_get($data,'brand')) }}" class="mt-2 w-full rounded-xl {{ $fieldClass('brand') }}"></label>
+                    <label class="font-bold">Nom du produit<input name="product_name" value="{{ old('product_name', data_get($data,'product_name')) }}" class="mt-2 w-full rounded-xl {{ $fieldClass('product_name') }}"></label>
+                    <label class="font-bold">SKU<input name="sku" value="{{ old('sku', data_get($data,'sku')) }}" class="mt-2 w-full rounded-xl {{ $fieldClass('sku') }}"></label>
+                    <label class="font-bold">Code-barres<input name="barcode" value="{{ old('barcode', data_get($data,'barcode')) }}" class="mt-2 w-full rounded-xl {{ $fieldClass('barcode') }}"></label>
+                    <label class="font-bold">Catégorie<input name="category" value="{{ old('category', data_get($data,'category')) }}" class="mt-2 w-full rounded-xl {{ $fieldClass('category') }}"></label>
+                    <label class="font-bold">Couleur<input name="color" value="{{ old('color', data_get($data,'color')) }}" class="mt-2 w-full rounded-xl {{ $fieldClass('color') }}"></label>
+                    <label class="font-bold">Taille<input name="size" value="{{ old('size', data_get($data,'size')) }}" class="mt-2 w-full rounded-xl {{ $fieldClass('size') }}"></label>
+                    <label class="font-bold">Enseigne<input name="retailer" value="{{ old('retailer', data_get($data,'retailer')) }}" class="mt-2 w-full rounded-xl {{ $fieldClass('retailer') }}"></label>
+                    <label class="font-bold">Date d’achat<input type="date" name="purchase_date" value="{{ old('purchase_date', data_get($data,'purchase_date')) }}" class="mt-2 w-full rounded-xl {{ $fieldClass('purchase_date') }}"></label>
+                    <label class="font-bold">Prix d’achat<input type="number" step="0.01" min="0" name="purchase_price" value="{{ old('purchase_price', data_get($data,'purchase_price')) }}" class="mt-2 w-full rounded-xl {{ $fieldClass('purchase_price') }}"></label>
+                    <label class="font-bold">Devise<input name="currency" maxlength="3" value="{{ old('currency', data_get($data,'currency')) }}" placeholder="EUR, TND…" class="mt-2 w-full rounded-xl uppercase {{ $fieldClass('currency') }}"></label>
                     <label class="font-bold">État
-                        <select name="condition" class="mt-2 w-full rounded-xl border-slate-300" required>
+                        <select name="condition" class="mt-2 w-full rounded-xl {{ $fieldClass('condition') }}" required>
                             @foreach(['good'=>'Très bon','wearable'=>'Portable','minor_damage'=>'Petits défauts','damaged'=>'Endommagé','unusable'=>'Inutilisable','unknown'=>'Incertain'] as $value=>$label)
                                 <option value="{{ $value }}" @selected(old('condition', data_get($data,'condition','unknown')) === $value)>{{ $label }}</option>
                             @endforeach
                         </select>
                     </label>
                     <label class="font-bold md:col-span-2">Composition — une ligne « matière:pourcentage »
-                        <textarea name="composition_text" rows="4" class="mt-2 w-full rounded-xl border-slate-300">{{ old('composition_text', collect(data_get($data,'composition',[]))->map(fn($x)=>data_get($x,'material').':'.data_get($x,'percentage'))->implode("\n")) }}</textarea>
+                        <textarea name="composition_text" rows="4" class="mt-2 w-full rounded-xl {{ $fieldClass('composition') }}">{{ old('composition_text', collect(data_get($data,'composition',[]))->map(fn($x)=>data_get($x,'material').':'.data_get($x,'percentage'))->implode("\n")) }}</textarea>
                     </label>
                     <label class="font-bold md:col-span-2">Défauts visibles — un par ligne
-                        <textarea name="defects_text" rows="3" class="mt-2 w-full rounded-xl border-slate-300">{{ old('defects_text', collect(data_get($data,'defects',[]))->implode("\n")) }}</textarea>
+                        <textarea name="defects_text" rows="3" class="mt-2 w-full rounded-xl {{ $fieldClass('defects') }}">{{ old('defects_text', collect(data_get($data,'defects',[]))->implode("\n")) }}</textarea>
                     </label>
                 </div>
                 <button class="mt-6 rounded-2xl bg-emerald-700 px-6 py-3 font-black text-white">Confirmer ces informations</button>
@@ -123,3 +144,4 @@
         @endif
     </div>
 </x-role-layout>
+
