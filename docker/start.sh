@@ -2,6 +2,10 @@
 set -eu
 : "${APP_KEY:?Set APP_KEY in Render environment variables}"
 : "${DB_CONNECTION:?Set DB_CONNECTION to pgsql and configure the database}"
+if ! php -r 'exit(extension_loaded("curl") ? 0 : 1);'; then
+  echo "PHP cURL extension is required for Cloudinary uploads." >&2
+  exit 1
+fi
 if [ -z "${CLOUDINARY_URL:-}" ] && { [ -z "${CLOUDINARY_CLOUD_NAME:-}" ] || [ -z "${CLOUDINARY_API_KEY:-}" ] || [ -z "${CLOUDINARY_API_SECRET:-}" ]; }; then
   echo "Set CLOUDINARY_URL or the three CLOUDINARY_CLOUD_NAME/API_KEY/API_SECRET variables in Render." >&2
   exit 1
