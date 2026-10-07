@@ -20,6 +20,8 @@ class BrandDashboardController extends Controller {
    'pendingEvidence'=>$assessments->sum(fn($a)=>$a->evidences->where('status','pending')->count()),
    'actions'=>$actions->take(8),'activities'=>$brand->activities()->with('user')->limit(10)->get(),
    'notifications'=>$request->user()->brandNotifications()->whereNull('read_at')->latest()->limit(6)->get(),
+   'passportProposals'=>$brand->passportProposals()->where('status','brand_pending')->count(),
   ]);
  }
 }
+

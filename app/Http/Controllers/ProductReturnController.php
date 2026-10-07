@@ -7,6 +7,7 @@ use App\Models\Product;
 use App\Models\ProductReturn;
 use App\Models\Scan;
 use App\Services\ProductReturnWorkflowService;
+use App\Services\MediaStorageService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -68,9 +69,34 @@ class ProductReturnController extends Controller
         return view('product-returns.show', [
             'item' => $productReturn->load([
                 'product.materials', 'collectionPoint.recoveryProgram', 'statusHistory.user',
-                'rewardTransaction', 'treatmentResult', 'scan.assets', 'materialMatches.request.brand',
+                'rewardTransaction', 'treatmentResult', 'scan.assets', 'materialMatches.request.brand', 'evidences.user',
             ]),
         ]);
+    }
+
+    public function declareDeposit(
+        Request $request,
+        ProductReturn $productReturn,
+        ProductReturnWorkflowService $workflow,
+        MediaStorageService $media,
+    ): RedirectResponse {
+        $this->guard($request, $productReturn);
+        abort_unless($request->user()->isConsumer() && $productReturn->status === 'dropoff_expected', 403);
+
+        $data = $request->validate([
+            'evidence' => 'required|image|mimes:jpeg,png,webp|max:8192',
+            'note' => 'nullable|string|max:500',
+        ]);
+        $stored = $media->storeReturnEvidence($request->file('evidence'), $productReturn->id, 'consumer-deposit');
+        $productReturn->evidences()->create([
+            ...$stored,
+            'user_id' => $request->user()->id,
+            'type' => 'consumer_deposit',
+            'notes' => $data['note'] ?? null,
+        ]);
+        $workflow->transition($productReturn, 'deposit_declared', $request->user(), 'Dépôt déclaré avec preuve photo.');
+
+        return to_route('product-returns.show', $productReturn)->with('success', 'Preuve de dépôt transmise au collecteur.');
     }
 
     public function edit(Request $request, ProductReturn $productReturn): View
@@ -139,7 +165,7 @@ class ProductReturnController extends Controller
 
         if ($admin) {
             $rules += [
-                'status' => 'required|in:declared,dropoff_expected,received,inspected,routed,completed,rejected,cancelled',
+                'status' => 'required|in:declared,dropoff_expected,deposit_declared,received,inspected,routed,completed,rejected,cancelled',
                 'confirmed_weight_kg' => 'nullable|numeric|min:0|max:999999',
                 'status_note' => 'nullable|string|max:1000',
             ];
@@ -179,3 +205,4 @@ class ProductReturnController extends Controller
         }
     }
 }
+

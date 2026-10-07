@@ -53,7 +53,7 @@ Plateforme Laravel 12 de circularité textile responsable. Elle relie consommate
 - MySQL avec XAMPP en développement local
 - PostgreSQL sur Render en production
 
-## Modules CRUD
+## Modules métier
 
 | Module | Entités et relation |
 | --- | --- |
@@ -62,6 +62,21 @@ Plateforme Laravel 12 de circularité textile responsable. Elle relie consommate
 | Recyclage | RecoveryProgram → CollectionPoint, un-à-plusieurs |
 | Collecte | ProductReturn → TreatmentResult, un-à-un |
 | Conformité | Assessment → Evidence, un-à-plusieurs |
+| Passeport proposé | Scan → PassportProposal → PassportEvent |
+| Preuve de dépôt | ProductReturn → ReturnEvidence |
+
+## Workflow Smart Scan et passeport proposé
+
+Un scan multimodal suit désormais ce parcours contrôlé :
+
+1. OCR local, lecture code-barres et suggestion Gemini facultative ;
+2. correction puis confirmation définitive par le consommateur ;
+3. contrôle de TexTileCycle avec approbation, refus ou demande de complément ;
+4. validation/correction par la marque lorsqu’elle est identifiée ;
+5. publication du passeport et ouverture du retour circulaire seulement après validation ;
+6. preuve photo du dépôt, contrôle QR/poids/état par le collecteur et historique complet.
+
+Le ticket, le prix, l’enseigne et la date d’achat ne sont jamais exposés à la marque. Les preuves de dépôt et tickets sont stockés en ressources authentifiées.
 
 ## Installation locale avec XAMPP et MySQL
 
@@ -145,9 +160,18 @@ Créer gratuitement une clé dans Google AI Studio, puis ajouter dans Render :
 GEMINI_AI_ENABLED=true
 GEMINI_API_KEY=<votre_cle_google_ai_studio>
 GEMINI_MODEL=gemini-3.5-flash-lite
+SMART_SCAN_ASYNC=false
 ```
 
 Ne placez jamais la clé dans GitHub. Sans clé, en cas de quota épuisé ou d’erreur réseau, l’application revient automatiquement à l’OCR local. Le palier gratuit est soumis aux quotas de Google et les données transmises peuvent être utilisées par Google pour améliorer ses produits ; le formulaire Smart Scan en informe donc explicitement l’utilisateur.
+
+Pour traiter l’analyse hors de la requête HTTP, définir `SMART_SCAN_ASYNC=true` et lancer un worker :
+
+```bash
+php artisan queue:work --tries=3 --timeout=120
+```
+
+Sans worker, conserver `SMART_SCAN_ASYNC=false` : l’analyse reste synchrone et fonctionnelle.
 
 Le démarrage de production exécute uniquement `php artisan migrate --force`. Le seeding ne s’exécute que si `RUN_SEED=true` est explicitement défini.
 

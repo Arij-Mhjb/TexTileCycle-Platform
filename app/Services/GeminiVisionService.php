@@ -83,7 +83,7 @@ class GeminiVisionService
             ->only([
                 'brand', 'product_name', 'sku', 'barcode', 'category', 'color', 'size',
                 'retailer', 'purchase_date', 'purchase_price', 'currency', 'composition',
-                'condition', 'defects',
+                'manufacturing_country', 'condition', 'defects',
             ])
             ->toJson(JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 
@@ -110,6 +110,7 @@ PROMPT;
             'category' => $nullableString,
             'color' => $nullableString,
             'size' => $nullableString,
+            'manufacturing_country' => $nullableString,
             'retailer' => $nullableString,
             'purchase_date' => ['type' => ['string', 'null'], 'format' => 'date'],
             'purchase_price' => $nullableNumber,

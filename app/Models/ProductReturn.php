@@ -15,7 +15,7 @@ class ProductReturn extends Model
     protected $fillable = [
         'user_id', 'scan_id', 'product_id', 'collection_point_id', 'reference', 'status', 'action',
         'condition', 'qr_token', 'weight_kg', 'confirmed_weight_kg', 'points_awarded',
-        'returned_at', 'deposited_at', 'completed_at', 'cancelled_at', 'notes',
+        'returned_at', 'deposit_declared_at', 'deposited_at', 'completed_at', 'cancelled_at', 'notes',
         'admin_review_status', 'admin_reviewed_by', 'admin_review_note', 'admin_verified_at',
         'logistics_mode',
     ];
@@ -25,6 +25,7 @@ class ProductReturn extends Model
         return [
             'returned_at' => 'datetime',
             'deposited_at' => 'datetime',
+            'deposit_declared_at' => 'datetime',
             'completed_at' => 'datetime',
             'cancelled_at' => 'datetime',
             'admin_verified_at' => 'datetime',
@@ -42,6 +43,7 @@ class ProductReturn extends Model
     public function rewardTransaction(): HasOne { return $this->hasOne(RewardTransaction::class); }
     public function statusHistory(): HasMany { return $this->hasMany(ReturnStatusHistory::class)->oldest(); }
     public function materialMatches(): HasMany { return $this->hasMany(MaterialMatch::class); }
+    public function evidences(): HasMany { return $this->hasMany(ReturnEvidence::class); }
 
     public function canConsumerEdit(): bool
     {
@@ -53,6 +55,7 @@ class ProductReturn extends Model
         return [
             'declared' => 'Déclaré',
             'dropoff_expected' => 'Dépôt attendu',
+            'deposit_declared' => 'Dépôt déclaré',
             'received' => 'Reçu',
             'inspected' => 'Contrôlé',
             'verified' => 'Vérifié par TexTileCycle',
@@ -70,3 +73,4 @@ class ProductReturn extends Model
         ][$this->status] ?? str($this->status)->headline();
     }
 }
+

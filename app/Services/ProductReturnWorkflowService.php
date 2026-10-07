@@ -7,6 +7,7 @@ use App\Models\ConsumerNotification;
 use App\Models\Product;
 use App\Models\ProductReturn;
 use App\Models\RewardTransaction;
+use App\Models\Scan;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -16,7 +17,8 @@ class ProductReturnWorkflowService
 {
     private const TRANSITIONS = [
         'declared' => ['dropoff_expected', 'cancelled'],
-        'dropoff_expected' => ['received', 'cancelled'],
+        'dropoff_expected' => ['deposit_declared', 'received', 'cancelled'],
+        'deposit_declared' => ['received', 'cancelled'],
         'received' => ['inspected', 'rejected'],
         'inspected' => ['routed', 'rejected'],
         'routed' => ['completed', 'rejected'],
@@ -106,6 +108,10 @@ class ProductReturnWorkflowService
                 $updates['deposited_at'] = now();
             }
 
+            if ($target === 'deposit_declared') {
+                $updates['deposit_declared_at'] = now();
+            }
+
             if ($target === 'completed') {
                 $updates['completed_at'] = now();
             }
@@ -135,6 +141,7 @@ class ProductReturnWorkflowService
 
             $labels = [
                 'dropoff_expected' => 'Votre dépôt est attendu au point sélectionné.',
+                'deposit_declared' => 'Votre preuve de dépôt a été transmise au point de collecte.',
                 'received' => 'Votre textile a été reçu.',
                 'inspected' => 'Le contrôle du textile est terminé.',
                 'routed' => 'Votre textile a été orienté vers la filière adaptée.',
@@ -158,6 +165,17 @@ class ProductReturnWorkflowService
 
         if (! $productIsAvailable) {
             throw ValidationException::withMessages(['product_id' => 'Ce produit ne peut pas être retourné.']);
+        }
+
+        if (! empty($data['scan_id'])) {
+            $scan = Scan::with('passportProposal')->findOrFail($data['scan_id']);
+            $proposal = $scan->passportProposal;
+
+            if ($scan->source_type === 'multimodal' && (! $proposal || ! $proposal->isReady() || $proposal->product_id !== (int) $data['product_id'])) {
+                throw ValidationException::withMessages([
+                    'scan_id' => 'Le passeport doit être validé par TexTileCycle et la marque avant le dépôt.',
+                ]);
+            }
         }
 
         $point = CollectionPoint::with('recoveryProgram')->findOrFail($data['collection_point_id']);
@@ -202,3 +220,4 @@ class ProductReturnWorkflowService
         };
     }
 }
+

@@ -1,4 +1,5 @@
 <x-role-layout title="Résultat Smart Scan">
+    @if($scan->status === 'analysing')<meta http-equiv="refresh" content="5">@endif
     <div class="mx-auto max-w-6xl">
         <a href="{{ route('scans.index') }}" class="font-black text-emerald-600">← Historique</a>
         <div class="mt-3 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
@@ -88,6 +89,7 @@
                     <label class="font-bold">Catégorie<input name="category" value="{{ old('category', data_get($data,'category')) }}" class="mt-2 w-full rounded-xl {{ $fieldClass('category') }}"></label>
                     <label class="font-bold">Couleur<input name="color" value="{{ old('color', data_get($data,'color')) }}" class="mt-2 w-full rounded-xl {{ $fieldClass('color') }}"></label>
                     <label class="font-bold">Taille<input name="size" value="{{ old('size', data_get($data,'size')) }}" class="mt-2 w-full rounded-xl {{ $fieldClass('size') }}"></label>
+                    <label class="font-bold">Pays de fabrication<input name="manufacturing_country" value="{{ old('manufacturing_country', data_get($data,'manufacturing_country')) }}" class="mt-2 w-full rounded-xl {{ $fieldClass('manufacturing_country') }}"></label>
                     <label class="font-bold">Enseigne<input name="retailer" value="{{ old('retailer', data_get($data,'retailer')) }}" class="mt-2 w-full rounded-xl {{ $fieldClass('retailer') }}"></label>
                     <label class="font-bold">Date d’achat<input type="date" name="purchase_date" value="{{ old('purchase_date', data_get($data,'purchase_date')) }}" class="mt-2 w-full rounded-xl {{ $fieldClass('purchase_date') }}"></label>
                     <label class="font-bold">Prix d’achat<input type="number" step="0.01" min="0" name="purchase_price" value="{{ old('purchase_price', data_get($data,'purchase_price')) }}" class="mt-2 w-full rounded-xl {{ $fieldClass('purchase_price') }}"></label>
@@ -108,6 +110,29 @@
                 </div>
                 <button class="mt-6 rounded-2xl bg-emerald-700 px-6 py-3 font-black text-white">Confirmer ces informations</button>
             </form>
+        @elseif ($scan->passportProposal)
+            <section class="mt-7 rounded-3xl border bg-white p-6">
+                <div class="flex flex-wrap items-start justify-between gap-4"><div><p class="text-xs font-black uppercase tracking-[.2em] text-emerald-600">Proposition de passeport</p><h2 class="mt-2 text-2xl font-black">{{ $scan->passportProposal->statusLabel() }}</h2><p class="mt-2 max-w-2xl text-slate-500">Les informations sont conservées avec leur provenance et leur historique. Vous serez notifié après chaque décision.</p></div><span class="rounded-full bg-amber-50 px-4 py-2 text-sm font-black text-amber-800">Contrôle en cours</span></div>
+                <div class="mt-5 space-y-3 border-l-2 border-emerald-200 pl-5">@foreach($scan->passportProposal->events as $event)<div><p class="font-black">{{ str($event->event)->replace('_',' ')->headline() }}</p><p class="text-xs text-slate-400">{{ $event->created_at->format('d/m/Y H:i') }} · {{ $event->note }}</p></div>@endforeach</div>
+                @if($scan->passportProposal->status === 'consumer_information_required')
+                    @php($proposalData = $scan->passportProposal->proposed_data ?? [])
+                    <div class="mt-6 rounded-2xl bg-amber-50 p-5"><p class="font-black text-amber-900">Demande de TexTileCycle</p><p class="mt-1 text-sm text-amber-800">{{ $scan->passportProposal->admin_note ?: 'Vérifiez et complétez les données ci-dessous.' }}</p></div>
+                    <form method="POST" action="{{ route('scans.supplement-data',$scan) }}" class="mt-6 grid gap-4 md:grid-cols-2">
+                        @csrf @method('PATCH')
+                        @foreach(['brand'=>'Marque','product_name'=>'Produit','sku'=>'Référence / SKU','barcode'=>'Code-barres','category'=>'Catégorie','color'=>'Couleur','size'=>'Taille','manufacturing_country'=>'Pays de fabrication'] as $name=>$label)
+                            <x-ui.input :name="$name" :label="$label" :value="data_get($proposalData,$name)"/>
+                        @endforeach
+                        <x-ui.select name="condition" label="État" :value="data_get($proposalData,'condition','unknown')" :options="collect(['good'=>'Très bon','wearable'=>'Portable','minor_damage'=>'Petits défauts','damaged'=>'Endommagé','unusable'=>'Inutilisable','unknown'=>'Incertain'])" required/>
+                        <div></div>
+                        <label class="font-bold">Composition — matière:pourcentage<textarea name="composition_text" rows="4" class="mt-2 w-full rounded-xl border-slate-200">{{ collect(data_get($proposalData,'composition',[]))->map(fn($x)=>data_get($x,'material').':'.data_get($x,'percentage'))->implode("\n") }}</textarea></label>
+                        <label class="font-bold">Défauts visibles<textarea name="defects_text" rows="4" class="mt-2 w-full rounded-xl border-slate-200">{{ collect(data_get($proposalData,'defects',[]))->implode("\n") }}</textarea></label>
+                        <div class="md:col-span-2"><button class="rounded-xl bg-amber-600 px-5 py-3 font-black text-white">Renvoyer les informations</button></div>
+                    </form>
+                @endif
+                @if($scan->passportProposal->isReady() && $scan->passportProposal->product)
+                    <a href="{{ route('product-returns.create',['scan'=>$scan->id,'product'=>$scan->passportProposal->product_id]) }}" class="mt-6 inline-flex rounded-xl bg-emerald-700 px-5 py-3 font-black text-white">Préparer le retour circulaire</a>
+                @endif
+            </section>
         @elseif ($scan->product)
             <section class="mt-7 grid gap-6 rounded-3xl border bg-white p-6 md:grid-cols-3">
                 <img src="{{ $scan->product->image_url }}" class="h-56 w-full rounded-2xl object-cover">

@@ -52,6 +52,24 @@
             </article>
         </section>
 
+        @if(auth()->user()->isConsumer() && $item->status === 'dropoff_expected')
+            <section class="panel mt-6 p-6">
+                <p class="text-xs font-black uppercase tracking-[.2em] text-emerald-600">Preuve de dépôt</p>
+                <h2 class="mt-2 text-xl font-black">J’ai déposé le textile</h2>
+                <p class="mt-2 text-sm text-slate-500">Ajoutez une photo prise au point de collecte. Le collecteur confirmera ensuite le QR et le poids.</p>
+                <form method="POST" action="{{ route('product-returns.declare-deposit',$item) }}" enctype="multipart/form-data" class="mt-5 grid gap-4 sm:grid-cols-2">
+                    @csrf
+                    <div><label class="text-sm font-black">Photo du dépôt</label><input type="file" name="evidence" accept="image/jpeg,image/png,image/webp" required class="mt-2 block w-full rounded-xl border border-slate-200 p-3 text-sm"></div>
+                    <x-ui.input name="note" label="Précision (facultatif)"/>
+                    <div class="sm:col-span-2"><button class="rounded-xl bg-emerald-700 px-5 py-3 font-black text-white">Transmettre la preuve</button></div>
+                </form>
+            </section>
+        @endif
+
+        @if($item->evidences->isNotEmpty())
+            <section class="panel mt-6 p-6"><h2 class="text-xl font-black">Preuves sécurisées</h2><div class="mt-5 grid gap-4 sm:grid-cols-3">@foreach($item->evidences as $evidence)<a href="{{ $evidence->url }}" target="_blank" rel="noopener" class="rounded-2xl border p-3"><img src="{{ $evidence->url }}" alt="Preuve {{ $evidence->type }}" class="h-40 w-full rounded-xl object-cover"><p class="mt-2 text-sm font-black">{{ str($evidence->type)->replace('_',' ')->headline() }}</p><p class="text-xs text-slate-400">{{ $evidence->created_at->format('d/m/Y H:i') }}</p></a>@endforeach</div></section>
+        @endif
+
         @php($activeMatch = $item->materialMatches->first(fn($match) => in_array($match->status, ['accepted','in_transit','brand_received','verified'])))
         @if ($activeMatch)
             <section class="panel mt-6 p-6">
@@ -91,3 +109,4 @@
         @endif
     </div>
 </x-role-layout>
+

@@ -42,6 +42,15 @@ class MediaStorageService
         return $this->upload($file, 'textilecycle/products', DeliveryType::UPLOAD);
     }
 
+    public function storeReturnEvidence(UploadedFile $file, int $returnId, string $kind): array
+    {
+        return $this->upload(
+            $file,
+            "textilecycle/returns/{$returnId}/{$kind}",
+            DeliveryType::AUTHENTICATED
+        );
+    }
+
     public function url(
         ?string $path,
         ?string $disk = null,
@@ -317,3 +326,4 @@ class MediaStorageService
         ]);
     }
 }
+

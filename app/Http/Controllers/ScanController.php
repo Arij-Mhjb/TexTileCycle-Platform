@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Jobs\AnalyseMultimodalScan;
 use App\Models\CollectionPoint;
 use App\Models\Detection;
 use App\Models\Product;
@@ -9,6 +10,7 @@ use App\Models\Scan;
 use App\Services\CircularRecommendationService;
 use App\Services\MediaStorageService;
 use App\Services\MultimodalScanService;
+use App\Services\PassportProposalWorkflowService;
 use App\Services\SmartScanService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -106,20 +108,10 @@ class ScanController extends Controller
         }
 
         if ($isMultimodal) {
-            $analysis = $multimodal->analyse($scan);
-            $scan->refresh();
-            if ($scan->product_id) {
-                Detection::updateOrCreate(
-                    ['scan_id' => $scan->id, 'product_id' => $scan->product_id],
-                    [
-                        'detected_name' => $analysis['product_name'] ?? $scan->product->name,
-                        'detected_brand' => $analysis['brand'] ?? $scan->product->brand,
-                        'detected_category' => $analysis['category'] ?? $scan->product->category,
-                        'detected_composition' => json_encode($analysis['composition'] ?? [], JSON_UNESCAPED_UNICODE),
-                        'confidence' => $analysis['confidence'] ?? $scan->confidence,
-                        'is_confirmed' => false,
-                    ]
-                );
+            if (config('services.smart_scan.async')) {
+                AnalyseMultimodalScan::dispatch($scan->id);
+            } else {
+                (new AnalyseMultimodalScan($scan->id))->handle($multimodal);
             }
         } else {
             foreach ($matches as $match) {
@@ -141,7 +133,7 @@ class ScanController extends Controller
     public function show(Request $request, Scan $scan, CircularRecommendationService $recommendations): View
     {
         $this->guard($request, $scan);
-        $scan->load('product.materials', 'detections.product', 'assets');
+        $scan->load('product.materials', 'detections.product', 'assets', 'passportProposal.events');
 
         $condition = data_get($scan->extracted_data, 'condition');
         $recommendation = $scan->product ? $recommendations->recommend($scan->product, $condition) : null;
@@ -188,17 +180,29 @@ class ScanController extends Controller
             'ai_status' => 'analysing',
         ]);
 
-        $multimodal->analyse($scan);
+        if (config('services.smart_scan.async')) {
+            AnalyseMultimodalScan::dispatch($scan->id);
+        } else {
+            (new AnalyseMultimodalScan($scan->id))->handle($multimodal);
+        }
 
         return to_route('scans.show', $scan)->with(
             'success',
-            'Nouvelle analyse terminée avec OCR, lecture du code-barres et suggestions visuelles si Gemini est configuré.'
+            config('services.smart_scan.async')
+                ? 'Nouvelle analyse lancée en arrière-plan.'
+                : 'Nouvelle analyse terminée avec OCR, lecture du code-barres et suggestions visuelles si Gemini est configuré.'
         );
     }
 
-    public function confirmData(Request $request, Scan $scan): RedirectResponse
+    public function confirmData(
+        Request $request,
+        Scan $scan,
+        PassportProposalWorkflowService $passportWorkflow
+    ): RedirectResponse
     {
         $this->guard($request, $scan);
+        abort_unless($request->user()->isConsumer(), 403);
+        abort_if($scan->consumer_confirmed_at, 422, 'Ces informations ont déjà été confirmées définitivement.');
 
         $data = $request->validate([
             'product_id' => 'nullable|exists:products,id',
@@ -209,6 +213,7 @@ class ScanController extends Controller
             'category' => 'nullable|string|max:255',
             'color' => 'nullable|string|max:100',
             'size' => 'nullable|string|max:100',
+            'manufacturing_country' => 'nullable|string|max:150',
             'retailer' => 'nullable|string|max:255',
             'purchase_date' => 'nullable|date',
             'purchase_price' => 'nullable|numeric|min:0|max:9999999.99',
@@ -241,8 +246,44 @@ class ScanController extends Controller
             'consumer_confirmed_at' => now(),
             'status' => 'consumer_confirmed',
         ]);
+        $scan->refresh()->load('product');
+        $passportWorkflow->createFromScan($scan, $request->user());
 
-        return to_route('scans.show', $scan)->with('success', 'Informations confirmées. Vous pouvez préparer le dépôt.');
+        return to_route('scans.show', $scan)->with('success', 'Informations confirmées et transmises au contrôle TexTileCycle.');
+    }
+
+    public function supplementData(
+        Request $request,
+        Scan $scan,
+        PassportProposalWorkflowService $passportWorkflow
+    ): RedirectResponse {
+        $this->guard($request, $scan);
+        abort_unless($request->user()->isConsumer(), 403);
+        $proposal = $scan->passportProposal()->firstOrFail();
+
+        $data = $request->validate([
+            'brand' => 'nullable|string|max:255',
+            'product_name' => 'nullable|string|max:255',
+            'sku' => 'nullable|string|max:255',
+            'barcode' => 'nullable|string|max:255',
+            'category' => 'nullable|string|max:255',
+            'color' => 'nullable|string|max:100',
+            'size' => 'nullable|string|max:100',
+            'manufacturing_country' => 'nullable|string|max:150',
+            'condition' => 'required|in:good,wearable,minor_damage,damaged,unusable,unknown',
+            'composition_text' => 'nullable|string|max:3000',
+            'defects_text' => 'nullable|string|max:2000',
+        ]);
+        $data['composition'] = collect(preg_split('/\r\n|\r|\n/', $data['composition_text'] ?? ''))->filter()->map(function ($line) {
+            [$material, $percentage] = array_pad(explode(':', $line, 2), 2, null);
+            return ['material' => trim($material), 'percentage' => $percentage !== null ? (float) trim($percentage) : null];
+        })->values()->all();
+        $data['defects'] = collect(preg_split('/\r\n|\r|\n/', $data['defects_text'] ?? ''))->filter()->values()->all();
+        unset($data['composition_text'], $data['defects_text']);
+
+        $passportWorkflow->consumerSupplement($proposal, $request->user(), $data);
+
+        return to_route('scans.show', $scan)->with('success', 'Complément transmis au contrôle TexTileCycle.');
     }
 
     public function confirm(Request $request, Scan $scan, Product $product): RedirectResponse

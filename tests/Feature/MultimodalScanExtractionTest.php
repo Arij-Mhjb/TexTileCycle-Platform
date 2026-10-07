@@ -19,6 +19,7 @@ class MultimodalScanExtractionTest extends TestCase
 LC WAIKIKI
 ATL,GROS-E
 SIZE:S
+MADE IN TURKEY
 %92 VISKOZ / %7 POLIESTER / %1 ELASTAN
 8 684143 465678
 TEXT,
@@ -38,6 +39,7 @@ TEXT,
         $this->assertSame('462943203', $data['sku']);
         $this->assertSame('8684143465678', $data['barcode']);
         $this->assertSame('S', $data['size']);
+        $this->assertSame('Turkey', $data['manufacturing_country']);
         $this->assertSame('Printemps', $data['retailer']);
         $this->assertSame('2020-07-14', $data['purchase_date']);
         $this->assertSame(580.0, $data['purchase_price']);

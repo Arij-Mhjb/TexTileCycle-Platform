@@ -152,7 +152,7 @@ class MultimodalScanService
     {
         $fields = [
             'brand', 'product_name', 'sku', 'barcode', 'category', 'color', 'size',
-            'retailer', 'purchase_date', 'purchase_price', 'currency', 'composition',
+            'manufacturing_country', 'retailer', 'purchase_date', 'purchase_price', 'currency', 'composition',
             'condition', 'defects',
         ];
         $sources = $local['field_sources'] ?? [];
@@ -279,6 +279,7 @@ class MultimodalScanService
             'category' => $product?->category ?? $this->category($receipt['product_name'] ?? null),
             'color' => null,
             'size' => $label['size'] ?? null,
+            'manufacturing_country' => $label['manufacturing_country'] ?? null,
             'retailer' => $receipt['retailer'] ?? null,
             'purchase_date' => $receipt['purchase_date'] ?? null,
             'purchase_price' => $receipt['purchase_price'] ?? null,
@@ -297,7 +298,7 @@ class MultimodalScanService
         ];
 
         $recognized = collect([
-            'brand', 'product_name', 'sku', 'barcode', 'category', 'size',
+            'brand', 'product_name', 'sku', 'barcode', 'category', 'size', 'manufacturing_country',
             'retailer', 'purchase_date', 'purchase_price',
         ])->filter(fn ($field) => filled($data[$field] ?? null))->count();
 
@@ -460,12 +461,17 @@ class MultimodalScanService
             '/\b(?:SKU|ARTICLE|ART\.?\s*NO|MODEL|KODU)\s*[:#\-]?\s*([A-Z0-9\/-]{4,30})\b/iu',
             $text
         );
+        $manufacturingCountry = $this->firstMatch(
+            '/\b(?:MADE\s+IN|FABRIQU[ÉE]\s+EN|MEN[SŞ]E[Iİ])\s*[:\-]?\s*([\p{L} .\'-]{2,40})/iu',
+            $text
+        );
 
         return [
             'brand' => $this->likelyLabelBrand($text),
             'barcode' => $barcode,
             'size' => $size ? Str::upper($size) : null,
             'sku' => $sku,
+            'manufacturing_country' => $manufacturingCountry ? Str::headline(Str::lower($manufacturingCountry)) : null,
         ];
     }
 

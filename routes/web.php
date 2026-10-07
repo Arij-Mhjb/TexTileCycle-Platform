@@ -1,9 +1,11 @@
 <?php
 
 use App\Http\Controllers\AdminEvidenceReviewController;
+use App\Http\Controllers\AdminCollectorController;
 use App\Http\Controllers\AdminLabelController;
 use App\Http\Controllers\AdminMaterialReviewController;
 use App\Http\Controllers\AdminProductReviewController;
+use App\Http\Controllers\AdminPassportProposalController;
 use App\Http\Controllers\AssessmentController;
 use App\Http\Controllers\BrandDashboardController;
 use App\Http\Controllers\BrandEvidenceCommentController;
@@ -12,9 +14,11 @@ use App\Http\Controllers\BrandMaterialMatchController;
 use App\Http\Controllers\BrandMaterialRequestController;
 use App\Http\Controllers\BrandLabelController;
 use App\Http\Controllers\BrandProductController;
+use App\Http\Controllers\BrandPassportProposalController;
 use App\Http\Controllers\BrandProfileController;
 use App\Http\Controllers\BrandNotificationController;
 use App\Http\Controllers\CollectionPointController;
+use App\Http\Controllers\CollectorReturnController;
 use App\Http\Controllers\ConsumerExploreController;
 use App\Http\Controllers\ConsumerHomeController;
 use App\Http\Controllers\ConsumerNotificationController;
@@ -48,6 +52,9 @@ Route::middleware(['auth','verified'])->group(function(){
         Route::get('/admin/brand-applications/{application}', [\App\Http\Controllers\AdminBrandApplicationController::class, 'show'])->name('admin.brand-applications.show');
         Route::post('/admin/brand-applications/{application}/analyse', [\App\Http\Controllers\AdminBrandApplicationController::class, 'analyse'])->name('admin.brand-applications.analyse');
         Route::post('/admin/brand-applications/{application}/approve', [\App\Http\Controllers\AdminBrandApplicationController::class, 'approve'])->name('admin.brand-applications.approve');
+        Route::get('/admin/collectors', [AdminCollectorController::class, 'index'])->name('admin.collectors.index');
+        Route::post('/admin/collectors', [AdminCollectorController::class, 'store'])->name('admin.collectors.store');
+        Route::delete('/admin/collectors/{collector}', [AdminCollectorController::class, 'destroy'])->name('admin.collectors.destroy');
         Route::get('/admin',DashboardController::class)->name('admin.dashboard');
         Route::resources([
             'products'=>ProductController::class,'materials'=>MaterialController::class,'detections'=>DetectionController::class,
@@ -60,6 +67,9 @@ Route::middleware(['auth','verified'])->group(function(){
         Route::patch('/admin/products/{product}/reject',[AdminProductReviewController::class,'reject'])->name('admin.products.reject');
         Route::get('/admin/material-reviews',[AdminMaterialReviewController::class,'index'])->name('admin.material-reviews.index');
         Route::patch('/admin/material-reviews/{productReturn}',[AdminMaterialReviewController::class,'update'])->name('admin.material-reviews.update');
+        Route::get('/admin/passport-proposals',[AdminPassportProposalController::class,'index'])->name('admin.passport-proposals.index');
+        Route::get('/admin/passport-proposals/{passportProposal}',[AdminPassportProposalController::class,'show'])->name('admin.passport-proposals.show');
+        Route::patch('/admin/passport-proposals/{passportProposal}',[AdminPassportProposalController::class,'review'])->name('admin.passport-proposals.review');
     });
 
     Route::middleware('role:brand')->prefix('brand')->name('brand.')->group(function(){
@@ -70,6 +80,9 @@ Route::middleware(['auth','verified'])->group(function(){
         Route::post('/products/{product}/submit',[BrandProductController::class,'submit'])->name('products.submit');
         Route::post('/products/{product}/duplicate',[BrandProductController::class,'duplicate'])->name('products.duplicate');
         Route::post('/products/{product}/archive',[BrandProductController::class,'archive'])->name('products.archive');
+        Route::get('/passport-proposals',[BrandPassportProposalController::class,'index'])->name('passport-proposals.index');
+        Route::get('/passport-proposals/{passportProposal}',[BrandPassportProposalController::class,'show'])->name('passport-proposals.show');
+        Route::patch('/passport-proposals/{passportProposal}',[BrandPassportProposalController::class,'review'])->name('passport-proposals.review');
         Route::get('/products/import',[BrandImportController::class,'create'])->name('products.import');
         Route::post('/products/import',[BrandImportController::class,'store'])->name('products.import.store');
         Route::get('/profile',[BrandProfileController::class,'edit'])->name('profile.edit');
@@ -107,11 +120,17 @@ Route::middleware(['auth','verified'])->group(function(){
         Route::resource('scans',ScanController::class)->only(['index','create','store','show','destroy']);
         Route::post('/scans/{scan}/confirm/{product}',[ScanController::class,'confirm'])->name('scans.confirm');
         Route::post('/scans/{scan}/confirm-data',[ScanController::class,'confirmData'])->name('scans.confirm-data');
+        Route::patch('/scans/{scan}/supplement-data',[ScanController::class,'supplementData'])->name('scans.supplement-data');
         Route::post('/scans/{scan}/reanalyse',[ScanController::class,'reanalyse'])->name('scans.reanalyse');
     });
     Route::middleware('role:consumer,admin')->group(function(){
         Route::resource('product-returns',ProductReturnController::class);
+        Route::post('/product-returns/{productReturn}/declare-deposit',[ProductReturnController::class,'declareDeposit'])->middleware('role:consumer')->name('product-returns.declare-deposit');
         Route::post('/material-transfers/{materialMatch}',[ConsumerMaterialTransferController::class,'store'])->middleware('role:consumer')->name('consumer.material-transfers.store');
+    });
+    Route::middleware('role:collector,admin')->prefix('collector')->name('collector.')->group(function(){
+        Route::get('/returns',[CollectorReturnController::class,'index'])->name('returns.index');
+        Route::patch('/returns/{productReturn}',[CollectorReturnController::class,'update'])->name('returns.update');
     });
     Route::middleware('role:admin,brand')->get('/evidences/{evidence}/download',EvidenceDownloadController::class)->name('evidences.download');
 });
@@ -123,3 +142,4 @@ Route::middleware('auth')->group(function(){
 });
 
 require __DIR__.'/auth.php';
+

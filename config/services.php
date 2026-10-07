@@ -43,6 +43,10 @@ return [
         'timeout' => env('GEMINI_TIMEOUT', 45),
     ],
 
+    'smart_scan' => [
+        'async' => env('SMART_SCAN_ASYNC', false),
+    ],
+
     'slack' => [
         'notifications' => [
             'bot_user_oauth_token' => env('SLACK_BOT_USER_OAUTH_TOKEN'),

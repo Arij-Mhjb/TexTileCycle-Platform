@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Str;
 
 class Scan extends Model
@@ -63,6 +64,11 @@ class Scan extends Model
         return $this->hasMany(ScanAsset::class);
     }
 
+    public function passportProposal(): HasOne
+    {
+        return $this->hasOne(PassportProposal::class);
+    }
+
     public function getImageUrlAttribute(): string
     {
         return app(MediaStorageService::class)->url(
@@ -76,3 +82,4 @@ class Scan extends Model
         );
     }
 }
+

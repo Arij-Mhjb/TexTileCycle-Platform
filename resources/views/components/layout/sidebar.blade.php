@@ -5,11 +5,13 @@ $groups = [
   ['route'=>'products.index','active'=>'products.*','label'=>'Produits','icon'=>'M6 3h12l3 4-3 3v11H6V10L3 7l3-4Z'],
   ['route'=>'materials.index','active'=>'materials.*','label'=>'Matières','icon'=>'M12 3c3 3 5 5.5 5 9a5 5 0 1 1-10 0c0-3.5 2-6 5-9Z'],
   ['route'=>'scans.index','active'=>'scans.*','label'=>'Smart scans','icon'=>'M4 7V4h3M17 4h3v3M20 17v3h-3M7 20H4v-3M8 8h8v8H8z'],
+  ['route'=>'admin.passport-proposals.index','active'=>'admin.passport-proposals.*','label'=>'Propositions de passeport','icon'=>'M7 3h10a2 2 0 0 1 2 2v16l-7-3-7 3V5a2 2 0 0 1 2-2Z'],
   ['route'=>'detections.index','active'=>'detections.*','label'=>'Détections','icon'=>'M12 3 4 7v5c0 5 3.4 8 8 9 4.6-1 8-4 8-9V7l-8-4Z'],
  ]],
  ['label'=>'Circularité','items'=>[
   ['route'=>'recovery-programs.index','active'=>'recovery-programs.*','label'=>'Programmes','icon'=>'M20 7h-5V2M4 17h5v5M19 17a8 8 0 0 1-13 2M5 7A8 8 0 0 1 18 5'],
   ['route'=>'collection-points.index','active'=>'collection-points.*','label'=>'Points de collecte','icon'=>'M20 10c0 5-8 11-8 11S4 15 4 10a8 8 0 1 1 16 0Z M12 7v6m-3-3h6'],
+  ['route'=>'admin.collectors.index','active'=>'admin.collectors.*','label'=>'Collecteurs','icon'=>'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm13 10v-2a4 4 0 0 0-3-3.87'],
   ['route'=>'product-returns.index','active'=>'product-returns.*','label'=>'Retours','icon'=>'M9 14 4 9l5-5M4 9h11a5 5 0 0 1 0 10h-3'],
   ['route'=>'admin.material-reviews.index','active'=>'admin.material-reviews.*','label'=>'Contrôle matières','icon'=>'M9 12l2 2 4-4M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Z'],
   ['route'=>'treatment-results.index','active'=>'treatment-results.*','label'=>'Traitements','icon'=>'m4 14 6 6L20 10M14 4l6 6-6 6'],
@@ -31,3 +33,4 @@ $groups = [
  </nav>
  <div class="border-t border-slate-100 p-4 dark:border-slate-800"><div class="relative overflow-hidden rounded-2xl bg-slate-900 p-4 text-white"><div class="absolute -right-6 -top-6 h-20 w-20 rounded-full bg-emerald-500/20 blur-xl"></div><p class="relative text-xs font-semibold text-emerald-300">Impact suivi</p><p class="relative mt-1 text-sm font-bold">Chaque retour compte</p><p class="relative mt-1 text-xs leading-5 text-slate-400">Tracez le parcours complet du textile jusqu’à sa seconde vie.</p></div></div>
 </aside>
+
