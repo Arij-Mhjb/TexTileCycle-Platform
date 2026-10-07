@@ -11,7 +11,8 @@ class BrandLabelController extends Controller {
  public function show(Request $request,Label $label): View {
   $this->eligible($request,$label);
   $label->load('steps');$assessment=$request->user()->assessments()->where('label_id',$label->id)->with('evidences.comments.user')->first();
-  return view('brand.labels.show',compact('label','assessment'));
+  $roadmaps=$request->user()->brand->roadmaps()->where('label_id',$label->id)->with('steps')->latest()->get();
+  return view('brand.labels.show',compact('label','assessment','roadmaps'));
  }
  public function apply(Request $request,Label $label): RedirectResponse {
   $this->eligible($request,$label);

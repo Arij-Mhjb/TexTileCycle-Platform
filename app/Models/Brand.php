@@ -34,6 +34,11 @@ class Brand extends Model
         return $this->belongsToMany(Label::class)->withTimestamps();
     }
 
+    public function roadmaps(): HasMany
+    {
+        return $this->hasMany(LabelRoadmap::class);
+    }
+
     public function products(): HasMany
     {
         return $this->hasMany(Product::class);
