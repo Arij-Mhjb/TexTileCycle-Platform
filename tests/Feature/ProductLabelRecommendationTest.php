@@ -76,6 +76,11 @@ class ProductLabelRecommendationTest extends TestCase
         $this->assertNotEmpty($roadmap->impact_summary['environmental']);
         $this->assertNotEmpty($roadmap->steps->first()->completion_points);
         $this->get(route('brand.roadmaps.show', $roadmap))->assertOk()->assertSee('Cahier des charges')->assertSee('Réputation de la marque');
+        $this->get(route('brand.dashboard'))->assertOk()
+            ->assertSee('Labels poursuivis')
+            ->assertSee('Global Recycled Standard (GRS)')
+            ->assertSee('Impact environnemental potentiel')
+            ->assertSee($roadmap->impact_summary['environmental'][0]);
     }
 
     public function test_openai_can_enrich_explanations_without_changing_the_rule_decision(): void
