@@ -8,6 +8,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class ReturnEvidence extends Model
 {
+    protected $table = 'return_evidences';
+
     protected $fillable = [
         'product_return_id', 'user_id', 'type', 'path', 'storage_disk',
         'cloudinary_public_id', 'secure_url', 'delivery_type', 'format', 'version', 'notes',

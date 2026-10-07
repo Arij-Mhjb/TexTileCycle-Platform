@@ -39,6 +39,11 @@ class ConsumerJourneyTest extends TestCase
             'points' => 80,
             'status' => 'pending',
         ]);
+
+        $this->actingAs($user)
+            ->get(route('product-returns.show', $return))
+            ->assertOk()
+            ->assertSee($return->reference);
     }
 
     public function test_reward_is_validated_only_after_complete_verified_workflow(): void
@@ -213,3 +218,4 @@ class ConsumerJourneyTest extends TestCase
         return [$user, $product, $point];
     }
 }
+
