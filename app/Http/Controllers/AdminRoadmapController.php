@@ -9,14 +9,39 @@ use Illuminate\Http\Request;
 
 class AdminRoadmapController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        return view('admin.roadmaps.index', ['roadmaps' => LabelRoadmap::with('brand', 'label', 'products', 'steps')->latest()->paginate(20)]);
+        $query = LabelRoadmap::with('brand', 'label', 'products', 'recommendation', 'steps.submissions');
+        if ($request->filled('search')) {
+            $search = $request->string('search');
+            $query->where(fn ($builder) => $builder->where('name', 'like', "%{$search}%")
+                ->orWhereHas('brand', fn ($brand) => $brand->where('name', 'like', "%{$search}%"))
+                ->orWhereHas('label', fn ($label) => $label->where('name', 'like', "%{$search}%")));
+        }
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+
+        $pendingSubmissions = RoadmapSubmission::where('status', 'pending')
+            ->with('submitter', 'step.roadmap.brand', 'step.roadmap.label')
+            ->latest()->limit(50)->get()
+            ->filter(fn ($submission) => $submission->step->roadmap->status === 'active'
+                && $submission->scope_version === $submission->step->roadmap->scope_version)
+            ->take(10)->values();
+
+        return view('admin.roadmaps.index', [
+            'roadmaps' => $query->latest()->paginate(20)->withQueryString(),
+            'pendingSubmissions' => $pendingSubmissions,
+            'pendingReviewCount' => RoadmapSubmission::where('status', 'pending')->count(),
+            'activeCount' => LabelRoadmap::where('status', 'active')->count(),
+            'brandCount' => LabelRoadmap::distinct('brand_id')->count('brand_id'),
+        ]);
     }
 
     public function show(LabelRoadmap $roadmap)
     {
-        $roadmap->load('brand', 'label', 'products', 'steps.submissions.reviewer', 'steps.submissions.submitter', 'materialUsages.match.productReturn', 'materialUsages.events');
+        $roadmap->load('brand', 'label', 'products', 'recommendation', 'steps.submissions.reviewer',
+            'steps.submissions.submitter', 'materialUsages.match.productReturn', 'materialUsages.events');
 
         return view('admin.roadmaps.show', compact('roadmap'));
     }

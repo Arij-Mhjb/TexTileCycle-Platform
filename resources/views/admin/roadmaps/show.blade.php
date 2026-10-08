@@ -2,7 +2,7 @@
 <a href="{{ route('admin.roadmaps.index') }}" class="text-sm font-bold text-emerald-700">← Feuilles de route</a><p class="mt-3 font-bold">{{ $roadmap->brand->name }}</p>
 @include('roadmaps._summary')
 @if($errors->any())<div role="alert" class="mt-5 rounded-xl bg-red-50 p-4 text-sm text-red-800">@foreach($errors->all() as $error)<p>{{ $error }}</p>@endforeach</div>@endif
-<div class="mt-7 space-y-5">@foreach($roadmap->steps as $step)<section class="rounded-2xl border bg-white p-6"><p class="text-xs font-bold text-emerald-700">ÉTAPE {{ $step->position }} · {{ $step->due_date->format('d/m/Y') }} · {{ $step->owner_name }}</p><h2 class="mt-2 text-xl font-black">{{ $step->title }}</h2><p class="mt-3 text-sm"><strong>Objectif :</strong> {{ $step->goal }}</p><p class="mt-2 text-sm"><strong>Preuves attendues :</strong> {{ $step->required_evidence }}</p>
+<div class="mt-7 space-y-5">@foreach($roadmap->steps as $step)<section id="step-{{ $step->id }}" class="scroll-mt-6 rounded-2xl border bg-white p-6"><p class="text-xs font-bold text-emerald-700">ÉTAPE {{ $step->position }} · {{ $step->due_date->format('d/m/Y') }} · {{ $step->owner_name }}</p><h2 class="mt-2 text-xl font-black">{{ $step->title }}</h2><p class="mt-3 text-sm"><strong>Objectif :</strong> {{ $step->goal }}</p><p class="mt-2 text-sm"><strong>Preuves attendues :</strong> {{ $step->required_evidence }}</p>
 @forelse($step->submissions as $submission)
 @include('roadmaps._submission')
 @if($roadmap->status==='active'&&$step->status==='submitted'&&$submission->status==='pending'&&$submission->scope_version===$roadmap->scope_version&&$loop->first)

@@ -103,6 +103,10 @@ class ProductLabelRoadmapTest extends TestCase
         $submission = RoadmapSubmission::firstOrFail();
         $this->assertSame('pending', $submission->status);
         $this->assertSame('submitted', $plan->steps->first()->fresh()->status);
+        $this->actingAs($this->admin())->get(route('admin.roadmaps.index'))->assertOk()
+            ->assertSee('Soumissions à vérifier')
+            ->assertSee('Atelier')
+            ->assertSee('soumission v1');
         Storage::disk('local')->assertExists($submission->files[0]['path']);
         $this->get(route('roadmaps.proofs.download', [$submission, 0]))->assertOk()->assertDownload();
         $this->actingAs(User::factory()->create(['role' => 'customer']))->get(route('roadmaps.proofs.download', [$submission, 0]))->assertForbidden();
