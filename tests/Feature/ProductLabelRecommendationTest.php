@@ -29,7 +29,7 @@ class ProductLabelRecommendationTest extends TestCase
         config(['product_label_ai.key' => null]);
         $this->user = User::factory()->create(['role' => 'brand']);
         $brand = Brand::create(['user_id' => $this->user->id, 'name' => 'Circular Brand', 'slug' => 'circular-brand', 'is_active' => true]);
-        $this->product = Product::create(['brand_id' => $brand->id, 'brand' => $brand->name, 'name' => 'Sweat Transition', 'slug' => 'sweat-transition', 'sku' => 'ST-1', 'category' => 'Sweat']);
+        $this->product = Product::create(['brand_id' => $brand->id, 'brand' => $brand->name, 'name' => 'Sweat Transition', 'slug' => 'sweat-transition', 'sku' => 'ST-1', 'category' => 'Sweat', 'status' => 'published', 'is_active' => true]);
         $polyester = Material::firstOrCreate(['name' => 'Polyester recyclé'], ['type' => 'recycled', 'recyclable' => true]);
         $cotton = Material::firstOrCreate(['name' => 'Coton conventionnel'], ['type' => 'plant', 'recyclable' => true]);
         $this->product->materials()->attach([$polyester->id => ['percentage' => 20], $cotton->id => ['percentage' => 80]]);
@@ -50,6 +50,22 @@ class ProductLabelRecommendationTest extends TestCase
         $this->assertNotEmpty($grs->environmental_impacts);
         $this->assertNotEmpty($grs->reputation_impacts);
         $this->assertSame('candidate', $results->firstWhere('label.slug', 'vegan')->path);
+    }
+
+    public function test_only_admin_published_products_can_be_analysed(): void
+    {
+        $this->product->update(['status' => 'review', 'is_active' => false]);
+
+        $this->actingAs($this->user)->post(route('brand.product-label-recommendations.analyse'))
+            ->assertSessionHasErrors('products');
+        $this->assertDatabaseCount('product_label_recommendations', 0);
+        $this->get(route('brand.product-label-recommendations.index'))->assertOk()
+            ->assertSee('Aucun produit publié à analyser')
+            ->assertSee('En vérification');
+
+        $this->product->update(['status' => 'published', 'is_active' => true]);
+        $this->post(route('brand.product-label-recommendations.analyse'))->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('product_label_recommendations', ['product_id' => $this->product->id]);
     }
 
     public function test_brand_can_analyse_select_and_create_a_roadmap_from_a_recommendation(): void

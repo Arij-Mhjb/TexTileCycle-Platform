@@ -16,7 +16,7 @@ class ProductLabelAdvisor
 {
     public function analyse(Brand $brand): Collection
     {
-        $products = $brand->products()->with('materials')->get();
+        $products = $brand->products()->where('status', 'published')->where('is_active', true)->with('materials')->get();
         $labels = $brand->application()->exists()
             ? $brand->approvedLabels()->where('is_active', true)->get()
             : Label::where('is_active', true)->get();

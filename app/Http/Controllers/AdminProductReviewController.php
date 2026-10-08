@@ -10,7 +10,7 @@ class AdminProductReviewController extends Controller {
   abort_unless($product->status==='review',422);
   app(ProductWorkflowService::class)->publish($product,$request->user()->id);
   app(ActivityService::class)->log($request->user()->id,$product->brand_id,'product.published',$product);
-  if($product->brandProfile)app(ActivityService::class)->notify($product->brandProfile->user_id,'product_approved','Produit publié',"{$product->name} a été vérifié et publié.",route('brand.products.edit',$product));
+  if($product->brandProfile)app(ActivityService::class)->notify($product->brandProfile->user_id,'product_approved','Produit publié — analyse disponible',"{$product->name} a été vérifié et publié. Vous pouvez maintenant lancer l’analyse des labels compatibles.",route('brand.product-label-recommendations.index'));
   return back()->with('success','Produit vérifié et publié.');
  }
  public function reject(Request $request,Product $product): RedirectResponse {
