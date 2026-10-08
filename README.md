@@ -50,9 +50,9 @@ Les vues d’impact mettent en avant les ODD **6 — Eau**, **7 — Énergie**, 
 
 **Application : [https://textilecycle.onrender.com/](https://textilecycle.onrender.com/)**
 
-Les cinq captures de ce README ont été prises dans un navigateur sur la version réellement déployée, le **8 octobre 2026**. Elles montrent les pages publiques, sans compte créé ni données métier modifiées. Le détail de provenance est conservé dans [le registre des captures](docs/screenshots/README.md).
+Les **39 captures** de cette documentation ont été prises dans un navigateur sur la version réellement déployée, le **8 octobre 2026** : **5 vues publiques, 14 administrateur, 9 marque et 11 consommateur**. Les trois comptes de démonstration ont été ouverts avec autorisation. Aucun formulaire métier n’a été soumis pour produire cette galerie.
 
-Les fonctionnalités des espaces privés sont documentées à partir du code de `main`. Cette visite publique ne confirme pas la révision Git exécutée par Render ni le fonctionnement des intégrations privées en production.
+Ces captures attestent de l’état affiché, pas d’un test complet des intégrations ni du SHA exécuté par Render. Les listes vides, médias de remplacement et recommandations déterministes restent visibles tels qu’observés. [Consulter les pages, dates et limites de la galerie](docs/screenshots/README.md).
 
 ### Un cycle textile documenté
 
@@ -71,6 +71,324 @@ Les fonctionnalités des espaces privés sont documentées à partir du code de 
 Le choix « Marque » ouvre un questionnaire en six étapes et annonce la validation administrative nécessaire avant l’accès au compte.
 
 ![Première étape de l’inscription marque déployée](docs/screenshots/deployed-brand-onboarding.jpg)
+
+### Espace consommateur
+
+Comprendre les produits, scanner un textile, préparer un retour et suivre les récompenses.
+
+<details>
+<summary>Accueil et impact personnel</summary>
+
+![Accueil et impact personnel](docs/screenshots/consumer-home.jpg)
+
+[Page de l’application](https://textilecycle.onrender.com/discover) · Connexion avec le rôle correspondant requise.
+
+</details>
+
+<details>
+<summary>Catalogue des vêtements</summary>
+
+![Catalogue des vêtements](docs/screenshots/consumer-products.jpg)
+
+[Page de l’application](https://textilecycle.onrender.com/discover/products) · Connexion avec le rôle correspondant requise.
+
+</details>
+
+<details>
+<summary>Solutions circulaires</summary>
+
+![Solutions circulaires](docs/screenshots/consumer-programs.jpg)
+
+[Page de l’application](https://textilecycle.onrender.com/discover/programs) · Connexion avec le rôle correspondant requise.
+
+</details>
+
+<details>
+<summary>Points de collecte</summary>
+
+![Points de collecte](docs/screenshots/consumer-points.jpg)
+
+[Page de l’application](https://textilecycle.onrender.com/discover/points) · Connexion avec le rôle correspondant requise.
+
+</details>
+
+<details>
+<summary>Historique des scans</summary>
+
+![Historique des scans](docs/screenshots/consumer-scans.jpg)
+
+[Page de l’application](https://textilecycle.onrender.com/scans) · Connexion avec le rôle correspondant requise.
+
+</details>
+
+<details>
+<summary>Liste des retours et statuts</summary>
+
+![Liste des retours et statuts](docs/screenshots/consumer-product-returns.jpg)
+
+[Page de l’application](https://textilecycle.onrender.com/product-returns) · Connexion avec le rôle correspondant requise.
+
+</details>
+
+<details>
+<summary>Wallet et récompenses</summary>
+
+![Wallet et récompenses](docs/screenshots/consumer-wallet.jpg)
+
+[Page de l’application](https://textilecycle.onrender.com/discover/wallet) · Connexion avec le rôle correspondant requise.
+
+</details>
+
+<details>
+<summary>Smart Scan — formulaire non soumis</summary>
+
+![Smart Scan — formulaire non soumis](docs/screenshots/consumer-smart-scan.jpg)
+
+[Page de l’application](https://textilecycle.onrender.com/scans/create) · Connexion avec le rôle correspondant requise.
+
+</details>
+
+<details>
+<summary>Passeport produit — Hemp Denim 2030</summary>
+
+![Passeport produit — Hemp Denim 2030](docs/screenshots/consumer-product-passport.jpg)
+
+[Page de l’application](https://textilecycle.onrender.com/discover/products/6) · Connexion avec le rôle correspondant requise.
+
+</details>
+
+<details>
+<summary>Déclaration de retour — formulaire non soumis</summary>
+
+![Déclaration de retour — formulaire non soumis](docs/screenshots/consumer-return-create.jpg)
+
+[Page de l’application](https://textilecycle.onrender.com/product-returns/create) · Connexion avec le rôle correspondant requise.
+
+</details>
+
+<details>
+<summary>Résultat du traitement — retour terminé</summary>
+
+![Résultat du traitement — retour terminé](docs/screenshots/consumer-return-results.jpg)
+
+[Page de l’application](https://textilecycle.onrender.com/product-returns/2) · Connexion avec le rôle correspondant requise.
+
+</details>
+
+### Espace marque — Brand Studio
+
+Gérer le catalogue, consulter les labels et relier les besoins en matières aux retours compatibles. L’analyse produit-label capturée indique explicitement son mode déterministe.
+
+<details>
+<summary>Pilotage de la marque</summary>
+
+![Pilotage de la marque](docs/screenshots/brand-dashboard.jpg)
+
+[Page de l’application](https://textilecycle.onrender.com/brand) · Connexion avec le rôle correspondant requise.
+
+</details>
+
+<details>
+<summary>Catalogue de la marque</summary>
+
+![Catalogue de la marque](docs/screenshots/brand-products.jpg)
+
+[Page de l’application](https://textilecycle.onrender.com/brand/products) · Connexion avec le rôle correspondant requise.
+
+</details>
+
+<details>
+<summary>Import CSV — formulaire non soumis</summary>
+
+![Import CSV — formulaire non soumis](docs/screenshots/brand-import.jpg)
+
+[Page de l’application](https://textilecycle.onrender.com/brand/products/import) · Connexion avec le rôle correspondant requise.
+
+</details>
+
+<details>
+<summary>Labels et démarches</summary>
+
+![Labels et démarches](docs/screenshots/brand-labels.jpg)
+
+[Page de l’application](https://textilecycle.onrender.com/brand/labels) · Connexion avec le rôle correspondant requise.
+
+</details>
+
+<details>
+<summary>Feuilles de route — état vide</summary>
+
+![Feuilles de route — état vide](docs/screenshots/brand-roadmaps.jpg)
+
+[Page de l’application](https://textilecycle.onrender.com/brand/roadmaps) · Connexion avec le rôle correspondant requise.
+
+</details>
+
+<details>
+<summary>Recommandations produit-label — analyse déterministe</summary>
+
+![Recommandations produit-label — analyse déterministe](docs/screenshots/brand-product-label-recommendations.jpg)
+
+[Page de l’application](https://textilecycle.onrender.com/brand/product-label-recommendations) · Connexion avec le rôle correspondant requise.
+
+</details>
+
+<details>
+<summary>Demandes de matières — formulaire non soumis</summary>
+
+![Demandes de matières — formulaire non soumis](docs/screenshots/brand-material-requests.jpg)
+
+[Page de l’application](https://textilecycle.onrender.com/brand/material-requests) · Connexion avec le rôle correspondant requise.
+
+</details>
+
+<details>
+<summary>Retours compatibles et seconde vie</summary>
+
+![Retours compatibles et seconde vie](docs/screenshots/brand-material-matches.jpg)
+
+[Page de l’application](https://textilecycle.onrender.com/brand/material-matches) · Connexion avec le rôle correspondant requise.
+
+</details>
+
+<details>
+<summary>Profil public de la marque</summary>
+
+![Profil public de la marque](docs/screenshots/brand-profile.jpg)
+
+[Page de l’application](https://textilecycle.onrender.com/brand/profile) · Connexion avec le rôle correspondant requise.
+
+</details>
+
+### Espace administrateur
+
+Piloter les statistiques, le catalogue, la collecte et la préparation aux référentiels. Les inscriptions, collecteurs et feuilles de route présentent ici leur état vide réel.
+
+<details>
+<summary>Centre de pilotage</summary>
+
+![Centre de pilotage](docs/screenshots/admin-dashboard.jpg)
+
+[Page de l’application](https://textilecycle.onrender.com/admin) · Connexion avec le rôle correspondant requise.
+
+</details>
+
+<details>
+<summary>Produits et publications</summary>
+
+![Produits et publications](docs/screenshots/admin-products.jpg)
+
+[Page de l’application](https://textilecycle.onrender.com/products) · Connexion avec le rôle correspondant requise.
+
+</details>
+
+<details>
+<summary>Référentiel des matières</summary>
+
+![Référentiel des matières](docs/screenshots/admin-materials.jpg)
+
+[Page de l’application](https://textilecycle.onrender.com/materials) · Connexion avec le rôle correspondant requise.
+
+</details>
+
+<details>
+<summary>Historique Smart Scan</summary>
+
+![Historique Smart Scan](docs/screenshots/admin-scans.jpg)
+
+[Page de l’application](https://textilecycle.onrender.com/scans) · Connexion avec le rôle correspondant requise.
+
+</details>
+
+<details>
+<summary>Propositions de passeport</summary>
+
+![Propositions de passeport](docs/screenshots/admin-passport-proposals.jpg)
+
+[Page de l’application](https://textilecycle.onrender.com/admin/passport-proposals) · Connexion avec le rôle correspondant requise.
+
+</details>
+
+<details>
+<summary>Détections</summary>
+
+![Détections](docs/screenshots/admin-detections.jpg)
+
+[Page de l’application](https://textilecycle.onrender.com/detections) · Connexion avec le rôle correspondant requise.
+
+</details>
+
+<details>
+<summary>Programmes de reprise</summary>
+
+![Programmes de reprise](docs/screenshots/admin-recovery-programs.jpg)
+
+[Page de l’application](https://textilecycle.onrender.com/recovery-programs) · Connexion avec le rôle correspondant requise.
+
+</details>
+
+<details>
+<summary>Points de collecte</summary>
+
+![Points de collecte](docs/screenshots/admin-collection-points.jpg)
+
+[Page de l’application](https://textilecycle.onrender.com/collection-points) · Connexion avec le rôle correspondant requise.
+
+</details>
+
+<details>
+<summary>Comptes collecteurs — état vide</summary>
+
+![Comptes collecteurs — état vide](docs/screenshots/admin-collectors.jpg)
+
+[Page de l’application](https://textilecycle.onrender.com/admin/collectors) · Connexion avec le rôle correspondant requise.
+
+</details>
+
+<details>
+<summary>Résultats de traitement</summary>
+
+![Résultats de traitement](docs/screenshots/admin-treatment-results.jpg)
+
+[Page de l’application](https://textilecycle.onrender.com/treatment-results) · Connexion avec le rôle correspondant requise.
+
+</details>
+
+<details>
+<summary>Inscriptions marques — état vide</summary>
+
+![Inscriptions marques — état vide](docs/screenshots/admin-brand-applications.jpg)
+
+[Page de l’application](https://textilecycle.onrender.com/admin/brand-applications) · Connexion avec le rôle correspondant requise.
+
+</details>
+
+<details>
+<summary>Feuilles de route — état vide</summary>
+
+![Feuilles de route — état vide](docs/screenshots/admin-roadmaps.jpg)
+
+[Page de l’application](https://textilecycle.onrender.com/admin/roadmaps) · Connexion avec le rôle correspondant requise.
+
+</details>
+
+<details>
+<summary>Catalogue des labels</summary>
+
+![Catalogue des labels](docs/screenshots/admin-labels.jpg)
+
+[Page de l’application](https://textilecycle.onrender.com/admin/labels) · Connexion avec le rôle correspondant requise.
+
+</details>
+
+<details>
+<summary>Évaluations de préparation</summary>
+
+![Évaluations de préparation](docs/screenshots/admin-assessments.jpg)
+
+[Page de l’application](https://textilecycle.onrender.com/assessments) · Connexion avec le rôle correspondant requise.
+
+</details>
 
 ## Rôles et fonctionnalités
 
@@ -281,7 +599,7 @@ php artisan db:seed
 | Marque | `brand@textilecycle.test` | `password` |
 | Consommateur | `consumer@textilecycle.test` | `password` |
 
-Ces identifiants sont ceux des seeders locaux ; leur disponibilité sur Render n’a pas été vérifiée. Le collecteur intervient dans le scénario et les tests ; cette table ne lui invente pas de compte de démonstration. Ne pas utiliser les comptes de seed en exploitation réelle.
+Ces identifiants sont ceux des seeders locaux ; les trois espaces de démonstration ont été ouverts sur Render le 8 octobre 2026. Le collecteur intervient dans le scénario et les tests ; cette table ne lui invente pas de compte de démonstration. Ne pas utiliser les comptes de seed en exploitation réelle.
 
 ## Configuration des services
 
@@ -450,4 +768,3 @@ Pour les captures, utiliser un compte de démonstration autorisé, ne pas publie
 - Photographies : Julia M Cameron, Burcu, Adrinil Dennis, NEOSiAM et Yeşim Çolak, via Pexels.
 - Icônes ODD : Nations Unies ; leur présence n’implique aucune approbation du projet par l’ONU.
 - Les métadonnées `composer.json` déclarent **MIT** pour le code. Aucun fichier `LICENSE` dédié n’accompagne actuellement le dépôt ; les médias et logos conservent leurs conditions propres.
-
