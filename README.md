@@ -767,4 +767,5 @@ Pour les captures, utiliser un compte de démonstration autorisé, ne pas publie
 - Logo TexTileCycle fourni par l’équipe du projet.
 - Photographies : Julia M Cameron, Burcu, Adrinil Dennis, NEOSiAM et Yeşim Çolak, via Pexels.
 - Icônes ODD : Nations Unies ; leur présence n’implique aucune approbation du projet par l’ONU.
+- Inspiration d’interface : [TailAdmin Laravel](https://github.com/TailAdmin/tailadmin-laravel), template open source sous licence MIT construite avec Laravel, Blade, Tailwind CSS et Alpine.js.
 - Les métadonnées `composer.json` déclarent **MIT** pour le code. Aucun fichier `LICENSE` dédié n’accompagne actuellement le dépôt ; les médias et logos conservent leurs conditions propres.
