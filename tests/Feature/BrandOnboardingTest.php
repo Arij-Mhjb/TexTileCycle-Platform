@@ -118,6 +118,19 @@ class BrandOnboardingTest extends TestCase
         $this->assertDatabaseCount('brand_applications', 0);
     }
 
+    public function test_duplicate_registration_email_has_a_clear_french_error(): void
+    {
+        app()->setLocale('fr');
+        User::factory()->create(['email' => 'existing@example.test']);
+
+        $this->post('/register', [
+            'name' => 'Responsable', 'email' => 'existing@example.test', 'role' => 'consumer',
+            'password' => 'password', 'password_confirmation' => 'password',
+        ])->assertSessionHasErrors([
+            'email' => 'Cette adresse e-mail est déjà utilisée. Connectez-vous ou choisissez une autre adresse.',
+        ]);
+    }
+
     public function test_pending_brand_cannot_login_or_use_an_existing_session(): void
     {
         $application = $this->application();
