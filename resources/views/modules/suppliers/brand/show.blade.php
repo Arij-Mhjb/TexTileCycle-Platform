@@ -48,16 +48,16 @@
         <section class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm xl:col-span-2">
             <p class="text-xs font-black uppercase tracking-wider text-indigo-600">Provenance</p>
             <h2 class="mt-1 text-xl font-black">Lots de matières</h2>
+            <p class="mt-1 text-sm text-slate-500">Un lot = une livraison de matière reçue de ce fournisseur. Son code est créé automatiquement ; ajoutez ensuite la photo du certificat et reliez le lot aux produits qui l’utilisent.</p>
             <form method="POST" action="{{ route('brand.supplier-batches.store', $supplier) }}" class="mt-4 grid gap-3 rounded-2xl bg-indigo-50/60 p-4 md:grid-cols-3">
                 @csrf
-                <x-module.field name="batch_code" label="Code du lot" required placeholder="LOT-2026-001"/>
                 <x-ui.select name="material_id" label="Matière" :options="$materials->pluck('name', 'id')" required/>
                 <x-module.field name="quantity_kg" type="number" step="0.1" min="0.1" label="Quantité (kg)" required/>
                 <x-module.field name="origin_country" label="Pays d’origine" :value="$supplier->country" required/>
                 <x-module.field name="production_date" type="date" label="Production"/>
                 <x-module.field name="received_at" type="date" label="Réception"/>
-                <div class="md:col-span-2"><x-ui.select name="purchase_order_id" label="Bon de commande" :options="$supplier->purchaseOrders->where('status', '!=', 'cancelled')->pluck('reference', 'id')" placeholder="Aucun"/></div>
-                <div class="flex items-end"><x-module.button module="suppliers" class="w-full">Déclarer le lot</x-module.button></div>
+                <x-ui.select name="purchase_order_id" label="Bon de commande" :options="$supplier->purchaseOrders->where('status', '!=', 'cancelled')->pluck('reference', 'id')" placeholder="Aucun"/>
+                <div class="md:col-span-2 flex items-end"><x-module.button module="suppliers" class="w-full">Déclarer le lot</x-module.button></div>
             </form>
 
             <div class="mt-5 space-y-4">

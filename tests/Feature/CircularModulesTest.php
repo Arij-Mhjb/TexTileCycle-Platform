@@ -48,9 +48,10 @@ class CircularModulesTest extends TestCase
 
         $this->post(route('brand.purchase-orders.store', $supplier), ['ordered_at' => now()->toDateString()])->assertSessionHasNoErrors();
         $this->post(route('brand.supplier-batches.store', $supplier), [
-            'batch_code' => 'LOT-T-1', 'material_id' => $cotton->id, 'quantity_kg' => 100, 'origin_country' => 'Tunisie',
+            'material_id' => $cotton->id, 'quantity_kg' => 100, 'origin_country' => 'Tunisie',
         ])->assertSessionHasNoErrors();
         $batch = SupplierBatch::firstOrFail();
+        $this->assertMatchesRegularExpression('/^LOT-FIL-\d{4}-001$/', $batch->batch_code);
         config(['services.gemini.enabled' => true, 'services.gemini.key' => 'test-key']);
         Http::fake(['generativelanguage.googleapis.com/*' => Http::response(['output_text' => json_encode([
             'type' => 'GRS', 'certificate_number' => 'GRS-1', 'issuer' => 'Control Union', 'issued_at' => now()->subMonth()->toDateString(),

@@ -11,6 +11,7 @@ use App\Services\SupplierTraceabilityService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -20,7 +21,6 @@ class BrandSupplierBatchController extends Controller
     {
         abort_unless($supplier->brand_id === $request->user()->brand?->id, 403);
         $data = $request->validate([
-            'batch_code' => 'required|string|max:80|unique:supplier_batches,batch_code',
             'material_id' => 'required|exists:materials,id',
             'purchase_order_id' => ['nullable', Rule::exists('purchase_orders', 'id')->where('supplier_id', $supplier->id)],
             'quantity_kg' => 'required|numeric|min:0.1|max:9999999',
@@ -29,6 +29,7 @@ class BrandSupplierBatchController extends Controller
             'received_at' => 'nullable|date',
         ]);
 
+        $data['batch_code'] = $this->nextBatchCode($supplier);
         $supplier->batches()->create([...$data, 'status' => ! empty($data['received_at']) ? 'received' : 'pending']);
         $traceability->refreshComplianceScore($supplier);
 
@@ -92,6 +93,18 @@ class BrandSupplierBatchController extends Controller
         abort_unless($certificate->document_path && Storage::disk('local')->exists($certificate->document_path), 404);
 
         return Storage::disk('local')->response($certificate->document_path);
+    }
+
+    /** Code de lot généré automatiquement : LOT-<3 lettres du fournisseur>-<AAMM>-<n°>, ex. LOT-FIL-2610-003. */
+    private function nextBatchCode(Supplier $supplier): string
+    {
+        $prefix = 'LOT-'.Str::upper(Str::padRight(Str::substr(Str::slug($supplier->name, ''), 0, 3), 3, 'X')).'-'.now()->format('ym').'-';
+        $number = SupplierBatch::where('batch_code', 'like', $prefix.'%')->count() + 1;
+        do {
+            $code = $prefix.str_pad((string) $number++, 3, '0', STR_PAD_LEFT);
+        } while (SupplierBatch::where('batch_code', $code)->exists());
+
+        return $code;
     }
 
     private function text(mixed $value): ?string
