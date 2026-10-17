@@ -20,6 +20,7 @@
                 ] as [$routeName,$label])
                     <a href="{{ route($routeName) }}" class="rounded-xl px-3.5 py-2.5 text-sm font-bold transition {{ request()->routeIs($routeName) ? 'bg-emerald-50 text-emerald-700' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900' }}">{{ $label }}</a>
                 @endforeach
+                @include('modules.partials.consumer-nav')
             </nav>
             <div class="relative" x-data="{ open: false }">
                 <div class="flex items-center gap-2">
@@ -33,6 +34,7 @@
                     <a href="{{ route('consumer.programs') }}" class="block rounded-xl px-3 py-2.5 text-sm font-bold hover:bg-slate-50 dark:hover:bg-slate-800 xl:hidden">Solutions circulaires</a>
                     <a href="{{ route('scans.index') }}" class="block rounded-xl px-3 py-2.5 text-sm font-bold hover:bg-slate-50 dark:hover:bg-slate-800 xl:hidden">Mes scans</a>
                     <a href="{{ route('consumer.wallet') }}" class="block rounded-xl px-3 py-2.5 text-sm font-bold hover:bg-slate-50 dark:hover:bg-slate-800">Mon wallet</a>
+                    @include('modules.partials.consumer-menu')
                     <a href="{{ route('profile.edit') }}" class="block rounded-xl px-3 py-2.5 text-sm font-bold hover:bg-slate-50 dark:hover:bg-slate-800">Mon profil</a>
                     <form method="POST" action="{{ route('logout') }}">@csrf<button class="w-full rounded-xl px-3 py-2.5 text-left text-sm font-bold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40">Déconnexion</button></form>
                 </div>

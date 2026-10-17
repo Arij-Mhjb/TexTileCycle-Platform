@@ -23,6 +23,7 @@
                 <a href="{{ route('brand.material-requests.index') }}">Matières</a>
                 <a href="{{ route('brand.material-matches.index') }}">Retours compatibles</a>
                 <a href="{{ route('brand.profile.edit') }}">Marque</a>
+                @include('modules.partials.brand-nav')
             </nav>
 
             <form method="POST" action="{{ route('logout') }}">
