@@ -6,6 +6,7 @@ use App\Models\Brand;
 use App\Models\BrandNotification;
 use App\Models\ImpactCategory;
 use App\Models\ImpactMetric;
+use App\Models\Material;
 use App\Models\Product;
 use App\Models\ProductImpactReport;
 use App\Models\User;
@@ -54,36 +55,46 @@ class ImpactCalculationService
         return 0.5;
     }
 
-    public function generate(Product $product, ?User $author = null, ?float $weightKg = null, ?string $season = null): ProductImpactReport
+    /**
+     * Calcul pur (sans enregistrement). Permet aussi de simuler une autre composition
+     * ($materials) ou d'autres caractéristiques ($flags : repairable, reusable, recyclable).
+     *
+     * @param  Collection<int, Material>|null  $materials  matières avec ->pivot->percentage
+     * @return array{stages: array<string, array<string, float>>, totals: Collection<string, float>, avoided: float, bonus: int, score: int}
+     */
+    public function compute(Product $product, float $weight, ?Collection $materials = null, array $flags = []): array
     {
         $product->loadMissing(['materials', 'returns']);
-        $weight = max(0.05, $weightKg ?: $this->estimateWeight($product));
+        $materialsList = $materials ?? $product->materials;
+        $repairable = $flags['repairable'] ?? $product->repairable;
+        $reusable = $flags['reusable'] ?? $product->reusable;
+        $recyclable = $flags['recyclable'] ?? $product->recyclable;
         $categories = ImpactCategory::all()->keyBy('code');
-        $metrics = $this->metricsFor($product->materials->pluck('id'));
+        $metrics = $this->metricsFor($materialsList->pluck('id'));
 
         // 1. Étape matières : masse de chaque matière × facteur.
-        $materials = ['co2' => 0.0, 'water' => 0.0, 'energy' => 0.0, 'waste' => 0.0];
-        $totalShare = max(1, $product->materials->sum(fn ($material) => (float) ($material->pivot->percentage ?? 0)));
-        foreach ($product->materials as $material) {
-            $share = $material->pivot->percentage !== null ? (float) $material->pivot->percentage / $totalShare : 1 / max(1, $product->materials->count());
+        $materialImpact = ['co2' => 0.0, 'water' => 0.0, 'energy' => 0.0, 'waste' => 0.0];
+        $totalShare = max(1, $materialsList->sum(fn ($material) => (float) ($material->pivot->percentage ?? 0)));
+        foreach ($materialsList as $material) {
+            $share = $material->pivot->percentage !== null ? (float) $material->pivot->percentage / $totalShare : 1 / max(1, $materialsList->count());
             $mass = $weight * $share;
-            foreach (array_keys($materials) as $code) {
+            foreach (array_keys($materialImpact) as $code) {
                 $factor = $metrics[$material->id][$code] ?? (self::DEFAULT_FACTORS[$material->type] ?? self::FALLBACK_FACTORS)[$code];
-                $materials[$code] += $mass * $factor;
+                $materialImpact[$code] += $mass * $factor;
             }
         }
-        if ($product->materials->isEmpty()) {
+        if ($materialsList->isEmpty()) {
             foreach (self::FALLBACK_FACTORS as $code => $factor) {
-                $materials[$code] = $weight * $factor;
+                $materialImpact[$code] = $weight * $factor;
             }
         }
 
         // 2. Fabrication, transport, fin de vie.
-        $endOfLife = $product->recyclable
+        $endOfLife = $recyclable
             ? ['co2' => 0.2, 'water' => 0, 'energy' => 2, 'waste' => 0.1]
             : ['co2' => 1.2, 'water' => 0, 'energy' => 1, 'waste' => 0.6];
         $stages = [
-            'materials' => $materials,
+            'materials' => $materialImpact,
             'manufacturing' => array_map(fn ($factor) => $factor * $weight, self::STAGE_FACTORS['manufacturing']),
             'transport' => array_map(fn ($factor) => $factor * $weight, self::STAGE_FACTORS['transport']),
             'end_of_life' => array_map(fn ($factor) => $factor * $weight, $endOfLife),
@@ -102,15 +113,26 @@ class ImpactCalculationService
             'energy' => $this->clamp(100 - (($totals['energy'] / $weight) - 20) * 1.2),
             'waste' => $this->clamp(100 - ($totals['waste'] / $weight) * 150),
         ];
-        $weights = collect($subScores)->mapWithKeys(fn ($score, $code) => [$code => (float) ($categories[$code]->weight ?? 0.25)]);
         $weighted = 0.0;
+        $weightSum = 0.0;
         foreach ($subScores as $code => $subScore) {
-            $weighted += $subScore * $weights[$code];
+            $categoryWeight = (float) ($categories[$code]->weight ?? 0.25);
+            $weighted += $subScore * $categoryWeight;
+            $weightSum += $categoryWeight;
         }
-        $base = $weighted / max(0.01, $weights->sum());
-        $bonus = (int) min(10, ($product->repairable ? 3 : 0) + ($product->reusable ? 2 : 0) + ($product->recyclable ? 2 : 0)
+        $base = $weighted / max(0.01, $weightSum);
+        $bonus = (int) min(10, ($repairable ? 3 : 0) + ($reusable ? 2 : 0) + ($recyclable ? 2 : 0)
             + round(((int) $product->circularity_score) / 100 * 2) + min(1, (int) floor($avoided)));
         $score = (int) $this->clamp(round($base + $bonus));
+
+        return compact('stages', 'totals', 'avoided', 'bonus', 'score');
+    }
+
+    public function generate(Product $product, ?User $author = null, ?float $weightKg = null, ?string $season = null): ProductImpactReport
+    {
+        $product->loadMissing(['materials', 'returns']);
+        $weight = max(0.05, $weightKg ?: $this->estimateWeight($product));
+        ['stages' => $stages, 'totals' => $totals, 'avoided' => $avoided, 'bonus' => $bonus, 'score' => $score] = $this->compute($product, $weight);
 
         return DB::transaction(function () use ($product, $author, $weight, $season, $stages, $totals, $avoided, $bonus, $score) {
             $report = ProductImpactReport::create([

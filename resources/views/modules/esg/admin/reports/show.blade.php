@@ -8,6 +8,7 @@
     @include('modules.esg.admin._tabs')
 
     @include('modules.esg._report')
+    @include('modules.esg._ai-recommendations', ['action' => route('admin.impact-reports.ai-recommendations', $report)])
 
     <section class="panel mt-6 p-6">
         @if($report->status === 'validated')
