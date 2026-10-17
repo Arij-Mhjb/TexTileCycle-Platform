@@ -61,6 +61,9 @@ class BrandSupplierBatchController extends Controller
 
         $file = $request->file('document');
         $result = $ai->extractCertificate($file->getRealPath(), $batch);
+        if (($result['is_certificate'] ?? true) === false) {
+            return back()->withErrors(['document' => 'L’IA ne reconnaît pas un certificat dans cette image ('.$result['document_kind'].'). Envoyez la photo du certificat GRS, GOTS, RWS, OEKO-TEX…']);
+        }
         $fields = $result['fields'];
         $path = $file->store('certificates/'.$batch->id, 'local');
 

@@ -35,6 +35,10 @@ class SupplierAiService
 
         $answer = $this->gemini->ask($this->certificatePrompt($batch), $this->certificateSchema(), [$imagePath]);
         if ($answer) {
+            if (($answer['is_certificate'] ?? true) === false) {
+                return ['fields' => [], 'confidence' => (int) ($answer['confidence'] ?? 0), 'warnings' => [], 'source' => 'gemini', 'is_certificate' => false,
+                    'document_kind' => (string) ($answer['document_kind'] ?? 'document non identifié')];
+            }
             $fields = collect($answer)->only(['type', 'certificate_number', 'issuer', 'issued_at', 'expires_at', 'material', 'holder', 'confidence'])->all();
         } else {
             $source = 'ocr';
@@ -42,7 +46,7 @@ class SupplierAiService
         }
 
         if ($fields === null) {
-            return ['fields' => [], 'confidence' => 0, 'warnings' => ['Lecture automatique indisponible : configurez GEMINI_API_KEY ou installez Tesseract, puis réessayez. Vous pouvez saisir le certificat manuellement.'], 'source' => 'none'];
+            return ['fields' => [], 'confidence' => 0, 'warnings' => ['L’IA n’a pas pu lire ce document : TexTileCycle vérifiera le certificat directement sur le document envoyé.'], 'source' => 'none'];
         }
 
         $fields['type'] = $this->normaliseType($fields['type'] ?? null);
@@ -258,6 +262,8 @@ class SupplierAiService
     {
         return <<<PROMPT
 Tu lis la photo d'un certificat textile (GOTS, GRS, RWS, OEKO-TEX, FSC ou certificat d'origine).
+D'abord, "is_certificate" : true seulement si l'image est réellement un certificat ou une attestation de provenance/conformité textile ;
+sinon false, et décris en quelques mots dans "document_kind" ce que montre l'image (ex. « diagramme UML », « photo d'un vêtement »).
 Extrais uniquement ce qui est réellement lisible ; mets null sinon. N'invente jamais un numéro ni une date.
 Dates au format YYYY-MM-DD. "type" doit être l'un de : GOTS, GRS, RWS, OEKO-TEX, FSC, origin, other.
 "confidence" est un entier de 0 à 100 sur la lisibilité globale.
@@ -275,8 +281,10 @@ PROMPT;
                 'type' => $nullable, 'certificate_number' => $nullable, 'issuer' => $nullable,
                 'issued_at' => $nullable, 'expires_at' => $nullable, 'material' => $nullable, 'holder' => $nullable,
                 'confidence' => ['type' => 'integer', 'minimum' => 0, 'maximum' => 100],
+                'is_certificate' => ['type' => 'boolean'],
+                'document_kind' => ['type' => 'string'],
             ],
-            'required' => ['type', 'certificate_number', 'issuer', 'issued_at', 'expires_at', 'material', 'holder', 'confidence'],
+            'required' => ['is_certificate', 'document_kind', 'type', 'certificate_number', 'issuer', 'issued_at', 'expires_at', 'material', 'holder', 'confidence'],
         ];
     }
 

@@ -64,6 +64,19 @@ class CircularModulesAiTest extends TestCase
         Http::assertSent(fn ($request) => str_contains($request->url(), 'generativelanguage') && $request['input'][1]['type'] === 'image');
     }
 
+    public function test_image_that_is_not_a_certificate_is_rejected_by_ai(): void
+    {
+        $this->fakeGemini(['is_certificate' => false, 'document_kind' => 'diagramme UML', 'type' => null, 'certificate_number' => null, 'issuer' => null, 'issued_at' => null, 'expires_at' => null, 'material' => null, 'holder' => null, 'confidence' => 95]);
+        Storage::fake('local');
+        $brandUser = User::where('email', 'brand@textilecycle.test')->firstOrFail();
+        $batch = SupplierBatch::where('batch_code', 'LOT-LN-2026-03')->firstOrFail();
+
+        $this->actingAs($brandUser)->post(route('brand.certificates.store', $batch), ['document' => UploadedFile::fake()->image('diagramme.png')])
+            ->assertSessionHasErrors('document');
+
+        $this->assertSame(0, $batch->certificates()->count());
+    }
+
     public function test_unreadable_certificate_is_still_saved_for_admin_review(): void
     {
         $this->withoutGemini();
