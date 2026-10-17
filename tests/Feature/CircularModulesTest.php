@@ -23,6 +23,9 @@ use App\Services\ImpactCalculationService;
 use Database\Seeders\CircularModulesSeeder;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 /**
@@ -48,9 +51,14 @@ class CircularModulesTest extends TestCase
             'batch_code' => 'LOT-T-1', 'material_id' => $cotton->id, 'quantity_kg' => 100, 'origin_country' => 'Tunisie',
         ])->assertSessionHasNoErrors();
         $batch = SupplierBatch::firstOrFail();
-        $this->post(route('brand.certificates.store', $batch), [
+        config(['services.gemini.enabled' => true, 'services.gemini.key' => 'test-key']);
+        Http::fake(['generativelanguage.googleapis.com/*' => Http::response(['output_text' => json_encode([
             'type' => 'GRS', 'certificate_number' => 'GRS-1', 'issuer' => 'Control Union', 'issued_at' => now()->subMonth()->toDateString(),
-        ])->assertSessionHasNoErrors();
+            'expires_at' => now()->addYear()->toDateString(), 'material' => 'Recycled cotton', 'holder' => null, 'confidence' => 90,
+        ])])]);
+        Storage::fake('local');
+        $this->post(route('brand.certificates.store', $batch), ['document' => UploadedFile::fake()->image('grs.jpg')])->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('material_origin_certificates', ['certificate_number' => 'GRS-1', 'type' => 'GRS', 'status' => 'pending']);
 
         // Avant vérification admin : écart détecté.
         $this->post(route('brand.traceability.store'), ['product_id' => $product->id, 'supplier_batch_id' => $batch->id])->assertSessionHasNoErrors();

@@ -13,6 +13,7 @@ use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 /**
@@ -40,20 +41,43 @@ class CircularModulesAiTest extends TestCase
         Http::fake();
     }
 
-    public function test_certificate_photo_is_read_by_gemini_and_prefills_the_form(): void
+    public function test_brand_only_uploads_the_certificate_photo_and_ai_fills_everything(): void
     {
         $this->fakeGemini([
             'type' => 'GRS', 'certificate_number' => 'CU-GRS-778899', 'issuer' => 'Control Union', 'issued_at' => '2026-01-10',
             'expires_at' => '2027-01-09', 'material' => 'Recycled polyester', 'holder' => 'Filature Méditerranée', 'confidence' => 92,
         ]);
+        Storage::fake('local');
         $brandUser = User::where('email', 'brand@textilecycle.test')->firstOrFail();
         $batch = SupplierBatch::where('batch_code', 'LOT-FM-2026-01')->firstOrFail();
 
-        $this->actingAs($brandUser)->post(route('brand.certificates.ai-scan', $batch), ['photo' => UploadedFile::fake()->image('certificat.jpg')])
-            ->assertSessionHas('ai_certificate.fields.certificate_number', 'CU-GRS-778899');
+        $this->actingAs($brandUser)->post(route('brand.certificates.store', $batch), ['document' => UploadedFile::fake()->image('certificat.jpg')])
+            ->assertSessionHasNoErrors();
 
+        $certificate = MaterialOriginCertificate::where('certificate_number', 'CU-GRS-778899')->firstOrFail();
+        $this->assertSame('GRS', $certificate->type);
+        $this->assertSame('2027-01-09', $certificate->expires_at->toDateString());
+        $this->assertSame('pending', $certificate->status);
+        Storage::disk('local')->assertExists($certificate->document_path);
         $this->get(route('brand.suppliers.show', $batch->supplier))->assertSee('CU-GRS-778899')->assertSee('IA Gemini');
+        $this->get(route('brand.certificates.document', $certificate))->assertOk();
         Http::assertSent(fn ($request) => str_contains($request->url(), 'generativelanguage') && $request['input'][1]['type'] === 'image');
+    }
+
+    public function test_unreadable_certificate_is_still_saved_for_admin_review(): void
+    {
+        $this->withoutGemini();
+        Storage::fake('local');
+        $brandUser = User::where('email', 'brand@textilecycle.test')->firstOrFail();
+        $batch = SupplierBatch::where('batch_code', 'LOT-LN-2026-03')->firstOrFail();
+
+        $this->actingAs($brandUser)->post(route('brand.certificates.store', $batch), ['document' => UploadedFile::fake()->image('flou.jpg', 20, 20)])
+            ->assertSessionHasNoErrors();
+
+        $certificate = $batch->certificates()->latest('id')->firstOrFail();
+        $this->assertFalse($certificate->isComplete());
+        $admin = User::where('role', 'admin')->firstOrFail();
+        $this->actingAs($admin)->get(route('admin.suppliers.index'))->assertSee('Certificat (type non lu)')->assertSee('Voir le document');
     }
 
     public function test_supplier_risk_analysis_detects_expired_certificate_without_gemini(): void
