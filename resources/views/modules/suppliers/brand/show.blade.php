@@ -13,7 +13,6 @@
     </x-module.hero>
     @include('modules.suppliers.brand._tabs')
     @include('modules.suppliers._ai-risk', ['action' => route('brand.suppliers.ai-risk', $supplier)])
-    @php $aiCertificate = session('ai_certificate'); @endphp
 
     <div class="grid gap-6 xl:grid-cols-3">
         {{-- Bons de commande --}}
@@ -63,8 +62,7 @@
 
             <div class="mt-5 space-y-4">
                 @forelse($supplier->batches as $batch)
-                    @php $scan = ($aiCertificate['batch_id'] ?? null) === $batch->id ? $aiCertificate : null; $prefill = $scan['fields'] ?? []; @endphp
-                    <article class="rounded-2xl border border-slate-200 p-5" x-data="{ open: {{ $scan ? 'true' : 'false' }} }">
+                    <article class="rounded-2xl border border-slate-200 p-5">
                         <div class="flex flex-wrap items-start justify-between gap-3">
                             <div>
                                 <p class="text-xs font-black uppercase tracking-wider text-indigo-600">{{ $batch->material?->name ?? 'Matière non renseignée' }} · {{ $batch->origin_country }}</p>
@@ -77,41 +75,26 @@
                             </div>
                         </div>
                         @if($batch->verification_note)<p class="mt-3 rounded-xl bg-slate-50 p-3 text-sm text-slate-600">{{ $batch->verification_note }}</p>@endif
+                        @if($batch->productLinks->isNotEmpty())<p class="mt-3 inline-flex rounded-xl bg-indigo-50 px-3 py-2 text-xs font-bold text-indigo-700">Utilisé dans : {{ $batch->productLinks->pluck('product.name')->filter()->join(', ') }}</p>@endif
 
-                        <div class="mt-4 flex flex-wrap gap-2">
+                        <div class="mt-4 grid gap-3 md:grid-cols-2">
                             @foreach($batch->certificates as $certificate)
-                                <span class="inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-xs {{ $certificate->isValid() ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : ($certificate->status === 'rejected' || $certificate->isExpired() ? 'border-rose-200 bg-rose-50 text-rose-700' : 'border-amber-200 bg-amber-50 text-amber-800') }}">
-                                    <strong>{{ $certificate->type }}</strong> n° {{ $certificate->certificate_number }} · {{ $certificate->statusLabel() }}@if($certificate->ai_extraction) · <span class="font-black text-violet-700">✦ lu par IA</span>@endif
-                                    @if($certificate->document_url)<a href="{{ $certificate->document_url }}" target="_blank" rel="noopener" class="underline">document</a>@endif
-                                </span>
+                                @include('modules.suppliers._certificate', ['documentRoute' => 'brand.certificates.document'])
                             @endforeach
-                            @if($batch->productLinks->isNotEmpty())<span class="inline-flex items-center rounded-xl bg-indigo-50 px-3 py-2 text-xs font-bold text-indigo-700">Utilisé dans : {{ $batch->productLinks->pluck('product.name')->filter()->join(', ') }}</span>@endif
-                            <button type="button" @click="open = !open" class="rounded-xl border border-dashed border-indigo-300 px-3 py-2 text-xs font-bold text-indigo-700 hover:bg-indigo-50">+ Certificat de provenance</button>
-                            <form method="POST" action="{{ route('brand.certificates.ai-scan', $batch) }}" enctype="multipart/form-data" class="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-fuchsia-50 to-violet-50 px-2 py-1.5 ring-1 ring-violet-200">
+
+                            {{-- Ajout d'un certificat : une simple photo, l'IA lit le reste --}}
+                            <form method="POST" action="{{ route('brand.certificates.store', $batch) }}" enctype="multipart/form-data" x-data="{ name: '' }"
+                                  class="flex flex-col justify-center gap-3 rounded-2xl border-2 border-dashed border-violet-300 bg-gradient-to-br from-fuchsia-50/60 to-violet-50/60 p-4 text-center">
                                 @csrf
-                                <input type="file" name="photo" accept="image/jpeg,image/png,image/webp" required class="max-w-[13rem] text-xs file:mr-2 file:rounded-lg file:border-0 file:bg-white file:px-2 file:py-1 file:text-xs file:font-bold file:text-violet-700" aria-label="Photo du certificat">
-                                <button class="rounded-lg bg-gradient-to-r from-fuchsia-600 to-violet-600 px-3 py-1.5 text-xs font-black text-white">✦ Scanner avec l’IA</button>
+                                <p class="text-sm font-black text-violet-800">✦ Ajouter un certificat</p>
+                                <p class="text-xs text-slate-500">Envoyez la photo ou le scan : l’IA lit le type, le numéro, l’organisme et les dates.</p>
+                                <label class="mx-auto cursor-pointer rounded-xl bg-white px-4 py-2 text-xs font-bold text-violet-700 shadow-sm ring-1 ring-violet-200 hover:bg-violet-50">
+                                    <span x-text="name || 'Choisir la photo du certificat'"></span>
+                                    <input type="file" name="document" accept="image/jpeg,image/png,image/webp" required class="sr-only" @change="name = $event.target.files[0]?.name || ''">
+                                </label>
+                                <button class="mx-auto rounded-xl bg-gradient-to-r from-fuchsia-600 to-violet-600 px-4 py-2 text-sm font-black text-white shadow-sm" :disabled="!name" :class="!name && 'opacity-50 cursor-not-allowed'">Envoyer à l’IA</button>
                             </form>
                         </div>
-
-                        @if($scan)
-                            <div class="mt-4 rounded-2xl border border-violet-200 bg-violet-50/60 p-4 text-sm">
-                                <div class="flex flex-wrap items-center gap-2"><x-module.ai-badge :source="$scan['source']"/>@if($scan['confidence'])<span class="text-xs font-bold text-violet-800">Confiance {{ $scan['confidence'] }} %</span>@endif<span class="text-xs text-slate-500">Vérifiez puis enregistrez le certificat ci-dessous.</span></div>
-                                @foreach($scan['warnings'] as $warning)<p class="mt-2 flex gap-2 text-amber-800"><span>⚠</span>{{ $warning }}</p>@endforeach
-                            </div>
-                        @endif
-
-                        <form x-cloak x-show="open" x-transition method="POST" action="{{ route('brand.certificates.store', $batch) }}" class="mt-4 grid gap-3 rounded-2xl bg-slate-50 p-4 md:grid-cols-3">
-                            @csrf
-                            @if($scan && $prefill)<input type="hidden" name="ai_extraction" value="{{ json_encode(collect($scan)->except('batch_id')->all(), JSON_UNESCAPED_UNICODE) }}">@endif
-                            <x-ui.select name="type" label="Type" :options="$certificateTypes" :value="$prefill['type'] ?? null" required/>
-                            <x-module.field name="certificate_number" label="Numéro" :value="$prefill['certificate_number'] ?? null" required/>
-                            <x-module.field name="issuer" label="Organisme émetteur" :value="$prefill['issuer'] ?? null" required/>
-                            <x-module.field name="issued_at" type="date" label="Émis le" :value="$prefill['issued_at'] ?? null" required/>
-                            <x-module.field name="expires_at" type="date" label="Expire le" :value="$prefill['expires_at'] ?? null"/>
-                            <x-module.field name="document_url" type="url" label="Lien du document" placeholder="https://…"/>
-                            <div class="md:col-span-3 flex justify-end"><x-module.button module="suppliers">Ajouter le certificat</x-module.button></div>
-                        </form>
                     </article>
                 @empty
                     <x-ui.empty message="Aucun lot déclaré pour ce fournisseur."/>

@@ -9,7 +9,9 @@ use App\Models\SupplierBatch;
 use App\Services\SupplierTraceabilityService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class AdminSupplierController extends Controller
 {
@@ -54,6 +56,13 @@ class AdminSupplierController extends Controller
         $data = $request->validate(['status' => 'required|in:verified,rejected', 'note' => 'nullable|string|max:1000']);
         $traceability->reviewCertificate($certificate, $request->user(), $data['status'], $data['note'] ?? null);
 
-        return back()->with('success', 'Certificat '.$certificate->certificate_number.' : '.$certificate->statusLabel().'.');
+        return back()->with('success', $certificate->displayName().' : '.$certificate->statusLabel().'.');
+    }
+
+    public function document(MaterialOriginCertificate $certificate): StreamedResponse
+    {
+        abort_unless($certificate->document_path && Storage::disk('local')->exists($certificate->document_path), 404);
+
+        return Storage::disk('local')->response($certificate->document_path);
     }
 }

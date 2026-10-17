@@ -34,6 +34,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/suppliers/{supplier}', [AdminSupplierController::class, 'show'])->name('suppliers.show');
         Route::patch('/supplier-batches/{batch}/review', [AdminSupplierController::class, 'reviewBatch'])->name('supplier-batches.review');
         Route::patch('/certificates/{certificate}/review', [AdminSupplierController::class, 'reviewCertificate'])->name('certificates.review');
+        Route::get('/certificates/{certificate}/document', [AdminSupplierController::class, 'document'])->name('certificates.document');
         Route::post('/suppliers/{supplier}/ai-risk', [ModuleAiController::class, 'adminSupplierRisk'])->name('suppliers.ai-risk');
         Route::get('/traceability', [AdminTraceabilityController::class, 'index'])->name('traceability.index');
         Route::post('/traceability/{link}/check', [AdminTraceabilityController::class, 'check'])->name('traceability.check');
@@ -79,7 +80,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/suppliers/{supplier}/batches', [BrandSupplierBatchController::class, 'store'])->name('supplier-batches.store');
         Route::delete('/supplier-batches/{batch}', [BrandSupplierBatchController::class, 'destroy'])->name('supplier-batches.destroy');
         Route::post('/supplier-batches/{batch}/certificates', [BrandSupplierBatchController::class, 'certificate'])->name('certificates.store');
-        Route::post('/supplier-batches/{batch}/certificates/ai-scan', [ModuleAiController::class, 'brandCertificateScan'])->name('certificates.ai-scan');
+        Route::get('/certificates/{certificate}/document', [BrandSupplierBatchController::class, 'document'])->name('certificates.document');
         Route::post('/suppliers/{supplier}/ai-risk', [ModuleAiController::class, 'brandSupplierRisk'])->name('suppliers.ai-risk');
         Route::get('/traceability', [BrandTraceabilityController::class, 'index'])->name('traceability.index');
         Route::post('/traceability', [BrandTraceabilityController::class, 'store'])->name('traceability.store');

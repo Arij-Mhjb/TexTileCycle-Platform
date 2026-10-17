@@ -110,19 +110,22 @@ class SupplierAiService
             if ($certificates->isEmpty()) {
                 $risks[] = ['severity' => 'medium', 'text' => 'Lot '.$batch->batch_code.' sans certificat de provenance.'];
             }
+            foreach ($certificates->reject->isComplete() as $certificate) {
+                $risks[] = ['severity' => 'low', 'text' => 'Certificat du lot '.$batch->batch_code.' illisible par l’IA : vérification manuelle du document nécessaire.'];
+            }
             foreach ($certificates as $certificate) {
                 if ($certificate->isExpired()) {
-                    $risks[] = ['severity' => 'high', 'text' => 'Certificat '.$certificate->type.' n° '.$certificate->certificate_number.' expiré.'];
+                    $risks[] = ['severity' => 'high', 'text' => $certificate->displayName().' expiré.'];
                 } elseif ($certificate->expires_at && $certificate->expires_at->lt(now()->addMonths(2))) {
-                    $risks[] = ['severity' => 'low', 'text' => 'Certificat '.$certificate->certificate_number.' expire le '.$certificate->expires_at->format('d/m/Y').'.'];
+                    $risks[] = ['severity' => 'low', 'text' => $certificate->displayName().' expire le '.$certificate->expires_at->format('d/m/Y').'.'];
                 }
                 if ($certificate->status === 'rejected') {
-                    $risks[] = ['severity' => 'high', 'text' => 'Certificat '.$certificate->certificate_number.' refusé.'];
+                    $risks[] = ['severity' => 'high', 'text' => $certificate->displayName().' refusé.'];
                 }
             }
             $expected = $this->expectedTypes($batch->material?->name);
-            if ($expected && $certificates->isNotEmpty() && ! $certificates->pluck('type')->intersect($expected)->count()) {
-                $risks[] = ['severity' => 'medium', 'text' => 'Lot '.$batch->batch_code.' ('.$batch->material->name.') : certificat '.implode(' ou ', $expected).' attendu, '.$certificates->pluck('type')->unique()->join(', ').' fourni.'];
+            if ($expected && $certificates->isNotEmpty() && ! $certificates->pluck('type')->filter()->intersect($expected)->count()) {
+                $risks[] = ['severity' => 'medium', 'text' => 'Lot '.$batch->batch_code.' ('.$batch->material->name.') : certificat '.implode(' ou ', $expected).' attendu, '.$certificates->pluck('type')->filter()->unique()->join(', ').' fourni.'];
             }
             foreach ($batch->productLinks->where('conformity_status', 'mismatch') as $link) {
                 $risks[] = ['severity' => 'medium', 'text' => 'Écart de conformité avec le produit « '.$link->product?->name.' ».'];
@@ -215,16 +218,27 @@ class SupplierAiService
         if (! $binary) {
             return null;
         }
-        $process = new Process([$binary, $imagePath, 'stdout', '-l', 'fra+eng']);
-        $process->setTimeout(40);
-        $process->run();
-        $text = $process->isSuccessful() ? $process->getOutput() : '';
+        $text = '';
+        foreach (['fra+eng', 'eng'] as $languages) {
+            $process = new Process([$binary, $imagePath, 'stdout', '-l', $languages]);
+            $process->setTimeout(40);
+            $process->run();
+            if ($process->isSuccessful() && trim($process->getOutput()) !== '') {
+                $text = $process->getOutput();
+                break;
+            }
+        }
         if (trim($text) === '') {
             return null;
         }
 
         preg_match('/\b(GOTS|GRS|RWS|FSC|OEKO[- ]?TEX)\b/i', $text, $type);
-        preg_match('/(?:n[°o]|number|num[ée]ro|certificat(?:e)?\s*(?:no|n°)?)\s*[:#]?\s*([A-Z0-9][A-Z0-9\-\/\.]{4,})/i', $text, $number);
+        preg_match('/(?:n[°o]|number|num[ée]ro)[ \t]*[:#.]?[ \t]*([A-Z0-9][A-Z0-9\-\/\.]*\d[A-Z0-9\-\/\.]*)/i', $text, $number);
+        if (empty($number[1])) {
+            preg_match('/\b([A-Z]{2,}[-\/][A-Z0-9\-\/]*\d{4,}[A-Z0-9\-\/]*)\b/', $text, $number);
+        }
+        preg_match('/(?:holder|titulaire)[ \t]*:[ \t]*([^\n,]+)/i', $text, $holder);
+        preg_match('/(?:product|produit|mati[èe]re|material)[ \t]*:[ \t]*([^\n]+)/i', $text, $material);
         preg_match_all('/\b(\d{4}-\d{2}-\d{2}|\d{2}[\/.]\d{2}[\/.]\d{4})\b/', $text, $dates);
         preg_match('/(Control Union|Ecocert|Bureau Veritas|SGS|Intertek|Textile Exchange|OEKO-TEX Association|CU\s?India)/i', $text, $issuer);
         $dates = collect($dates[1] ?? [])->map(fn ($date) => date('Y-m-d', strtotime(str_replace(['/', '.'], '-', $date))))->sort()->values();
@@ -235,8 +249,8 @@ class SupplierAiService
             'issuer' => $issuer[1] ?? null,
             'issued_at' => $dates->first(),
             'expires_at' => $dates->count() > 1 ? $dates->last() : null,
-            'material' => null,
-            'holder' => null,
+            'material' => isset($material[1]) ? trim($material[1]) : null,
+            'holder' => isset($holder[1]) ? trim($holder[1]) : null,
         ];
     }
 

@@ -90,7 +90,7 @@ class SupplierTraceabilityService
         $this->refreshComplianceScore($supplier);
         $this->notifyBrand($supplier, 'supplier_certificate_'.$status,
             $status === 'verified' ? 'Certificat de provenance validé' : 'Certificat de provenance refusé',
-            $certificate->type.' n° '.$certificate->certificate_number.' — lot '.$certificate->batch->batch_code.'.');
+            $certificate->displayName().' — lot '.$certificate->batch->batch_code.'.');
 
         return $certificate;
     }

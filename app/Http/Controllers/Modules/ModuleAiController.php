@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Models\ProductImpactReport;
 use App\Models\RepairOrder;
 use App\Models\Supplier;
-use App\Models\SupplierBatch;
 use App\Services\Ai\ImpactAdvisorService;
 use App\Services\Ai\RepairAiService;
 use App\Services\Ai\SupplierAiService;
@@ -19,17 +18,6 @@ use Illuminate\Http\Request;
 class ModuleAiController extends Controller
 {
     // ---------- Module 1 : Fournisseurs ----------
-
-    public function brandCertificateScan(Request $request, SupplierBatch $batch, SupplierAiService $ai): RedirectResponse
-    {
-        abort_unless($batch->supplier->brand_id === $request->user()->brand?->id, 403);
-        $request->validate(['photo' => 'required|image|mimes:jpg,jpeg,png,webp|max:8192'], [], ['photo' => 'photo du certificat']);
-
-        $result = $ai->extractCertificate($request->file('photo')->getRealPath(), $batch);
-
-        return back()->with('ai_certificate', ['batch_id' => $batch->id] + $result)
-            ->with('success', $result['fields'] === [] ? 'Lecture automatique impossible : saisissez le certificat.' : 'Certificat lu par l’IA : vérifiez les champs pré-remplis puis enregistrez.');
-    }
 
     public function brandSupplierRisk(Request $request, Supplier $supplier, SupplierAiService $ai): RedirectResponse
     {

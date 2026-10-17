@@ -33,14 +33,9 @@
             <h2 class="mt-1 text-lg font-black">Certificats à contrôler</h2>
             <div class="mt-4 space-y-3">
                 @forelse($pendingCertificates as $certificate)
-                    <div class="rounded-2xl border border-slate-100 p-4 dark:border-slate-800">
-                        <div class="flex flex-wrap items-center justify-between gap-2">
-                            <p class="font-black">{{ $certificate->type }} · n° {{ $certificate->certificate_number }}</p>
-                            @if($certificate->isExpired())<x-module.badge tone="bad">Expiré</x-module.badge>@else<x-module.badge tone="warn">À vérifier</x-module.badge>@endif
-                        </div>
-                        <p class="mt-1 text-xs text-slate-500">{{ $certificate->issuer }} · émis le {{ $certificate->issued_at->format('d/m/Y') }}@if($certificate->expires_at) · expire le {{ $certificate->expires_at->format('d/m/Y') }}@endif · lot {{ $certificate->batch->batch_code }} ({{ $certificate->batch->supplier->brand->name }})</p>
-                        @if($certificate->document_url)<a href="{{ $certificate->document_url }}" target="_blank" rel="noopener" class="mt-1 inline-block text-xs font-bold text-indigo-600 underline">Ouvrir le document</a>@endif
-                        @include('modules.suppliers.admin._review', ['action' => route('admin.certificates.review', $certificate)])
+                    <div>
+                        <p class="mb-1 text-xs text-slate-500">Lot {{ $certificate->batch->batch_code }} · {{ $certificate->batch->supplier->name }} ({{ $certificate->batch->supplier->brand->name }})</p>
+                        @include('modules.suppliers._certificate', ['documentRoute' => 'admin.certificates.document', 'review' => route('admin.certificates.review', $certificate)])
                     </div>
                 @empty
                     <x-ui.empty message="Aucun certificat en attente."/>

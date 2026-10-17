@@ -22,7 +22,7 @@ class MaterialOriginCertificate extends Model
 
     protected $fillable = [
         'supplier_batch_id', 'type', 'certificate_number', 'issuer', 'issued_at', 'expires_at',
-        'document_url', 'ai_extraction', 'status', 'review_note', 'reviewed_by', 'reviewed_at',
+        'document_url', 'document_path', 'ai_extraction', 'status', 'review_note', 'reviewed_by', 'reviewed_at',
     ];
 
     protected function casts(): array
@@ -38,6 +38,18 @@ class MaterialOriginCertificate extends Model
     public function reviewer(): BelongsTo
     {
         return $this->belongsTo(User::class, 'reviewed_by');
+    }
+
+    /** Nom affiché : type + numéro lus par l'IA, ou mention « à lire » si l'IA n'a rien pu lire. */
+    public function displayName(): string
+    {
+        return ($this->type ?? 'Certificat').' n° '.($this->certificate_number ?? '— à lire sur le document');
+    }
+
+    /** Les informations essentielles ont-elles été lues ? */
+    public function isComplete(): bool
+    {
+        return filled($this->type) && filled($this->certificate_number) && $this->issued_at !== null;
     }
 
     public function isExpired(): bool

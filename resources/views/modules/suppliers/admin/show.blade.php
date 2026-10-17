@@ -35,10 +35,7 @@
                     @include('modules.suppliers.admin._review', ['action' => route('admin.supplier-batches.review', $batch)])
                     <div class="mt-4 space-y-2">
                         @foreach($batch->certificates as $certificate)
-                            <div class="rounded-xl bg-slate-50 p-3 dark:bg-slate-800/50">
-                                <div class="flex flex-wrap items-center justify-between gap-2 text-sm"><p><strong>{{ $certificate->type }}</strong> n° {{ $certificate->certificate_number }} · {{ $certificate->issuer }}@if($certificate->ai_extraction) · <span class="font-black text-violet-700">✦ lu par IA ({{ $certificate->ai_extraction['confidence'] ?? '?' }} %)</span>@endif</p><x-module.badge :tone="$certificate->isValid() ? 'good' : ($certificate->status === 'pending' ? 'warn' : 'bad')">{{ $certificate->statusLabel() }}</x-module.badge></div>
-                                @include('modules.suppliers.admin._review', ['action' => route('admin.certificates.review', $certificate)])
-                            </div>
+                            @include('modules.suppliers._certificate', ['documentRoute' => 'admin.certificates.document', 'review' => route('admin.certificates.review', $certificate)])
                         @endforeach
                     </div>
                 </article>
