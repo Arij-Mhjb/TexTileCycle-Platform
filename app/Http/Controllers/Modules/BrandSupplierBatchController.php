@@ -53,9 +53,14 @@ class BrandSupplierBatchController extends Controller
             'issued_at' => 'required|date|before_or_equal:today',
             'expires_at' => 'nullable|date|after:issued_at',
             'document_url' => 'nullable|url|max:255',
+            'ai_extraction' => 'nullable|json',
         ]);
 
-        $batch->certificates()->create([...$data, 'status' => 'pending']);
+        $batch->certificates()->create([
+            ...$data,
+            'ai_extraction' => isset($data['ai_extraction']) ? json_decode($data['ai_extraction'], true) : null,
+            'status' => 'pending',
+        ]);
         $traceability->refreshComplianceScore($batch->supplier);
 
         return back()->with('success', 'Certificat ajouté au lot '.$batch->batch_code.'.');

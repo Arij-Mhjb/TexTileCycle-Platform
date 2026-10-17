@@ -9,6 +9,7 @@
         </x-slot:stats>
     </x-module.hero>
     @include('modules.suppliers.admin._tabs')
+    @include('modules.suppliers._ai-risk', ['action' => route('admin.suppliers.ai-risk', $supplier)])
 
     <div class="grid gap-6 lg:grid-cols-3">
         <section class="panel p-6">
@@ -35,7 +36,7 @@
                     <div class="mt-4 space-y-2">
                         @foreach($batch->certificates as $certificate)
                             <div class="rounded-xl bg-slate-50 p-3 dark:bg-slate-800/50">
-                                <div class="flex flex-wrap items-center justify-between gap-2 text-sm"><p><strong>{{ $certificate->type }}</strong> n° {{ $certificate->certificate_number }} · {{ $certificate->issuer }}</p><x-module.badge :tone="$certificate->isValid() ? 'good' : ($certificate->status === 'pending' ? 'warn' : 'bad')">{{ $certificate->statusLabel() }}</x-module.badge></div>
+                                <div class="flex flex-wrap items-center justify-between gap-2 text-sm"><p><strong>{{ $certificate->type }}</strong> n° {{ $certificate->certificate_number }} · {{ $certificate->issuer }}@if($certificate->ai_extraction) · <span class="font-black text-violet-700">✦ lu par IA ({{ $certificate->ai_extraction['confidence'] ?? '?' }} %)</span>@endif</p><x-module.badge :tone="$certificate->isValid() ? 'good' : ($certificate->status === 'pending' ? 'warn' : 'bad')">{{ $certificate->statusLabel() }}</x-module.badge></div>
                                 @include('modules.suppliers.admin._review', ['action' => route('admin.certificates.review', $certificate)])
                             </div>
                         @endforeach
