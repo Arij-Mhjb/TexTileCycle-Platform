@@ -22,12 +22,12 @@ class MaterialOriginCertificate extends Model
 
     protected $fillable = [
         'supplier_batch_id', 'type', 'certificate_number', 'issuer', 'issued_at', 'expires_at',
-        'document_url', 'status', 'review_note', 'reviewed_by', 'reviewed_at',
+        'document_url', 'ai_extraction', 'status', 'review_note', 'reviewed_by', 'reviewed_at',
     ];
 
     protected function casts(): array
     {
-        return ['issued_at' => 'date', 'expires_at' => 'date', 'reviewed_at' => 'datetime'];
+        return ['ai_extraction' => 'array', 'issued_at' => 'date', 'expires_at' => 'date', 'reviewed_at' => 'datetime'];
     }
 
     public function batch(): BelongsTo

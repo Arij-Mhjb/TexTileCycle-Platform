@@ -11,12 +11,12 @@ class ProductImpactReport extends Model
     protected $fillable = [
         'product_id', 'brand_id', 'generated_by', 'season', 'product_weight_kg', 'carbon_kg', 'water_l', 'energy_kwh',
         'waste_kg', 'avoided_waste_kg', 'circularity_bonus', 'impact_score', 'grade', 'status', 'assessment_id',
-        'validated_by', 'validated_at', 'notes',
+        'validated_by', 'validated_at', 'notes', 'ai_recommendations',
     ];
 
     protected function casts(): array
     {
-        return [
+        return ['ai_recommendations' => 'array',
             'product_weight_kg' => 'decimal:3', 'carbon_kg' => 'decimal:3', 'water_l' => 'decimal:2',
             'energy_kwh' => 'decimal:3', 'waste_kg' => 'decimal:3', 'avoided_waste_kg' => 'decimal:3',
             'validated_at' => 'datetime',

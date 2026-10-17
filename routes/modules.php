@@ -23,6 +23,7 @@ use App\Http\Controllers\Modules\BrandTraceabilityController;
 use App\Http\Controllers\Modules\ConsumerMarketplaceController;
 use App\Http\Controllers\Modules\ConsumerRepairController;
 use App\Http\Controllers\Modules\ConsumerTradeInController;
+use App\Http\Controllers\Modules\ModuleAiController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth', 'verified'])->group(function () {
@@ -33,6 +34,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/suppliers/{supplier}', [AdminSupplierController::class, 'show'])->name('suppliers.show');
         Route::patch('/supplier-batches/{batch}/review', [AdminSupplierController::class, 'reviewBatch'])->name('supplier-batches.review');
         Route::patch('/certificates/{certificate}/review', [AdminSupplierController::class, 'reviewCertificate'])->name('certificates.review');
+        Route::post('/suppliers/{supplier}/ai-risk', [ModuleAiController::class, 'adminSupplierRisk'])->name('suppliers.ai-risk');
         Route::get('/traceability', [AdminTraceabilityController::class, 'index'])->name('traceability.index');
         Route::post('/traceability/{link}/check', [AdminTraceabilityController::class, 'check'])->name('traceability.check');
 
@@ -46,6 +48,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/impact-reports', [AdminImpactReportController::class, 'store'])->name('impact-reports.store');
         Route::get('/impact-reports/{report}', [AdminImpactReportController::class, 'show'])->name('impact-reports.show');
         Route::patch('/impact-reports/{report}/validate', [AdminImpactReportController::class, 'validateReport'])->name('impact-reports.validate');
+        Route::post('/impact-reports/{report}/ai-recommendations', [ModuleAiController::class, 'adminRecommendations'])->name('impact-reports.ai-recommendations');
 
         // 3. Réparation / revente / marketplace
         Route::resource('repair-centers', AdminRepairCenterController::class)->except('show');
@@ -57,6 +60,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/repair-orders/{repairOrder}/refurbish', [AdminRepairOrderController::class, 'refurbish'])->name('repair-orders.refurbish');
         Route::post('/repair-orders/{repairOrder}/publish', [AdminRepairOrderController::class, 'publish'])->name('repair-orders.publish');
         Route::post('/repair-orders/{repairOrder}/close', [AdminRepairOrderController::class, 'close'])->name('repair-orders.close');
+        Route::post('/repair-orders/{repairOrder}/ai-diagnosis', [ModuleAiController::class, 'adminRepairDiagnosis'])->name('repair-orders.ai-diagnosis');
         Route::get('/marketplace', [AdminMarketplaceController::class, 'index'])->name('marketplace.index');
         Route::get('/marketplace/{listing}', [AdminMarketplaceController::class, 'show'])->name('marketplace.show');
         Route::patch('/marketplace-offers/{offer}', [AdminMarketplaceController::class, 'respond'])->name('marketplace.offers.respond');
@@ -75,6 +79,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/suppliers/{supplier}/batches', [BrandSupplierBatchController::class, 'store'])->name('supplier-batches.store');
         Route::delete('/supplier-batches/{batch}', [BrandSupplierBatchController::class, 'destroy'])->name('supplier-batches.destroy');
         Route::post('/supplier-batches/{batch}/certificates', [BrandSupplierBatchController::class, 'certificate'])->name('certificates.store');
+        Route::post('/supplier-batches/{batch}/certificates/ai-scan', [ModuleAiController::class, 'brandCertificateScan'])->name('certificates.ai-scan');
+        Route::post('/suppliers/{supplier}/ai-risk', [ModuleAiController::class, 'brandSupplierRisk'])->name('suppliers.ai-risk');
         Route::get('/traceability', [BrandTraceabilityController::class, 'index'])->name('traceability.index');
         Route::post('/traceability', [BrandTraceabilityController::class, 'store'])->name('traceability.store');
         Route::post('/traceability/{link}/check', [BrandTraceabilityController::class, 'check'])->name('traceability.check');
@@ -84,6 +90,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/impact', [BrandImpactController::class, 'index'])->name('impact.index');
         Route::post('/impact', [BrandImpactController::class, 'store'])->name('impact.store');
         Route::get('/impact/{report}', [BrandImpactController::class, 'show'])->name('impact.show');
+        Route::post('/impact/{report}/ai-recommendations', [ModuleAiController::class, 'brandRecommendations'])->name('impact.ai-recommendations');
 
         // 3. Marketplace circulaire
         Route::get('/marketplace', [BrandMarketplaceController::class, 'index'])->name('marketplace.index');

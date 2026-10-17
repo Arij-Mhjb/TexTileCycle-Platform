@@ -14,8 +14,13 @@ class Supplier extends Model
 
     protected $fillable = [
         'brand_id', 'name', 'contact_name', 'email', 'phone', 'country', 'city', 'address',
-        'certifications', 'status', 'compliance_score', 'notes',
+        'certifications', 'status', 'compliance_score', 'ai_risk', 'notes',
     ];
+
+    protected function casts(): array
+    {
+        return ['ai_risk' => 'array'];
+    }
 
     public function brand(): BelongsTo
     {
