@@ -2,11 +2,14 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class ImpactMetric extends Model
 {
+    use HasFactory;
+
     protected $fillable = ['material_id', 'impact_category_id', 'value_per_kg', 'source'];
 
     protected function casts(): array

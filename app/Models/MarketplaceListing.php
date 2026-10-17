@@ -2,12 +2,15 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class MarketplaceListing extends Model
 {
+    use HasFactory;
+
     public const GRADES = ['A' => 'Comme neuf', 'B' => 'Très bon état', 'C' => 'Bon état'];
 
     protected $fillable = [

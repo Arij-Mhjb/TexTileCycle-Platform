@@ -8,6 +8,7 @@ use App\Models\ImpactCategory;
 use App\Models\ImpactMetric;
 use App\Models\MarketplaceListing;
 use App\Models\Material;
+use App\Models\MaterialOriginCertificate;
 use App\Models\Product;
 use App\Models\ProductImpactReport;
 use App\Models\ProductReturn;
@@ -131,6 +132,14 @@ class CircularModulesSeeder extends Seeder
             $traceability->refreshComplianceScore($supplier);
         }
 
+        // Fournisseurs supplémentaires générés par factories (avec lots et certificats liés).
+        if ($brand->suppliers()->count() < 5) {
+            Supplier::factory()->count(2)->for($brand)
+                ->has(SupplierBatch::factory()->count(2)->has(MaterialOriginCertificate::factory(), 'certificates'), 'batches')
+                ->create()
+                ->each(fn (Supplier $supplier) => $traceability->refreshComplianceScore($supplier));
+        }
+
         // Produits ↔ lots, puis contrôle automatique de conformité.
         foreach ([
             ['Winter Jacket 02', 'LOT-FM-2026-01', 'Tissu extérieur', 60],
@@ -177,6 +186,9 @@ class CircularModulesSeeder extends Seeder
         if (RepairOrder::exists()) {
             return;
         }
+        // Centres et reprises supplémentaires générés par factories.
+        RepairCenter::factory()->count(2)->create();
+        TradeInRequest::factory()->count(2)->for($consumer, 'consumer')->create();
 
         $service = app(RepairMarketplaceService::class);
         $centers = RepairCenter::pluck('id', 'name');
@@ -212,6 +224,9 @@ class CircularModulesSeeder extends Seeder
                 'description' => 'Invendu légèrement abîmé, remis à neuf par la marque.', 'status' => 'published', 'published_at' => now(),
             ]);
         }
+
+        // Annonces supplémentaires de marques (factory).
+        MarketplaceListing::factory()->count(2)->create();
 
         // Reprises.
         $products = Product::where('status', 'published')->orderBy('id')->take(2)->get();

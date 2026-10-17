@@ -2,11 +2,14 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class MaterialOriginCertificate extends Model
 {
+    use HasFactory;
+
     public const TYPES = [
         'GOTS' => 'GOTS (coton biologique)',
         'OEKO-TEX' => 'OEKO-TEX Standard 100',

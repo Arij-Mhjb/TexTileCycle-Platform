@@ -2,11 +2,14 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class TradeInRequest extends Model
 {
+    use HasFactory;
+
     public const CONDITIONS = ['good' => 'Très bon', 'wearable' => 'Portable', 'minor_damage' => 'Petits défauts', 'damaged' => 'Endommagé'];
 
     protected $fillable = [

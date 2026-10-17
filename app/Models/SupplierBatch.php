@@ -2,12 +2,15 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class SupplierBatch extends Model
 {
+    use HasFactory;
+
     protected $fillable = [
         'supplier_id', 'purchase_order_id', 'material_id', 'batch_code', 'quantity_kg', 'origin_country',
         'production_date', 'received_at', 'status', 'verification_note', 'verified_by', 'verified_at',
