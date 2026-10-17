@@ -66,6 +66,32 @@ class CircularModulesTest extends TestCase
         $this->assertDatabaseHas('brand_notifications', ['user_id' => $brandUser->id, 'type' => 'supplier_batch_verified']);
     }
 
+    public function test_supplier_form_shows_server_side_errors_and_keeps_input(): void
+    {
+        [$brandUser] = $this->brandWithProduct();
+
+        $this->actingAs($brandUser)->from(route('brand.suppliers.create'))
+            ->post(route('brand.suppliers.store'), ['name' => '', 'country' => '', 'email' => 'pas-un-email', 'city' => 'Sfax', 'status' => 'active'])
+            ->assertRedirect(route('brand.suppliers.create'))
+            ->assertSessionHasErrors(['name', 'country', 'email']);
+
+        $this->get(route('brand.suppliers.create'))
+            ->assertSee('Le champ raison sociale est obligatoire.')
+            ->assertSee('value="Sfax"', false);
+    }
+
+    public function test_factories_build_suppliers_with_their_relations(): void
+    {
+        $supplier = Supplier::factory()
+            ->has(SupplierBatch::factory()->count(2)->has(MaterialOriginCertificate::factory()->verified(), 'certificates'), 'batches')
+            ->create();
+
+        $this->assertNotNull($supplier->brand);
+        $this->assertCount(2, $supplier->batches);
+        $this->assertCount(2, $supplier->certificates);
+        $this->assertSame($supplier->country, $supplier->batches->first()->origin_country);
+    }
+
     public function test_brand_cannot_access_another_brands_supplier(): void
     {
         [$brandUser] = $this->brandWithProduct();
