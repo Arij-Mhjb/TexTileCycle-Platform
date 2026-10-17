@@ -2,7 +2,15 @@
     <x-module.hero module="suppliers" :title="$supplier->exists ? 'Modifier · '.$supplier->name : 'Nouveau fournisseur'" description="Identité, localisation et certifications déclarées du fournisseur."/>
     @include('modules.suppliers.brand._tabs')
 
-    <form method="POST" action="{{ $supplier->exists ? route('brand.suppliers.update', $supplier) : route('brand.suppliers.store') }}" class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+    @if($errors->any())
+        <div role="alert" class="mb-6 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">
+            <p class="font-black">{{ $errors->count() }} champ(s) à corriger :</p>
+            <ul class="mt-1 list-inside list-disc">@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul>
+        </div>
+    @endif
+
+    {{-- novalidate : la validation est faite côté serveur (validate()) et les messages s'affichent via @error --}}
+    <form method="POST" novalidate action="{{ $supplier->exists ? route('brand.suppliers.update', $supplier) : route('brand.suppliers.store') }}" class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
         @csrf
         @if($supplier->exists) @method('PUT') @endif
         <div class="grid gap-5 md:grid-cols-2">

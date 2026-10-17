@@ -98,6 +98,12 @@ class BrandSupplierController extends Controller
             'certifications' => 'nullable|string|max:255',
             'status' => 'required|in:active,under_review,suspended',
             'notes' => 'nullable|string|max:2000',
+        ], [
+            'name.unique' => 'Vous avez déjà un fournisseur avec ce nom.',
+        ], [
+            'name' => 'raison sociale', 'contact_name' => 'contact', 'email' => 'e-mail', 'phone' => 'téléphone',
+            'country' => 'pays', 'city' => 'ville', 'address' => 'adresse', 'certifications' => 'certifications',
+            'status' => 'statut', 'notes' => 'notes',
         ]);
     }
 
