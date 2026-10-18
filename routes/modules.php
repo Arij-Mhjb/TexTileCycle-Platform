@@ -24,7 +24,14 @@ use App\Http\Controllers\Modules\ConsumerMarketplaceController;
 use App\Http\Controllers\Modules\ConsumerRepairController;
 use App\Http\Controllers\Modules\ConsumerTradeInController;
 use App\Http\Controllers\Modules\ModuleAiController;
+use App\Http\Controllers\Modules\SupplierPortalController;
 use Illuminate\Support\Facades\Route;
+
+// Portail fournisseur : sans compte, protégé par une URL signée (lien envoyé par e-mail).
+Route::middleware(['signed', 'throttle:20,1'])->prefix('fournisseur')->name('supplier-portal.')->group(function () {
+    Route::get('/commandes/{purchaseOrder}', [SupplierPortalController::class, 'show'])->name('show');
+    Route::post('/commandes/{purchaseOrder}/expedition', [SupplierPortalController::class, 'ship'])->name('ship');
+});
 
 Route::middleware(['auth', 'verified'])->group(function () {
 
@@ -77,6 +84,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::resource('suppliers', BrandSupplierController::class);
         Route::post('/suppliers/{supplier}/purchase-orders', [BrandPurchaseOrderController::class, 'store'])->name('purchase-orders.store');
         Route::patch('/purchase-orders/{purchaseOrder}', [BrandPurchaseOrderController::class, 'update'])->name('purchase-orders.update');
+        Route::post('/purchase-orders/{purchaseOrder}/send', [BrandPurchaseOrderController::class, 'send'])->name('purchase-orders.send');
         Route::post('/suppliers/{supplier}/batches', [BrandSupplierBatchController::class, 'store'])->name('supplier-batches.store');
         Route::delete('/supplier-batches/{batch}', [BrandSupplierBatchController::class, 'destroy'])->name('supplier-batches.destroy');
         Route::post('/supplier-batches/{batch}/certificates', [BrandSupplierBatchController::class, 'certificate'])->name('certificates.store');
