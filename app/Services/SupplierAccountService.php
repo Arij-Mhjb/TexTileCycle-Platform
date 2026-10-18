@@ -4,12 +4,14 @@ namespace App\Services;
 
 use App\Models\Supplier;
 use App\Models\User;
+use App\Services\Sms\SmsService;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 
 /**
  * Accès fournisseur : la marque ouvre un compte (rôle « supplier ») à son fournisseur.
- * Le mot de passe provisoire n'est affiché qu'une fois et doit être changé à la première connexion.
+ * Le mot de passe provisoire est envoyé uniquement par SMS au fournisseur (jamais affiché à la marque)
+ * et doit être changé à la première connexion.
  */
 class SupplierAccountService
 {
@@ -23,6 +25,9 @@ class SupplierAccountService
         $user = $supplier->user ?? User::where('email', $supplier->email)->first();
         if ($user && $user->role !== 'supplier') {
             throw ValidationException::withMessages(['email' => 'Cet e-mail est déjà utilisé par un autre type de compte TexTileCycle.']);
+        }
+        if (! app(SmsService::class)->normalize($supplier->phone)) {
+            throw ValidationException::withMessages(['phone' => 'Ajoutez un numéro de téléphone valide : les identifiants sont envoyés uniquement par SMS au fournisseur.']);
         }
 
         $password = $this->temporaryPassword();
@@ -39,13 +44,14 @@ class SupplierAccountService
     }
 
     /** Texte du SMS envoyé au fournisseur (court : 1 à 2 SMS). */
-    public function smsText(Supplier $supplier, array $credentials): string
+    public function smsText(Supplier $supplier, array $credentials, bool $masked = false): string
     {
         return $supplier->brand->name.' vous ouvre un accès fournisseur TexTileCycle. '
-            .'Connexion : '.route('login').' Identifiant : '.$credentials['email'].' Mot de passe provisoire : '.$credentials['password'];
+            .'Connexion : '.route('login').' Identifiant : '.$credentials['email'].' Mot de passe provisoire : '
+            .($masked ? '••••-••••-••••' : $credentials['password']);
     }
 
-    /** Ex. Tx7k-P4mQ-a9Zr : lisible, à transmettre par téléphone ou WhatsApp. */
+    /** Ex. Tx7k-P4mQ-a9Zr : lisible, envoyé par SMS. */
     private function temporaryPassword(): string
     {
         $alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
