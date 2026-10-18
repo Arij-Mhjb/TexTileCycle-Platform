@@ -38,6 +38,13 @@ class SupplierAccountService
         return ['email' => $user->email, 'password' => $password, 'phone' => $supplier->phone, 'created' => $created];
     }
 
+    /** Texte du SMS envoyé au fournisseur (court : 1 à 2 SMS). */
+    public function smsText(Supplier $supplier, array $credentials): string
+    {
+        return $supplier->brand->name.' vous ouvre un accès fournisseur TexTileCycle. '
+            .'Connexion : '.route('login').' Identifiant : '.$credentials['email'].' Mot de passe provisoire : '.$credentials['password'];
+    }
+
     /** Ex. Tx7k-P4mQ-a9Zr : lisible, à transmettre par téléphone ou WhatsApp. */
     private function temporaryPassword(): string
     {
