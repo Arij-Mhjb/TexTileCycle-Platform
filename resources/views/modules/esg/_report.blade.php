@@ -21,7 +21,7 @@ $weight = max(0.001, (float) $report->product_weight_kg);
 </div>
 
 <div class="mt-6 grid gap-6 xl:grid-cols-3">
-    <section class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900 xl:col-span-2">
+    <section class="shadow-[0_4px_0_rgba(15,23,42,.06),0_16px_30px_-20px_rgba(15,23,42,.4)] rounded-3xl border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900 xl:col-span-2">
         <p class="text-xs font-black uppercase tracking-wider text-sky-600">Cycle de vie</p>
         <h2 class="mt-1 text-lg font-black">Empreinte carbone et eau par étape</h2>
         <div class="mt-4 grid gap-6 md:grid-cols-2">
@@ -38,7 +38,7 @@ $weight = max(0.001, (float) $report->product_weight_kg);
         </table>
     </section>
     <section class="space-y-6">
-        <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+        <div class="shadow-[0_4px_0_rgba(15,23,42,.06),0_16px_30px_-20px_rgba(15,23,42,.4)] rounded-3xl border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900">
             <p class="text-xs font-black uppercase tracking-wider text-sky-600">Composition utilisée</p>
             <div class="mt-4 space-y-3">
                 @forelse($report->product->materials as $material)
@@ -50,7 +50,7 @@ $weight = max(0.001, (float) $report->product_weight_kg);
             <p class="mt-4 text-xs text-slate-400">Poids retenu : {{ (float) $report->product_weight_kg }} kg @if($report->season)· saison {{ $report->season }}@endif</p>
         </div>
         @if($history->count() > 1)
-            <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+            <div class="shadow-[0_4px_0_rgba(15,23,42,.06),0_16px_30px_-20px_rgba(15,23,42,.4)] rounded-3xl border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900">
                 <p class="text-xs font-black uppercase tracking-wider text-sky-600">Évolution du score</p>
                 <div class="mt-3 h-40"><canvas aria-label="Évolution du score" data-esg-chart="{{ json_encode(['type' => 'line', 'labels' => $history->map(fn ($item) => $item->created_at->format('d/m')), 'datasets' => [['label' => 'Score', 'data' => $history->pluck('impact_score')]]]) }}"></canvas></div>
             </div>

@@ -1,6 +1,6 @@
 {{-- Recommandations IA pour améliorer le score. Variables : $report, $action (route POST) --}}
 @php $ai = $report->ai_recommendations; @endphp
-<section class="mt-6 overflow-hidden rounded-3xl border border-sky-200 bg-gradient-to-br from-white to-sky-50/70 p-6 shadow-sm dark:border-sky-900 dark:from-slate-900 dark:to-sky-950/30">
+<section class="shadow-[0_4px_0_rgba(15,23,42,.06),0_16px_30px_-20px_rgba(15,23,42,.4)] mt-6 overflow-hidden rounded-3xl border border-sky-200 bg-gradient-to-br from-white to-sky-50/70 p-6 dark:border-sky-900 dark:from-slate-900 dark:to-sky-950/30">
     <div class="flex flex-wrap items-start justify-between gap-4">
         <div>
             <p class="text-xs font-black uppercase tracking-wider text-sky-600">Intelligence artificielle</p>
