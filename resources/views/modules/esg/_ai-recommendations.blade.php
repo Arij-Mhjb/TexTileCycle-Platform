@@ -1,9 +1,9 @@
 {{-- Recommandations IA pour améliorer le score. Variables : $report, $action (route POST) --}}
 @php $ai = $report->ai_recommendations; @endphp
-<section class="shadow-[0_4px_0_rgba(15,23,42,.06),0_16px_30px_-20px_rgba(15,23,42,.4)] mt-6 overflow-hidden rounded-3xl border border-sky-200 bg-gradient-to-br from-white to-sky-50/70 p-6 dark:border-sky-900 dark:from-slate-900 dark:to-sky-950/30">
+<section class="shadow-[0_1px_2px_rgba(15,23,42,.05)] mt-6 overflow-hidden rounded-2xl border border-sky-200 bg-gradient-to-br from-white to-sky-50/70 p-6 dark:border-sky-900 dark:from-slate-900 dark:to-sky-950/30">
     <div class="flex flex-wrap items-start justify-between gap-4">
         <div>
-            <p class="text-xs font-black uppercase tracking-wider text-sky-600">Intelligence artificielle</p>
+            <p class="text-[13px] font-semibold text-sky-600">Intelligence artificielle</p>
             <h2 class="mt-1 text-lg font-black">Comment améliorer ce score ?</h2>
             <p class="max-w-2xl text-sm text-slate-500">Le moteur simule chaque action (matière alternative, réparabilité, recyclabilité) et l’IA explique les priorités. Les scores projetés sont calculés, pas inventés.</p>
         </div>
@@ -14,9 +14,9 @@
             <div class="rounded-2xl bg-white p-5 shadow-sm dark:bg-slate-900">
                 <x-module.ai-badge :source="$ai['source']"/>
                 <div class="mt-4 flex items-center gap-3 text-center">
-                    <div class="flex-1 rounded-xl bg-slate-50 p-3 dark:bg-slate-800"><p class="text-xs font-bold uppercase text-slate-400">Actuel</p><p class="text-3xl font-black">{{ $ai['current_score'] }}</p></div>
+                    <div class="flex-1 rounded-xl bg-slate-50 p-3 dark:bg-slate-800"><p class="text-[13px] font-bold text-slate-400">Actuel</p><p class="text-3xl font-black">{{ $ai['current_score'] }}</p></div>
                     <span class="text-2xl text-sky-500">→</span>
-                    <div class="flex-1 rounded-xl bg-sky-600 p-3 text-white"><p class="text-xs font-bold uppercase text-sky-100">Potentiel</p><p class="text-3xl font-black">{{ $ai['best_score'] }}</p></div>
+                    <div class="flex-1 rounded-xl bg-sky-600 p-3 text-white"><p class="text-[13px] font-bold text-sky-100">Potentiel</p><p class="text-3xl font-black">{{ $ai['best_score'] }}</p></div>
                 </div>
                 <p class="mt-4 text-sm leading-6 text-slate-600 dark:text-slate-300">{{ $ai['summary'] }}</p>
             </div>
