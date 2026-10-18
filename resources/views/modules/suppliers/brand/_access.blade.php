@@ -21,7 +21,8 @@
         <div class="mt-4 flex flex-wrap gap-2">
             @if($digits)
                 <a href="https://wa.me/{{ $digits }}?text={{ rawurlencode($message) }}" target="_blank" rel="noopener" class="inline-flex items-center gap-2 rounded-xl bg-[#25D366] px-4 py-2.5 text-sm font-black text-white shadow-sm hover:brightness-95">💬 Envoyer par WhatsApp</a>
-                <a href="sms:+{{ $digits }}?body={{ rawurlencode($message) }}" class="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-black text-white shadow-sm">📱 Envoyer par SMS</a>
+                <a href="sms:+{{ $digits }}?body={{ rawurlencode($message) }}" class="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-black text-white shadow-sm lg:hidden">📱 Envoyer par SMS</a>
+                <span class="hidden items-center rounded-xl bg-white px-3 py-2 text-xs font-bold text-slate-500 ring-1 ring-slate-200 lg:inline-flex" title="Un ordinateur ne peut pas envoyer de SMS : ouvrez cette page sur un téléphone ou utilisez WhatsApp">📱 SMS : depuis un téléphone</span>
             @else
                 <p class="rounded-xl bg-white px-3 py-2 text-xs font-bold text-amber-700">Ajoutez le téléphone du fournisseur (Modifier) pour l’envoyer par WhatsApp ou SMS.</p>
             @endif
