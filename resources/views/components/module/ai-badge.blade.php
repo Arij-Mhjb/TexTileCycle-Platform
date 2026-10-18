@@ -7,4 +7,4 @@
     default => ['Analyse locale (repli IA)', 'bg-slate-800 text-white'],
 };
 @endphp
-<span {{ $attributes->merge(['class' => 'inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-black uppercase tracking-wider '.$class]) }}>{{ $label }}</span>
+<span {{ $attributes->merge(['class' => 'inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold '.$class]) }}>{{ $label }}</span>
