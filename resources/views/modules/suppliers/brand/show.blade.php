@@ -19,6 +19,7 @@
     @if($supplier->isSuspended())
         <div class="mb-6 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800"><strong>Fournisseur suspendu.</strong> Aucune nouvelle commande possible ; son historique, ses lots et ses certificats restent consultables comme preuves.</div>
     @endif
+    @include('modules.suppliers.brand._access')
     @include('modules.suppliers._ai-risk', ['action' => route('brand.suppliers.ai-risk', $supplier)])
 
     <div class="grid gap-6 xl:grid-cols-3">
