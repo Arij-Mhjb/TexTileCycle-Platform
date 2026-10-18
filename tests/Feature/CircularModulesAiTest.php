@@ -163,15 +163,25 @@ class CircularModulesAiTest extends TestCase
     {
         $brandUser = User::where('email', 'brand@textilecycle.test')->firstOrFail();
 
-        // La marque crée le fournisseur avec un accès : identifiants affichés une seule fois.
+        // La marque crée le fournisseur avec un accès : le mot de passe part par SMS, la marque ne le voit jamais.
+        config(['sms.driver' => 'twilio', 'sms.twilio' => ['sid' => 'ACtest', 'token' => 'secret', 'from' => '+15005550006']]);
+        Http::fake(['api.twilio.com/*' => Http::response(['sid' => 'SM1'], 201)]);
         $this->actingAs($brandUser)->post(route('brand.suppliers.store'), [
             'name' => 'Tissage Sahel', 'country' => 'Tunisie', 'status' => 'active', 'email' => 'contact@tissage-sahel.tn',
             'phone' => '22 123 456', 'create_access' => '1',
-        ])->assertSessionHas('supplier_access.password');
-        $password = session('supplier_access.password');
+        ])->assertSessionHas('supplier_access.sms.status', 'sent')->assertSessionMissing('supplier_access.password');
+        $password = null;
+        Http::assertSent(function ($request) use (&$password) {
+            preg_match('/Mot de passe provisoire : (\S+)/', $request['Body'], $match);
+            $password = $match[1] ?? null;
+
+            return $request['To'] === '+21622123456';
+        });
         $supplier = Supplier::where('name', 'Tissage Sahel')->firstOrFail();
-        $this->get(route('brand.suppliers.show', $supplier))->assertSee('wa.me/21622123456', false)->assertSee('Historique des SMS');
-        $this->assertDatabaseHas('sms_messages', ['supplier_id' => $supplier->id, 'to' => '+21622123456', 'status' => 'logged']);
+        $this->get(route('brand.suppliers.show', $supplier))->assertSee('Identifiants envoyés par SMS')->assertDontSee($password)->assertDontSee('wa.me', false);
+        $stored = $supplier->smsMessages()->firstOrFail();
+        $this->assertStringNotContainsString($password, $stored->body);
+        $this->assertStringContainsString('••••', $stored->body);
         $account = $supplier->user;
         $this->assertSame('supplier', $account->role);
         $order = $supplier->purchaseOrders()->create(['brand_id' => $supplier->brand_id, 'reference' => 'PO-ACC-1', 'status' => 'ordered', 'ordered_at' => now()]);
@@ -201,11 +211,11 @@ class CircularModulesAiTest extends TestCase
         $supplier = Supplier::where('name', 'Filature Méditerranée')->firstOrFail();
         $supplier->update(['phone' => '0021698765432', 'email' => 'acces@filature.tn']);
 
-        $this->actingAs($brandUser)->post(route('brand.suppliers.access', $supplier))->assertSessionHas('supplier_access.sms.status', 'sent');
-        $password = session('supplier_access.password');
+        $this->actingAs($brandUser)->post(route('brand.suppliers.access', $supplier))
+            ->assertSessionHas('supplier_access.sms.status', 'sent')->assertSessionMissing('supplier_access.password');
 
         Http::assertSent(fn ($request) => str_contains($request->url(), 'Accounts/ACtest/Messages.json')
-            && $request['To'] === '+21698765432' && str_contains($request['Body'], $password) && str_contains($request['Body'], 'acces@filature.tn'));
+            && $request['To'] === '+21698765432' && preg_match('/Mot de passe provisoire : \w{4}-\w{4}-\w{4}$/', $request['Body']) && str_contains($request['Body'], 'acces@filature.tn'));
         $this->assertDatabaseHas('sms_messages', ['supplier_id' => $supplier->id, 'status' => 'sent', 'provider_id' => 'SM123']);
     }
 
@@ -247,10 +257,20 @@ class CircularModulesAiTest extends TestCase
         $supplier->update(['phone' => '98 765 432', 'email' => 'acces@filature.tn']);
 
         $this->actingAs($brandUser)->post(route('brand.suppliers.access', $supplier))
-            ->assertSessionHas('supplier_access.sms.status', 'failed')->assertSessionHas('supplier_access.password');
+            ->assertSessionHas('supplier_access.sms.status', 'failed')->assertSessionMissing('supplier_access.password');
         $this->assertNotNull($supplier->fresh()->user_id);
         $this->assertDatabaseHas('sms_messages', ['supplier_id' => $supplier->id, 'status' => 'failed', 'error' => 'Twilio : The number is unverified.']);
-        $this->get(route('brand.suppliers.show', $supplier))->assertSee('a échoué', false);
+        $this->get(route('brand.suppliers.show', $supplier))->assertSee('SMS non envoyé');
+    }
+
+    public function test_supplier_access_requires_a_phone_number_for_the_sms(): void
+    {
+        $brandUser = User::where('email', 'brand@textilecycle.test')->firstOrFail();
+        $supplier = Supplier::where('name', 'Filature Méditerranée')->firstOrFail();
+        $supplier->update(['phone' => null, 'email' => 'acces@filature.tn']);
+
+        $this->actingAs($brandUser)->post(route('brand.suppliers.access', $supplier))->assertSessionHasErrors('phone');
+        $this->assertNull($supplier->fresh()->user_id);
     }
 
     public function test_supplier_access_cannot_reuse_an_email_of_another_account_type(): void
