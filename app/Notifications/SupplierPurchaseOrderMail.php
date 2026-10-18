@@ -32,8 +32,8 @@ class SupplierPurchaseOrderMail extends Notification
         }
 
         return $mail
-            ->line('Lors de l’expédition, déclarez la matière livrée et joignez la photo du certificat de provenance (GRS, GOTS, RWS…) via ce lien sécurisé, sans créer de compte :')
-            ->action('Déclarer l’expédition', $order->supplierPortalUrl())
+            ->line('Cliquez sur le bouton pour consulter le détail de la commande et l’accepter ou la refuser. Une fois acceptée, vous pourrez y déclarer l’expédition avec la photo du certificat de provenance (GRS, GOTS, RWS…). Aucun compte n’est nécessaire.')
+            ->action('Voir la commande et répondre', $order->supplierPortalUrl())
             ->line('Ce lien est personnel et valable 60 jours.')
             ->salutation('L’équipe TexTileCycle');
     }
