@@ -6,14 +6,18 @@ use App\Models\Material;
 use App\Models\MaterialOriginCertificate;
 use App\Models\ProductImpactReport;
 use App\Models\RepairOrder;
+use App\Models\Supplier;
 use App\Models\SupplierBatch;
 use App\Models\User;
+use App\Notifications\SupplierPurchaseOrderMail;
 use App\Services\Ai\ImpactAdvisorService;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\URL;
 use Tests\TestCase;
 
 /**
@@ -91,6 +95,53 @@ class CircularModulesAiTest extends TestCase
         $this->assertFalse($certificate->isComplete());
         $admin = User::where('role', 'admin')->firstOrFail();
         $this->actingAs($admin)->get(route('admin.suppliers.index'))->assertSee('Certificat (type non lu)')->assertSee('Voir le document');
+    }
+
+    public function test_supplier_receives_signed_link_and_declares_shipment_with_certificate(): void
+    {
+        Notification::fake();
+        Storage::fake('local');
+        $brandUser = User::where('email', 'brand@textilecycle.test')->firstOrFail();
+        $supplier = Supplier::where('name', 'Filature Méditerranée')->firstOrFail();
+        $order = $supplier->purchaseOrders()->create(['brand_id' => $supplier->brand_id, 'reference' => 'PO-TEST-1', 'status' => 'ordered', 'ordered_at' => now()]);
+
+        $this->actingAs($brandUser)->post(route('brand.purchase-orders.send', $order))->assertSessionHasNoErrors();
+        Notification::assertSentOnDemand(SupplierPurchaseOrderMail::class);
+        $this->assertSame('sent', $order->fresh()->status);
+
+        // Sans signature : refusé. Avec le lien signé : accessible sans compte.
+        auth()->logout();
+        $this->get('/fournisseur/commandes/'.$order->id)->assertForbidden();
+        $this->get($order->supplierPortalUrl())->assertOk()->assertSee('PO-TEST-1')->assertSee('Confirmer l’expédition');
+
+        $this->fakeGemini(['is_certificate' => true, 'document_kind' => 'certificat GRS', 'type' => 'GRS', 'certificate_number' => 'CU-GRS-5555', 'issuer' => 'Control Union',
+            'issued_at' => '2026-03-01', 'expires_at' => '2027-03-01', 'material' => 'Recycled polyester', 'holder' => 'Filature Méditerranée', 'confidence' => 90]);
+        $shipUrl = URL::temporarySignedRoute('supplier-portal.ship', now()->addHour(), ['purchaseOrder' => $order->id]);
+        $this->post($shipUrl, [
+            'material_id' => Material::where('name', 'Polyester recyclé')->value('id'),
+            'quantity_kg' => 250, 'origin_country' => 'Tunisie', 'certificate' => UploadedFile::fake()->image('grs.jpg'),
+        ])->assertSessionHasNoErrors();
+
+        $order->refresh();
+        $this->assertSame('shipped', $order->status);
+        $batch = $order->batches()->with('certificates')->firstOrFail();
+        $this->assertSame('CU-GRS-5555', $batch->certificates->first()->certificate_number);
+        $this->assertDatabaseHas('brand_notifications', ['user_id' => $brandUser->id, 'type' => 'supplier_shipment']);
+    }
+
+    public function test_supplier_portal_rejects_a_photo_that_is_not_a_certificate(): void
+    {
+        Storage::fake('local');
+        $supplier = Supplier::where('name', 'Filature Méditerranée')->firstOrFail();
+        $order = $supplier->purchaseOrders()->create(['brand_id' => $supplier->brand_id, 'reference' => 'PO-TEST-2', 'status' => 'sent', 'ordered_at' => now()]);
+        $this->fakeGemini(['is_certificate' => false, 'document_kind' => 'selfie', 'type' => null, 'certificate_number' => null, 'issuer' => null, 'issued_at' => null, 'expires_at' => null, 'material' => null, 'holder' => null, 'confidence' => 99]);
+
+        $shipUrl = URL::temporarySignedRoute('supplier-portal.ship', now()->addHour(), ['purchaseOrder' => $order->id]);
+        $this->post($shipUrl, ['material_id' => Material::value('id'), 'quantity_kg' => 10, 'origin_country' => 'Tunisie', 'certificate' => UploadedFile::fake()->image('selfie.jpg')])
+            ->assertSessionHasErrors('certificate');
+
+        $this->assertSame(0, $order->batches()->count());
+        $this->assertSame('sent', $order->fresh()->status);
     }
 
     public function test_supplier_risk_analysis_detects_expired_certificate_without_gemini(): void
