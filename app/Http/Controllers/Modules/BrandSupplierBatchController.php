@@ -4,8 +4,10 @@ namespace App\Http\Controllers\Modules;
 
 use App\Http\Controllers\Controller;
 use App\Models\MaterialOriginCertificate;
+use App\Models\PurchaseOrder;
 use App\Models\Supplier;
 use App\Models\SupplierBatch;
+use App\Services\PurchaseOrderService;
 use App\Services\SupplierTraceabilityService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -27,9 +29,21 @@ class BrandSupplierBatchController extends Controller
             'received_at' => 'nullable|date',
         ]);
 
+        // Livraison saisie par la marque sur une commande : elle compte sur la ligne de la même matière.
+        $order = ! empty($data['purchase_order_id']) ? PurchaseOrder::with('lines')->find($data['purchase_order_id']) : null;
+        $line = $order?->lines->firstWhere('material_id', (int) $data['material_id']);
+        if ($order && $order->lines->isNotEmpty() && ! $line) {
+            return back()->withInput()->withErrors(['material_id' => 'Cette matière ne figure pas sur la commande '.$order->reference.'.']);
+        }
+
         $data['batch_code'] = $traceability->nextBatchCode($supplier);
-        $supplier->batches()->create([...$data, 'status' => ! empty($data['received_at']) ? 'received' : 'pending']);
+        $batch = $supplier->batches()->create([...$data, 'purchase_order_line_id' => $line?->id, 'status' => ! empty($data['received_at']) ? 'received' : 'pending']);
         $traceability->refreshComplianceScore($supplier);
+        if ($order) {
+            $orders = app(PurchaseOrderService::class);
+            $orders->log($order, 'brand', 'delivery_recorded', 'Livraison saisie par la marque : lot '.$batch->batch_code.' ('.$batch->quantity_kg.' kg).', $request->user());
+            $orders->refreshStatus($order);
+        }
 
         return back()->with('success', 'Lot '.$data['batch_code'].' enregistré. Il sera vérifié par TexTileCycle.');
     }
