@@ -91,6 +91,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::resource('suppliers', BrandSupplierController::class);
         Route::post('/suppliers/{supplier}/purchase-orders', [BrandPurchaseOrderController::class, 'store'])->name('purchase-orders.store');
         Route::patch('/purchase-orders/{purchaseOrder}', [BrandPurchaseOrderController::class, 'update'])->name('purchase-orders.update');
+        Route::get('/purchase-orders/{purchaseOrder}', [BrandPurchaseOrderController::class, 'show'])->name('purchase-orders.show');
+        Route::post('/purchase-orders/{purchaseOrder}/counter', [BrandPurchaseOrderController::class, 'decideCounter'])->name('purchase-orders.counter');
+        Route::post('/purchase-orders/{purchaseOrder}/close', [BrandPurchaseOrderController::class, 'closeShort'])->name('purchase-orders.close');
+        Route::post('/supplier-batches/{batch}/receive', [BrandPurchaseOrderController::class, 'receive'])->name('purchase-orders.receive');
         Route::patch('/suppliers/{supplier}/suspend', [BrandSupplierController::class, 'suspend'])->name('suppliers.suspend');
         Route::post('/suppliers/{supplier}/access', [BrandSupplierController::class, 'access'])->name('suppliers.access');
         Route::post('/suppliers/{supplier}/batches', [BrandSupplierBatchController::class, 'store'])->name('supplier-batches.store');
