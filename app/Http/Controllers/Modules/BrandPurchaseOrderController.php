@@ -5,12 +5,9 @@ namespace App\Http\Controllers\Modules;
 use App\Http\Controllers\Controller;
 use App\Models\PurchaseOrder;
 use App\Models\Supplier;
-use App\Notifications\SupplierPurchaseOrderMail;
 use App\Services\SupplierTraceabilityService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Http\Response;
-use Illuminate\Support\Facades\Notification;
 
 class BrandPurchaseOrderController extends Controller
 {
@@ -34,7 +31,7 @@ class BrandPurchaseOrderController extends Controller
             'status' => 'ordered',
         ]);
 
-        return back()->with('success', 'Bon de commande créé. Envoyez-le au fournisseur pour qu’il l’accepte.');
+        return back()->with('success', 'Bon de commande créé : le fournisseur le retrouve dans son espace pour l’accepter ou le refuser.');
     }
 
     public function update(Request $request, PurchaseOrder $purchaseOrder): RedirectResponse
@@ -48,41 +45,5 @@ class BrandPurchaseOrderController extends Controller
         ]);
 
         return back()->with('success', 'Commande '.$purchaseOrder->reference.' : '.$purchaseOrder->statusLabel().'.');
-    }
-
-    /** Envoie le bon de commande au fournisseur par e-mail ; le bouton de l'e-mail ouvre sa page de réponse. */
-    public function send(Request $request, PurchaseOrder $purchaseOrder): RedirectResponse
-    {
-        abort_unless($purchaseOrder->brand_id === $request->user()->brand?->id, 403);
-        $supplier = $purchaseOrder->supplier;
-        if ($supplier->isSuspended() || ! $purchaseOrder->awaitsSupplierAnswer()) {
-            return back()->withErrors(['supplier' => 'Cette commande ne peut plus être envoyée.']);
-        }
-        if (! $supplier->email) {
-            return back()->withErrors(['email' => 'Ajoutez l’e-mail du fournisseur (Modifier) pour lui envoyer la commande.']);
-        }
-
-        Notification::route('mail', $supplier->email)->notify(new SupplierPurchaseOrderMail($purchaseOrder));
-        $purchaseOrder->update(['sent_at' => now(), 'status' => 'sent']);
-
-        return back()->with('success', 'Commande '.$purchaseOrder->reference.' envoyée par e-mail à '.$supplier->email.'.');
-    }
-
-    /**
-     * Aperçu de l'e-mail envoyé au fournisseur (environnement local uniquement,
-     * où les e-mails sont écrits dans les logs au lieu d'être réellement envoyés).
-     */
-    public function emailPreview(Request $request, PurchaseOrder $purchaseOrder): Response
-    {
-        abort_unless(app()->environment(['local', 'testing']), 404);
-        abort_unless($purchaseOrder->brand_id === $request->user()->brand?->id, 403);
-
-        // La marque voit le contenu de l'e-mail, mais PAS le lien secret du fournisseur.
-        $html = (string) (new SupplierPurchaseOrderMail($purchaseOrder))->toMail($purchaseOrder->supplier)->render();
-        $html = preg_replace('#https?://[^"\s<]*/fournisseur/commandes/[^"\s<]*#', '#lien-reserve-au-fournisseur', $html);
-        $banner = '<div style="background:#fef3c7;color:#92400e;padding:14px 18px;font:600 14px sans-serif;text-align:center">'
-            .'Aperçu de l’e-mail reçu par '.e($purchaseOrder->supplier->email).'. Le lien sécurisé est masqué : seul le fournisseur peut répondre.</div>';
-
-        return response($banner.$html);
     }
 }
