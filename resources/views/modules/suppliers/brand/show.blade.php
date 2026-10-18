@@ -27,14 +27,27 @@
             </form>
             <div class="mt-4 space-y-3">
                 @forelse($supplier->purchaseOrders as $order)
-                    <div class="rounded-2xl border border-slate-100 p-4">
-                        <div class="flex items-center justify-between gap-2"><p class="font-black">{{ $order->reference }}</p><x-module.badge :tone="['received' => 'good', 'cancelled' => 'bad'][$order->status] ?? 'suppliers'">{{ $order->statusLabel() }}</x-module.badge></div>
+                    <div class="rounded-2xl border border-slate-100 p-4" x-data="{ link: false }">
+                        <div class="flex items-center justify-between gap-2"><p class="font-black">{{ $order->reference }}</p><x-module.badge :tone="['received' => 'good', 'cancelled' => 'bad', 'shipped' => 'warn'][$order->status] ?? 'suppliers'">{{ $order->statusLabel() }}</x-module.badge></div>
                         <p class="mt-1 text-xs text-slate-500">Commandée le {{ $order->ordered_at->format('d/m/Y') }}@if($order->expected_at) · prévue le {{ $order->expected_at->format('d/m/Y') }}@endif @if($order->total_amount) · {{ number_format((float) $order->total_amount, 2, ',', ' ') }} {{ $order->currency }}@endif</p>
-                        <p class="mt-1 text-xs text-slate-500">{{ $order->batches->count() }} lot(s) rattaché(s)</p>
-                        @if($order->status === 'ordered')
-                            <div class="mt-3 flex gap-2">
+                        <ol class="mt-2 space-y-0.5 text-xs text-slate-500">
+                            @if($order->sent_at)<li>✉ Envoyée au fournisseur le {{ $order->sent_at->format('d/m/Y H:i') }}</li>@endif
+                            @if($order->shipped_at)<li class="font-bold text-amber-700">🚚 Expédiée le {{ $order->shipped_at->format('d/m/Y H:i') }} · {{ $order->batches->count() }} lot(s) déclaré(s) par le fournisseur</li>@endif
+                            @if($order->supplier_note)<li class="italic">« {{ $order->supplier_note }} »</li>@endif
+                            @if(! $order->shipped_at)<li>{{ $order->batches->count() }} lot(s) rattaché(s)</li>@endif
+                        </ol>
+                        @if($order->acceptsShipment())
+                            <div class="mt-3 flex flex-wrap gap-2">
+                                <form method="POST" action="{{ route('brand.purchase-orders.send', $order) }}">@csrf<button class="rounded-lg bg-indigo-50 px-3 py-1.5 text-xs font-bold text-indigo-700 hover:bg-indigo-100">✉ {{ $order->sent_at ? 'Renvoyer' : 'Envoyer' }} au fournisseur</button></form>
+                                <button type="button" @click="link = !link" class="rounded-lg px-3 py-1.5 text-xs font-bold text-indigo-700 hover:bg-indigo-50">🔗 Lien fournisseur</button>
                                 <form method="POST" action="{{ route('brand.purchase-orders.update', $order) }}">@csrf @method('PATCH')<input type="hidden" name="status" value="received"><button class="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-bold text-white">Marquer reçue</button></form>
-                                <form method="POST" action="{{ route('brand.purchase-orders.update', $order) }}">@csrf @method('PATCH')<input type="hidden" name="status" value="cancelled"><button class="rounded-lg px-3 py-1.5 text-xs font-bold text-rose-600 hover:bg-rose-50">Annuler</button></form>
+                                @if($order->status !== 'shipped')<form method="POST" action="{{ route('brand.purchase-orders.update', $order) }}">@csrf @method('PATCH')<input type="hidden" name="status" value="cancelled"><button class="rounded-lg px-3 py-1.5 text-xs font-bold text-rose-600 hover:bg-rose-50">Annuler</button></form>@endif
+                            </div>
+                            <div x-cloak x-show="link" x-transition class="mt-3 rounded-xl bg-indigo-50 p-3">
+                                <p class="text-xs font-bold text-indigo-800">Lien sécurisé du fournisseur (valable 60 jours, sans compte) :</p>
+                                @php $portalUrl = $order->supplierPortalUrl(); @endphp
+                                <input readonly value="{{ $portalUrl }}" onclick="this.select()" class="field !mt-1 text-xs">
+                                <a href="{{ $portalUrl }}" target="_blank" class="mt-1 inline-block text-xs font-black text-indigo-700 underline">Ouvrir comme le fournisseur ↗</a>
                             </div>
                         @endif
                     </div>
