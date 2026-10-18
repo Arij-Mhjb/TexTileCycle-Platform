@@ -13,7 +13,7 @@ class Supplier extends Model
     use HasFactory;
 
     protected $fillable = [
-        'brand_id', 'name', 'contact_name', 'email', 'phone', 'country', 'city', 'address',
+        'brand_id', 'user_id', 'name', 'contact_name', 'email', 'phone', 'country', 'city', 'address',
         'certifications', 'status', 'compliance_score', 'ai_risk', 'notes',
     ];
 
@@ -25,6 +25,12 @@ class Supplier extends Model
     public function brand(): BelongsTo
     {
         return $this->belongsTo(Brand::class);
+    }
+
+    /** Compte TexTileCycle du fournisseur (rôle « supplier »), s'il a un accès. */
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
     }
 
     public function batches(): HasMany
