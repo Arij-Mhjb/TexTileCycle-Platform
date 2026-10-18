@@ -3,29 +3,27 @@
 namespace App\Http\Controllers\Modules;
 
 use App\Http\Controllers\Controller;
-use App\Models\BrandNotification;
-use App\Models\Material;
 use App\Models\PurchaseOrder;
-use App\Services\SupplierTraceabilityService;
+use App\Services\PurchaseOrderService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\View\View;
 
 /**
- * Espace du fournisseur connecté (rôle « supplier ») : ses commandes, accepter / refuser, déclarer l'expédition.
+ * Espace du fournisseur connecté (rôle « supplier ») : ses commandes, accepter / refuser / contre-proposer,
+ * puis expédier en une ou plusieurs livraisons.
  * Il ne voit que les commandes adressées à SES fiches fournisseur.
  */
 class SupplierAreaController extends Controller
 {
     public function index(Request $request): View
     {
-        $orders = PurchaseOrder::with(['brand', 'supplier', 'batches'])
+        $orders = PurchaseOrder::with(['brand', 'supplier', 'lines.batches', 'lines.material'])
             ->whereHas('supplier', fn ($query) => $query->where('user_id', $request->user()->id))
             ->whereNotIn('status', ['draft'])
-            ->orderByRaw("case status when 'sent' then 0 when 'ordered' then 0 when 'accepted' then 1 when 'shipped' then 2 else 3 end")
+            ->orderByRaw("case status when 'sent' then 0 when 'ordered' then 0 when 'accepted' then 1 when 'partially_shipped' then 1 when 'countered' then 2 when 'shipped' then 3 else 4 end")
             ->latest('ordered_at')->get();
 
         return view('modules.suppliers.area.index', ['orders' => $orders]);
@@ -34,11 +32,10 @@ class SupplierAreaController extends Controller
     public function order(Request $request, PurchaseOrder $purchaseOrder): View
     {
         $this->authorizeOrder($request, $purchaseOrder);
-        $purchaseOrder->load(['brand', 'supplier', 'batches.material', 'batches.certificates']);
+        $purchaseOrder->load(['brand', 'supplier', 'lines.material', 'lines.batches.certificates', 'events']);
 
         return view('modules.suppliers.area.order', [
             'order' => $purchaseOrder,
-            'materials' => Material::orderBy('name')->get(),
             'shipUrl' => route('supplier.orders.ship', $purchaseOrder),
             'answerUrl' => route('supplier.orders.answer', $purchaseOrder),
         ]);
@@ -48,14 +45,14 @@ class SupplierAreaController extends Controller
     {
         $this->authorizeOrder($request, $purchaseOrder);
 
-        return $this->processAnswer($request, $purchaseOrder);
+        return $this->processAnswer($request, $purchaseOrder, app(PurchaseOrderService::class));
     }
 
-    public function shipOrder(Request $request, PurchaseOrder $purchaseOrder, SupplierTraceabilityService $traceability): RedirectResponse
+    public function shipOrder(Request $request, PurchaseOrder $purchaseOrder, PurchaseOrderService $orders): RedirectResponse
     {
         $this->authorizeOrder($request, $purchaseOrder);
 
-        return $this->processShipment($request, $purchaseOrder, $traceability);
+        return $this->processShipment($request, $purchaseOrder, $orders);
     }
 
     public function editPassword(Request $request): View
@@ -74,88 +71,50 @@ class SupplierAreaController extends Controller
         return to_route('supplier.dashboard')->with('success', 'Mot de passe enregistré. Bienvenue dans votre espace fournisseur !');
     }
 
-    /** accepter / refuser. */
-    private function processAnswer(Request $request, PurchaseOrder $purchaseOrder): RedirectResponse
+    /** Accepter, refuser ou contre-proposer (quantités par ligne, nouvelle date). */
+    private function processAnswer(Request $request, PurchaseOrder $purchaseOrder, PurchaseOrderService $orders): RedirectResponse
     {
         abort_unless($purchaseOrder->awaitsSupplierAnswer() && ! $purchaseOrder->supplier->isSuspended(), 410, 'Cette commande a déjà reçu une réponse.');
         $data = $request->validate([
-            'decision' => 'required|in:accept,decline',
+            'decision' => 'required|in:accept,counter,decline',
             'decline_reason' => 'nullable|required_if:decision,decline|string|max:1000',
-        ], ['decline_reason.required_if' => 'Indiquez la raison du refus.'], ['decline_reason' => 'raison du refus']);
-
-        $accepted = $data['decision'] === 'accept';
-        $purchaseOrder->update($accepted
-            ? ['status' => 'accepted', 'accepted_at' => now()]
-            : ['status' => 'declined', 'declined_at' => now(), 'decline_reason' => $data['decline_reason']]);
-
-        BrandNotification::create([
-            'user_id' => $purchaseOrder->brand->user_id,
-            'type' => $accepted ? 'supplier_order_accepted' : 'supplier_order_declined',
-            'title' => $purchaseOrder->supplier->name.($accepted ? ' a accepté la commande' : ' a refusé la commande'),
-            'message' => 'Commande '.$purchaseOrder->reference.($accepted ? ' acceptée.' : ' refusée : '.$data['decline_reason']),
-            'url' => route('brand.suppliers.show', $purchaseOrder->supplier),
+            'confirmed' => 'nullable|array',
+            'confirmed.*' => 'nullable|numeric|min:0|max:9999999',
+            'proposed_expected_at' => 'nullable|date|after_or_equal:today',
+            'supplier_note' => 'nullable|string|max:1000',
+        ], ['decline_reason.required_if' => 'Indiquez la raison du refus.'], [
+            'decline_reason' => 'raison du refus', 'confirmed.*' => 'quantité confirmée', 'proposed_expected_at' => 'date proposée', 'supplier_note' => 'message',
         ]);
 
-        return back()->with('success', $accepted
-            ? 'Merci, commande acceptée ! Déclarez l’expédition ci-dessous lorsque la matière part.'
-            : 'Votre refus a été transmis à '.$purchaseOrder->brand->name.'.');
+        $orders->supplierAnswer($purchaseOrder, $data['decision'], $data, $request->user());
+
+        return back()->with('success', match ($data['decision']) {
+            'accept' => 'Merci, commande acceptée ! Expédiez-la en une ou plusieurs livraisons ci-dessous.',
+            'counter' => 'Votre contre-proposition a été envoyée à '.$purchaseOrder->brand->name.'.',
+            default => 'Votre refus a été transmis à '.$purchaseOrder->brand->name.'.',
+        });
     }
 
-    /** déclarer une expédition. */
-    private function processShipment(Request $request, PurchaseOrder $purchaseOrder, SupplierTraceabilityService $traceability): RedirectResponse
+    /** Expédier une livraison (partielle ou complète) sur une ligne de la commande. */
+    private function processShipment(Request $request, PurchaseOrder $purchaseOrder, PurchaseOrderService $orders): RedirectResponse
     {
         abort_unless($purchaseOrder->acceptsShipment(), 410, 'Acceptez d’abord la commande.');
         $data = $request->validate([
-            'material_id' => 'required|exists:materials,id',
+            'purchase_order_line_id' => 'required|integer',
             'quantity_kg' => 'required|numeric|min:0.1|max:9999999',
             'origin_country' => 'required|string|max:100',
             'production_date' => 'nullable|date|before_or_equal:today',
             'certificate' => 'required|image|mimes:jpg,jpeg,png,webp|max:8192',
             'supplier_note' => 'nullable|string|max:1000',
         ], ['certificate.required' => 'Joignez la photo du certificat de provenance.'], [
-            'material_id' => 'matière', 'quantity_kg' => 'quantité', 'origin_country' => 'pays d’origine',
+            'purchase_order_line_id' => 'ligne de commande', 'quantity_kg' => 'quantité', 'origin_country' => 'pays d’origine',
             'production_date' => 'date de production', 'certificate' => 'certificat', 'supplier_note' => 'message',
         ]);
+        $line = $purchaseOrder->lines()->findOrFail($data['purchase_order_line_id']);
 
-        $supplier = $purchaseOrder->supplier;
-        DB::beginTransaction();
-        try {
-            $batch = $supplier->batches()->create([
-                'purchase_order_id' => $purchaseOrder->id,
-                'batch_code' => $traceability->nextBatchCode($supplier),
-                'material_id' => $data['material_id'],
-                'quantity_kg' => $data['quantity_kg'],
-                'origin_country' => $data['origin_country'],
-                'production_date' => $data['production_date'] ?? null,
-                'status' => 'pending',
-            ]);
-            $outcome = $traceability->addCertificateFromPhoto($batch, $request->file('certificate'));
-            if (! $outcome['ok']) {
-                // Pas un certificat : on annule la création du lot.
-                DB::rollBack();
+        $result = $orders->ship($purchaseOrder, $line, $data, $request->file('certificate'), $request->user());
 
-                return back()->withInput()->withErrors(['certificate' => $outcome['message']]);
-            }
-            $purchaseOrder->update([
-                'status' => 'shipped',
-                'shipped_at' => now(),
-                'supplier_note' => $data['supplier_note'] ?? $purchaseOrder->supplier_note,
-            ]);
-            DB::commit();
-        } catch (\Throwable $exception) {
-            DB::rollBack();
-            throw $exception;
-        }
-
-        BrandNotification::create([
-            'user_id' => $purchaseOrder->brand->user_id,
-            'type' => 'supplier_shipment',
-            'title' => 'Expédition déclarée par '.$supplier->name,
-            'message' => 'Commande '.$purchaseOrder->reference.' : lot '.$batch->batch_code.' ('.$data['quantity_kg'].' kg) avec certificat lu par l’IA. Confirmez la réception à l’arrivée.',
-            'url' => route('brand.suppliers.show', $supplier),
-        ]);
-
-        return back()->with('success', 'Merci ! Expédition enregistrée (lot '.$batch->batch_code.'). '.$outcome['message']);
+        return back()->with('success', 'Livraison enregistrée (lot '.$result['batch']->batch_code.'). '.$result['message']);
     }
 
     private function authorizeOrder(Request $request, PurchaseOrder $purchaseOrder): void
