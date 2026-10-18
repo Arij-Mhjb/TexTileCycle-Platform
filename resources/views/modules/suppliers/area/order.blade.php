@@ -10,7 +10,7 @@
         </x-module.hero>
 
         {{-- Détail complet de la commande --}}
-        <section class="mb-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+        <section class="shadow-[0_4px_0_rgba(15,23,42,.06),0_16px_30px_-20px_rgba(15,23,42,.4)] mb-6 rounded-3xl border border-slate-200 bg-white p-6">
             <h2 class="text-lg font-black">Détail de la commande</h2>
             <dl class="mt-4 grid gap-4 text-sm sm:grid-cols-2">
                 @foreach([
@@ -25,14 +25,14 @@
                 ] as $label => $value)
                     <div class="rounded-2xl bg-slate-50 p-3"><dt class="text-xs font-bold uppercase tracking-wider text-slate-400">{{ $label }}</dt><dd class="mt-1 font-semibold text-slate-800">{{ $value ?: '—' }}</dd></div>
                 @endforeach
-                @if($order->notes)<div class="rounded-2xl bg-indigo-50 p-3 sm:col-span-2"><dt class="text-xs font-bold uppercase tracking-wider text-indigo-500">Message du client</dt><dd class="mt-1 text-slate-800">{{ $order->notes }}</dd></div>@endif
+                @if($order->notes)<div class="rounded-2xl bg-purple-50 p-3 sm:col-span-2"><dt class="text-xs font-bold uppercase tracking-wider text-purple-500">Message du client</dt><dd class="mt-1 text-slate-800">{{ $order->notes }}</dd></div>@endif
             </dl>
         </section>
 
 
         {{-- Réponse du fournisseur : accepter ou refuser --}}
         @if($order->awaitsSupplierAnswer())
-            <section class="mb-6 rounded-3xl border-2 border-indigo-200 bg-white p-6 shadow-sm" x-data="{ refuse: {{ $errors->has('decline_reason') ? 'true' : 'false' }} }">
+            <section class="shadow-[0_4px_0_rgba(15,23,42,.06),0_16px_30px_-20px_rgba(15,23,42,.4)] mb-6 rounded-3xl border-2 border-purple-200 bg-white p-6" x-data="{ refuse: {{ $errors->has('decline_reason') ? 'true' : 'false' }} }">
                 <h2 class="text-lg font-black">Votre réponse</h2>
                 <p class="mt-1 text-sm text-slate-500">Acceptez-vous cette commande ?</p>
                 <div class="mt-4 flex flex-wrap gap-3" x-show="!refuse">
@@ -53,7 +53,7 @@
         @endif
 
         @if($order->batches->isNotEmpty())
-            <section class="mb-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+            <section class="shadow-[0_4px_0_rgba(15,23,42,.06),0_16px_30px_-20px_rgba(15,23,42,.4)] mb-6 rounded-3xl border border-slate-200 bg-white p-6">
                 <h2 class="text-lg font-black">Expéditions déclarées</h2>
                 <div class="mt-4 space-y-3">
                     @foreach($order->batches as $batch)
@@ -69,19 +69,19 @@
         @endif
 
         @if($order->acceptsShipment())
-            <form method="POST" action="{{ $shipUrl }}" enctype="multipart/form-data" class="rounded-3xl border border-indigo-100 bg-white p-6 shadow-sm sm:p-8" x-data="{ name: '' }">
+            <form method="POST" action="{{ $shipUrl }}" enctype="multipart/form-data" class="shadow-[0_4px_0_rgba(15,23,42,.06),0_16px_30px_-20px_rgba(15,23,42,.4)] rounded-3xl border border-purple-100 bg-white p-6 sm:p-8" x-data="{ name: '' }">
                 @csrf
-                <p class="text-xs font-black uppercase tracking-wider text-indigo-600">{{ $order->batches->isEmpty() ? 'Déclarer l’expédition' : 'Déclarer une autre livraison' }}</p>
+                <p class="text-xs font-black uppercase tracking-wider text-purple-600">{{ $order->batches->isEmpty() ? 'Déclarer l’expédition' : 'Déclarer une autre livraison' }}</p>
                 <h2 class="mt-1 text-xl font-black">Matière expédiée</h2>
                 <div class="mt-5 grid gap-4 md:grid-cols-2">
                     <x-ui.select name="material_id" label="Matière" :options="$materials->pluck('name', 'id')" required/>
                     <x-module.field name="quantity_kg" type="number" step="0.1" min="0.1" label="Quantité expédiée (kg)" required/>
                     <x-module.field name="origin_country" label="Pays d’origine de la matière" :value="$order->supplier->country" required/>
                     <x-module.field name="production_date" type="date" label="Date de production"/>
-                    <label class="md:col-span-2 flex cursor-pointer flex-col items-center gap-2 rounded-2xl border-2 border-dashed border-violet-300 bg-gradient-to-br from-fuchsia-50/60 to-violet-50/60 p-6 text-center">
-                        <span class="text-sm font-black text-violet-800">✦ Photo du certificat de provenance *</span>
+                    <label class="md:col-span-2 flex cursor-pointer flex-col items-center gap-2 rounded-2xl border-2 border-dashed border-pink-300 bg-gradient-to-br from-fuchsia-50/60 to-pink-50/60 p-6 text-center">
+                        <span class="text-sm font-black text-pink-800">✦ Photo du certificat de provenance *</span>
                         <span class="text-xs text-slate-500">GRS, GOTS, RWS, OEKO-TEX… L’IA lit automatiquement le type, le numéro, l’organisme et les dates.</span>
-                        <span class="rounded-xl bg-white px-4 py-2 text-xs font-bold text-violet-700 shadow-sm ring-1 ring-violet-200" x-text="name || 'Choisir la photo'"></span>
+                        <span class="rounded-xl bg-white px-4 py-2 text-xs font-bold text-pink-700 shadow-sm ring-1 ring-pink-200" x-text="name || 'Choisir la photo'"></span>
                         <input type="file" name="certificate" accept="image/jpeg,image/png,image/webp" required class="sr-only" @change="name = $event.target.files[0]?.name || ''">
                     </label>
                     <div class="md:col-span-2"><x-ui.textarea name="supplier_note" label="Message pour {{ $order->brand->name }} (facultatif)" rows="2"/></div>
