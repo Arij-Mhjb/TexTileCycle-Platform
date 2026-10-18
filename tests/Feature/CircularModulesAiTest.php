@@ -223,6 +223,21 @@ class CircularModulesAiTest extends TestCase
         $this->assertDatabaseHas('sms_messages', ['supplier_id' => $supplier->id, 'driver' => 'smsgate', 'status' => 'sent', 'provider_id' => 'msg-42']);
     }
 
+    public function test_supplier_credentials_are_sent_through_the_infobip_api(): void
+    {
+        config(['sms.driver' => 'infobip', 'sms.infobip' => ['base_url' => 'abc123.api.infobip.com', 'api_key' => 'key', 'from' => 'TexTileCycle']]);
+        Http::fake(['abc123.api.infobip.com/*' => Http::response(['messages' => [['messageId' => 'ib-7', 'status' => ['groupName' => 'PENDING']]]], 200)]);
+        $brandUser = User::where('email', 'brand@textilecycle.test')->firstOrFail();
+        $supplier = Supplier::where('name', 'Filature Méditerranée')->firstOrFail();
+        $supplier->update(['phone' => '29 444 051', 'email' => 'acces@filature.tn']);
+
+        $this->actingAs($brandUser)->post(route('brand.suppliers.access', $supplier))->assertSessionHas('supplier_access.sms.status', 'sent');
+
+        Http::assertSent(fn ($request) => $request->url() === 'https://abc123.api.infobip.com/sms/2/text/advanced'
+            && $request->header('Authorization') === ['App key'] && $request['messages'][0]['destinations'][0]['to'] === '21629444051');
+        $this->assertDatabaseHas('sms_messages', ['supplier_id' => $supplier->id, 'driver' => 'infobip', 'status' => 'sent', 'provider_id' => 'ib-7']);
+    }
+
     public function test_sms_failure_keeps_the_access_and_shows_the_error(): void
     {
         config(['sms.driver' => 'twilio', 'sms.twilio' => ['sid' => 'ACtest', 'token' => 'secret', 'from' => '+15005550006']]);
