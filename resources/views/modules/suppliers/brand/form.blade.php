@@ -28,7 +28,7 @@
                 <label class="md:col-span-2 flex items-start gap-3 rounded-2xl border border-indigo-200 bg-indigo-50/60 p-4">
                     <input type="hidden" name="create_access" value="0">
                     <input type="checkbox" name="create_access" value="1" @checked(old('create_access', ! $supplier->exists)) class="mt-1 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500">
-                    <span><span class="block text-sm font-black text-indigo-900">Créer un accès fournisseur</span><span class="text-xs text-slate-600">Le fournisseur reçoit un compte TexTileCycle (avec l’e-mail ci-dessus) pour accepter vos commandes et déclarer ses expéditions. Vous pourrez lui envoyer ses identifiants par WhatsApp ou SMS.</span></span>
+                    <span><span class="block text-sm font-black text-indigo-900">Créer un accès fournisseur</span><span class="text-xs text-slate-600">Le fournisseur reçoit un compte TexTileCycle (avec l’e-mail ci-dessus) pour accepter vos commandes et déclarer ses expéditions. Ses identifiants lui sont envoyés automatiquement par SMS (téléphone obligatoire) : vous ne voyez pas son mot de passe.</span></span>
                 </label>
             @endunless
         </div>
