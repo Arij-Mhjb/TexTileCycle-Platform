@@ -25,6 +25,8 @@ class SupplierPortalController extends Controller
 
         return view('modules.suppliers.portal', [
             'order' => $purchaseOrder,
+            // Un utilisateur connecté (marque, admin…) n'est pas le fournisseur : lecture seule.
+            'readOnly' => auth()->check(),
             'materials' => Material::orderBy('name')->get(),
             // URL d'envoi signée elle aussi, pour que le formulaire reste protégé.
             'shipUrl' => URL::temporarySignedRoute('supplier-portal.ship', now()->addHours(12), ['purchaseOrder' => $purchaseOrder->id]),
@@ -35,6 +37,7 @@ class SupplierPortalController extends Controller
     /** Le fournisseur accepte ou refuse la commande. */
     public function answer(Request $request, PurchaseOrder $purchaseOrder): RedirectResponse
     {
+        $this->ensureSupplier();
         abort_unless($purchaseOrder->awaitsSupplierAnswer() && ! $purchaseOrder->supplier->isSuspended(), 410, 'Cette commande a déjà reçu une réponse.');
         $data = $request->validate([
             'decision' => 'required|in:accept,decline',
@@ -61,6 +64,7 @@ class SupplierPortalController extends Controller
 
     public function ship(Request $request, PurchaseOrder $purchaseOrder, SupplierTraceabilityService $traceability): RedirectResponse
     {
+        $this->ensureSupplier();
         abort_unless($purchaseOrder->acceptsShipment(), 410, 'Acceptez d’abord la commande.');
         $data = $request->validate([
             'material_id' => 'required|exists:materials,id',
@@ -113,5 +117,11 @@ class SupplierPortalController extends Controller
         ]);
 
         return back()->with('success', 'Merci ! Expédition enregistrée (lot '.$batch->batch_code.'). '.$outcome['message']);
+    }
+
+    /** Seul le destinataire de l'e-mail (non connecté à TexTileCycle) peut répondre : la marque ne peut pas valider à sa place. */
+    private function ensureSupplier(): void
+    {
+        abort_if(auth()->check(), 403, 'Cette action est réservée au fournisseur destinataire de l’e-mail.');
     }
 }
