@@ -209,6 +209,20 @@ class CircularModulesAiTest extends TestCase
         $this->assertDatabaseHas('sms_messages', ['supplier_id' => $supplier->id, 'status' => 'sent', 'provider_id' => 'SM123']);
     }
 
+    public function test_supplier_credentials_are_sent_through_the_android_sms_gateway_api(): void
+    {
+        config(['sms.driver' => 'smsgate', 'sms.smsgate' => ['url' => 'https://api.sms-gate.app/3rdparty/v1/messages', 'username' => 'demo', 'password' => 'secret']]);
+        Http::fake(['api.sms-gate.app/*' => Http::response(['id' => 'msg-42', 'state' => 'Pending'], 202)]);
+        $brandUser = User::where('email', 'brand@textilecycle.test')->firstOrFail();
+        $supplier = Supplier::where('name', 'Filature Méditerranée')->firstOrFail();
+        $supplier->update(['phone' => '29 444 051', 'email' => 'acces@filature.tn']);
+
+        $this->actingAs($brandUser)->post(route('brand.suppliers.access', $supplier))->assertSessionHas('supplier_access.sms.status', 'sent');
+
+        Http::assertSent(fn ($request) => $request['phoneNumbers'] === ['+21629444051'] && str_contains($request['textMessage']['text'], 'acces@filature.tn'));
+        $this->assertDatabaseHas('sms_messages', ['supplier_id' => $supplier->id, 'driver' => 'smsgate', 'status' => 'sent', 'provider_id' => 'msg-42']);
+    }
+
     public function test_sms_failure_keeps_the_access_and_shows_the_error(): void
     {
         config(['sms.driver' => 'twilio', 'sms.twilio' => ['sid' => 'ACtest', 'token' => 'secret', 'from' => '+15005550006']]);
