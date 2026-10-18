@@ -43,6 +43,7 @@ class SmsService
         try {
             match ($driver) {
                 'twilio' => $this->sendWithTwilio($message),
+                'smsgate' => $this->sendWithSmsGate($message),
                 default => $this->log($message),
             };
         } catch (Throwable $exception) {
@@ -71,6 +72,23 @@ class SmsService
             throw new \RuntimeException('Twilio : '.($response->json('message') ?? 'erreur HTTP '.$response->status()));
         }
         $message->fill(['status' => 'sent', 'provider_id' => $response->json('sid')]);
+    }
+
+    /** API cloud de l'application Android « SMS Gateway » : le téléphone envoie le SMS avec sa SIM. */
+    private function sendWithSmsGate(SmsMessage $message): void
+    {
+        ['url' => $url, 'username' => $username, 'password' => $password] = config('sms.smsgate');
+        if (! $username || ! $password) {
+            throw new \RuntimeException('SMS Gateway n’est pas configuré (SMSGATE_USERNAME, SMSGATE_PASSWORD).');
+        }
+
+        $response = Http::withBasicAuth($username, $password)->acceptJson()->timeout(20)
+            ->post($url, ['textMessage' => ['text' => $message->body], 'phoneNumbers' => [$message->to]]);
+
+        if ($response->failed()) {
+            throw new \RuntimeException('SMS Gateway : '.($response->json('message') ?? 'erreur HTTP '.$response->status()));
+        }
+        $message->fill(['status' => 'sent', 'provider_id' => $response->json('id')]);
     }
 
     private function log(SmsMessage $message): void
