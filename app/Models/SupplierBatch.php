@@ -12,7 +12,7 @@ class SupplierBatch extends Model
     use HasFactory;
 
     protected $fillable = [
-        'supplier_id', 'purchase_order_id', 'material_id', 'batch_code', 'quantity_kg', 'origin_country',
+        'supplier_id', 'purchase_order_id', 'purchase_order_line_id', 'material_id', 'batch_code', 'quantity_kg', 'origin_country',
         'production_date', 'received_at', 'status', 'verification_note', 'verified_by', 'verified_at',
     ];
 
@@ -29,6 +29,12 @@ class SupplierBatch extends Model
     public function purchaseOrder(): BelongsTo
     {
         return $this->belongsTo(PurchaseOrder::class);
+    }
+
+    /** Ligne de commande que ce lot (cette livraison) honore. */
+    public function orderLine(): BelongsTo
+    {
+        return $this->belongsTo(PurchaseOrderLine::class, 'purchase_order_line_id');
     }
 
     public function material(): BelongsTo
