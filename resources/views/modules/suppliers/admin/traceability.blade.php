@@ -11,7 +11,7 @@
 
     <div class="mb-4 flex flex-wrap gap-2">
         @foreach(['' => 'Tous', 'conform' => 'Conformes', 'mismatch' => 'Écarts', 'unchecked' => 'Non contrôlés'] as $value => $label)
-            <a href="{{ route('admin.traceability.index', array_filter(['conformity' => $value])) }}" class="rounded-full px-4 py-2 text-sm font-bold {{ request('conformity', '') === $value ? 'bg-indigo-600 text-white' : 'bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-indigo-50' }}">{{ $label }}</a>
+            <a href="{{ route('admin.traceability.index', array_filter(['conformity' => $value])) }}" class="rounded-full px-4 py-2 text-sm font-bold {{ request('conformity', '') === $value ? 'bg-purple-600 text-white' : 'bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-purple-50' }}">{{ $label }}</a>
         @endforeach
     </div>
 

@@ -11,7 +11,7 @@
 
     <div class="mb-8 grid gap-6 xl:grid-cols-2">
         <section class="panel p-6">
-            <p class="text-xs font-black uppercase tracking-wider text-indigo-600">File de vérification</p>
+            <p class="text-xs font-black uppercase tracking-wider text-purple-600">File de vérification</p>
             <h2 class="mt-1 text-lg font-black">Lots en attente</h2>
             <div class="mt-4 space-y-3">
                 @forelse($pendingBatches as $batch)
@@ -20,7 +20,7 @@
                             <p class="font-black">{{ $batch->batch_code }} <span class="text-sm font-semibold text-slate-500">· {{ $batch->material?->name }} · {{ $batch->quantity_kg }} kg</span></p>
                             <x-module.badge tone="warn">{{ $batch->statusLabel() }}</x-module.badge>
                         </div>
-                        <p class="mt-1 text-xs text-slate-500">{{ $batch->supplier->brand->name }} → <a class="font-bold text-indigo-600" href="{{ route('admin.suppliers.show', $batch->supplier) }}">{{ $batch->supplier->name }}</a> · origine {{ $batch->origin_country }} · {{ $batch->certificates->count() }} certificat(s)</p>
+                        <p class="mt-1 text-xs text-slate-500">{{ $batch->supplier->brand->name }} → <a class="font-bold text-purple-600" href="{{ route('admin.suppliers.show', $batch->supplier) }}">{{ $batch->supplier->name }}</a> · origine {{ $batch->origin_country }} · {{ $batch->certificates->count() }} certificat(s)</p>
                         @include('modules.suppliers.admin._review', ['action' => route('admin.supplier-batches.review', $batch)])
                     </div>
                 @empty
@@ -29,7 +29,7 @@
             </div>
         </section>
         <section class="panel p-6">
-            <p class="text-xs font-black uppercase tracking-wider text-indigo-600">Preuves de provenance</p>
+            <p class="text-xs font-black uppercase tracking-wider text-purple-600">Preuves de provenance</p>
             <h2 class="mt-1 text-lg font-black">Certificats à contrôler</h2>
             <div class="mt-4 space-y-3">
                 @forelse($pendingCertificates as $certificate)
@@ -63,7 +63,7 @@
                             <td class="px-5 py-4 text-sm text-slate-600">{{ $supplier->batches_count }}</td>
                             <td class="px-5 py-4 text-sm">@if($supplier->pending_batches_count)<x-module.badge tone="warn">{{ $supplier->pending_batches_count }}</x-module.badge>@else — @endif</td>
                             <td class="w-48 px-5 py-4"><x-module.bar module="suppliers" :value="$supplier->compliance_score ?? 0" :display="$supplier->compliance_score !== null ? $supplier->compliance_score.' %' : '—'" label="Score"/></td>
-                            <td class="px-5 py-4 text-right"><a href="{{ route('admin.suppliers.show', $supplier) }}" class="rounded-lg px-3 py-2 text-sm font-bold text-indigo-600 hover:bg-indigo-50">Détails</a></td>
+                            <td class="px-5 py-4 text-right"><a href="{{ route('admin.suppliers.show', $supplier) }}" class="rounded-lg px-3 py-2 text-sm font-bold text-purple-600 hover:bg-purple-50">Détails</a></td>
                         </tr>
                     @empty
                         <tr><td colspan="7"><x-ui.empty message="Aucun fournisseur déclaré par les marques."/></td></tr>

@@ -25,7 +25,7 @@
                 <article class="panel p-5">
                     <div class="flex flex-wrap items-start justify-between gap-3">
                         <div>
-                            <p class="text-xs font-black uppercase tracking-wider text-indigo-600">{{ $batch->material?->name }} · {{ $batch->origin_country }}</p>
+                            <p class="text-xs font-black uppercase tracking-wider text-purple-600">{{ $batch->material?->name }} · {{ $batch->origin_country }}</p>
                             <h3 class="mt-1 text-lg font-black">{{ $batch->batch_code }}</h3>
                             <p class="text-sm text-slate-500">{{ $batch->quantity_kg }} kg · utilisé dans {{ $batch->productLinks->count() }} produit(s)</p>
                         </div>
