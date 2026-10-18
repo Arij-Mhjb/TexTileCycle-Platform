@@ -77,12 +77,28 @@ class BrandSupplierController extends Controller
         return to_route('brand.suppliers.show', $supplier)->with('success', 'Fournisseur mis à jour.');
     }
 
+    /** Suppression autorisée seulement sans preuve de traçabilité (lot vérifié ou relié à un produit). */
     public function destroy(Request $request, Supplier $supplier): RedirectResponse
     {
         $this->authorizeSupplier($request, $supplier);
+        if (! $supplier->canBeDeleted()) {
+            return back()->withErrors(['supplier' => 'Ce fournisseur a des lots vérifiés ou utilisés dans vos produits : ces preuves doivent être conservées. Suspendez-le plutôt.']);
+        }
         $supplier->delete();
 
-        return to_route('brand.suppliers.index')->with('success', 'Fournisseur supprimé avec ses lots et certificats.');
+        return to_route('brand.suppliers.index')->with('success', 'Fournisseur supprimé.');
+    }
+
+    /** Suspendre / réactiver : plus de nouvelles commandes, mais l'historique et les preuves sont conservés. */
+    public function suspend(Request $request, Supplier $supplier): RedirectResponse
+    {
+        $this->authorizeSupplier($request, $supplier);
+        $suspended = ! $supplier->isSuspended();
+        $supplier->update(['status' => $suspended ? 'suspended' : 'active']);
+
+        return back()->with('success', $suspended
+            ? 'Fournisseur suspendu : plus de nouvelles commandes, son historique et ses preuves sont conservés.'
+            : 'Fournisseur réactivé.');
     }
 
     private function validated(Request $request, Brand $brand, ?Supplier $supplier = null): array
