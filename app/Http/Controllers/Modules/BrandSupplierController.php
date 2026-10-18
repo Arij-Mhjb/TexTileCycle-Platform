@@ -57,7 +57,7 @@ class BrandSupplierController extends Controller
     public function show(Request $request, Supplier $supplier): View
     {
         $this->authorizeSupplier($request, $supplier);
-        $supplier->load(['user', 'smsMessages', 'purchaseOrders.lines.batches', 'purchaseOrders.lines.material', 'batches.material', 'batches.certificates', 'batches.purchaseOrder', 'batches.productLinks.product']);
+        $supplier->load(['user', 'smsMessages', 'latestInvitation', 'purchaseOrders.lines.batches', 'purchaseOrders.lines.material', 'batches.material', 'batches.certificates', 'batches.purchaseOrder', 'batches.productLinks.product']);
 
         return view('modules.suppliers.brand.show', [
             'supplier' => $supplier,
@@ -104,30 +104,33 @@ class BrandSupplierController extends Controller
     }
 
     /**
-     * Le mot de passe provisoire n'est jamais montré à la marque :
-     * il est envoyé uniquement par SMS au numéro du fournisseur (l'historique le garde masqué).
+     * Invitation par lien d'activation (usage unique, 72 h) : la marque transmet le lien,
+     * le fournisseur choisit lui-même son mot de passe. Si un fournisseur SMS réel est configuré
+     * (SMS_DRIVER), le lien part aussi automatiquement par SMS ; l'historique ne garde pas le lien secret.
      */
     private function withAccess(RedirectResponse $redirect, Supplier $supplier, SupplierAccountService $accounts): RedirectResponse
     {
         try {
-            $credentials = $accounts->grantAccess($supplier);
+            $invitation = $accounts->invite($supplier, auth()->user());
         } catch (ValidationException $exception) {
             return $redirect->withErrors($exception->errors());
         }
 
-        $sms = app(SmsService::class)->send(
-            $supplier->phone,
-            $accounts->smsText($supplier, $credentials),
-            $supplier->id,
-            $accounts->smsText($supplier, $credentials, masked: true),
-        );
+        $message = $accounts->invitationMessage($supplier, $invitation);
+        $sms = null;
+        if ($supplier->phone && config('sms.driver') !== 'log') {
+            $sms = app(SmsService::class)->send($supplier->phone, $message, $supplier->id, str_replace($invitation['url'], '[lien d’activation]', $message));
+        }
 
-        return $redirect->with('supplier_access', [
+        return $redirect->with('supplier_invitation', [
             'supplier' => $supplier->name,
-            'email' => $credentials['email'],
-            'created' => $credentials['created'],
-            'sms' => ['to' => $sms->to, 'driver' => $sms->driver, 'status' => $sms->status, 'error' => $sms->error],
-        ])->with('success', $credentials['created'] ? 'Accès fournisseur créé.' : 'Nouveau mot de passe provisoire généré.');
+            'email' => $invitation['email'],
+            'url' => $invitation['url'],
+            'expires_at' => $invitation['expires_at']->format('d/m/Y à H:i'),
+            'message' => $message,
+            'phone' => $supplier->phone,
+            'sms' => $sms ? ['to' => $sms->to, 'status' => $sms->status, 'error' => $sms->error] : null,
+        ])->with('success', 'Invitation créée : transmettez le lien d’activation à '.$supplier->name.'.');
     }
 
     /** Suspendre / réactiver : plus de nouvelles commandes, mais l'historique et les preuves sont conservés. */
