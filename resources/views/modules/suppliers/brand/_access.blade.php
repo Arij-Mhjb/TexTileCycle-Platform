@@ -19,7 +19,7 @@
         </dl>
         @php $sms = $credentials['sms'] ?? null; @endphp
         @if($sms && $sms['status'] === 'sent')
-            <p class="mt-4 rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-black text-white">📲 SMS envoyé automatiquement au {{ $sms['to'] }} via l’API SMS.</p>
+            <p class="mt-4 rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-black text-white">📲 SMS envoyé automatiquement au {{ $sms['to'] }} via l’API SMS ({{ $sms['driver'] ?? 'sms' }}).</p>
         @elseif($sms && $sms['status'] === 'logged')
             <p class="mt-4 rounded-2xl bg-white px-4 py-3 text-sm font-bold text-emerald-900 ring-1 ring-emerald-200">📲 SMS préparé pour {{ $sms['to'] }} (mode démo : SMS_DRIVER=log, aucun envoi réel).</p>
         @elseif($sms)
