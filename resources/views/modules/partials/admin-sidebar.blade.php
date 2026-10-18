@@ -1,7 +1,7 @@
-{{-- Menu admin des modules Fournisseurs (indigo), Impact ESG (sky) et Seconde vie (amber). --}}
+{{-- Menu admin des modules Fournisseurs (violet-rose), Impact ESG (sky) et Seconde vie (amber). --}}
 @php
 $moduleGroups = [
-    ['label' => 'Fournisseurs & traçabilité', 'dot' => 'bg-indigo-500', 'active' => 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950/70 dark:text-indigo-300', 'icon_active' => 'text-indigo-600 dark:text-indigo-400', 'items' => [
+    ['label' => 'Fournisseurs & traçabilité', 'dot' => 'bg-purple-500', 'active' => 'bg-purple-50 text-purple-700 dark:bg-purple-950/70 dark:text-purple-300', 'icon_active' => 'text-purple-600 dark:text-purple-400', 'items' => [
         ['admin.suppliers.index', 'admin.suppliers.*', 'Fournisseurs & lots', 'M3 21h18M5 21V7l7-4 7 4v14M9 21v-6h6v6M9 10h.01M15 10h.01'],
         ['admin.traceability.index', 'admin.traceability.*', 'Conformité des lots', 'M9 12l2 2 4-4M7 3h10a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z'],
     ]],
