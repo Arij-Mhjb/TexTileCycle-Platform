@@ -2,7 +2,11 @@
     <x-module.hero module="suppliers" :eyebrow="'Fournisseur · '.$supplier->country" :title="$supplier->name" :description="$supplier->certifications ? 'Certifications déclarées : '.$supplier->certifications : 'Suivi des commandes, lots et certificats de provenance.'">
         <x-slot:actions>
             <x-module.button module="suppliers" variant="light" :href="route('brand.suppliers.edit', $supplier)">Modifier</x-module.button>
-            <form method="POST" action="{{ route('brand.suppliers.destroy', $supplier) }}" onsubmit="return confirm('Supprimer ce fournisseur, ses lots et certificats ?')">@csrf @method('DELETE')<button class="rounded-xl border border-white/40 bg-white/10 px-4 py-2.5 text-sm font-bold text-white backdrop-blur hover:bg-white/20">Supprimer</button></form>
+            @if($supplier->canBeDeleted())
+                <form method="POST" action="{{ route('brand.suppliers.destroy', $supplier) }}" onsubmit="return confirm('Supprimer ce fournisseur ? (aucune preuve de traçabilité ne sera perdue)')">@csrf @method('DELETE')<button class="rounded-xl border border-white/40 bg-white/10 px-4 py-2.5 text-sm font-bold text-white backdrop-blur hover:bg-white/20">Supprimer</button></form>
+            @else
+                <form method="POST" action="{{ route('brand.suppliers.suspend', $supplier) }}" @unless($supplier->isSuspended()) onsubmit="return confirm('Suspendre ce fournisseur ? Plus de nouvelles commandes ; son historique et ses preuves sont conservés.')" @endunless>@csrf @method('PATCH')<button class="rounded-xl border border-white/40 bg-white/10 px-4 py-2.5 text-sm font-bold text-white backdrop-blur hover:bg-white/20">{{ $supplier->isSuspended() ? 'Réactiver' : 'Suspendre' }}</button></form>
+            @endif
         </x-slot:actions>
         <x-slot:stats>
             <x-module.stat label="Statut" :value="$supplier->statusLabel()"/>
@@ -12,6 +16,9 @@
         </x-slot:stats>
     </x-module.hero>
     @include('modules.suppliers.brand._tabs')
+    @if($supplier->isSuspended())
+        <div class="mb-6 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800"><strong>Fournisseur suspendu.</strong> Aucune nouvelle commande possible ; son historique, ses lots et ses certificats restent consultables comme preuves.</div>
+    @endif
     @include('modules.suppliers._ai-risk', ['action' => route('brand.suppliers.ai-risk', $supplier)])
 
     <div class="grid gap-6 xl:grid-cols-3">
@@ -19,37 +26,40 @@
         <section class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
             <p class="text-xs font-black uppercase tracking-wider text-indigo-600">Achats</p>
             <h2 class="mt-1 text-xl font-black">Bons de commande</h2>
+            @unless($supplier->isSuspended())
             <form method="POST" action="{{ route('brand.purchase-orders.store', $supplier) }}" class="mt-4 grid gap-3 rounded-2xl bg-indigo-50/60 p-4">
                 @csrf
                 <div class="grid grid-cols-2 gap-3"><x-module.field name="ordered_at" type="date" label="Commandé le" :value="now()->toDateString()" required/><x-module.field name="expected_at" type="date" label="Livraison prévue"/></div>
                 <x-module.field name="total_amount" type="number" step="0.01" min="0" label="Montant (TND)"/>
                 <x-module.button module="suppliers">Créer la commande</x-module.button>
             </form>
+            @endunless
             <div class="mt-4 space-y-3">
                 @forelse($supplier->purchaseOrders as $order)
-                    <div class="rounded-2xl border border-slate-100 p-4" x-data="{ link: false }">
-                        <div class="flex items-center justify-between gap-2"><p class="font-black">{{ $order->reference }}</p><x-module.badge :tone="['received' => 'good', 'cancelled' => 'bad', 'shipped' => 'warn'][$order->status] ?? 'suppliers'">{{ $order->statusLabel() }}</x-module.badge></div>
+                    <div class="rounded-2xl border border-slate-100 p-4">
+                        <div class="flex items-start justify-between gap-2"><p class="font-black">{{ $order->reference }}</p><x-module.badge :tone="['received' => 'good', 'accepted' => 'good', 'cancelled' => 'bad', 'declined' => 'bad', 'shipped' => 'warn', 'sent' => 'warn'][$order->status] ?? 'suppliers'">{{ $order->statusLabel() }}</x-module.badge></div>
                         <p class="mt-1 text-xs text-slate-500">Commandée le {{ $order->ordered_at->format('d/m/Y') }}@if($order->expected_at) · prévue le {{ $order->expected_at->format('d/m/Y') }}@endif @if($order->total_amount) · {{ number_format((float) $order->total_amount, 2, ',', ' ') }} {{ $order->currency }}@endif</p>
                         <ol class="mt-2 space-y-0.5 text-xs text-slate-500">
-                            @if($order->sent_at)<li>✉ Envoyée au fournisseur le {{ $order->sent_at->format('d/m/Y H:i') }}</li>@endif
-                            @if($order->shipped_at)<li class="font-bold text-amber-700">🚚 Expédiée le {{ $order->shipped_at->format('d/m/Y H:i') }} · {{ $order->batches->count() }} lot(s) déclaré(s) par le fournisseur</li>@endif
+                            @if($order->sent_at)<li>✉ Envoyée par e-mail le {{ $order->sent_at->format('d/m/Y H:i') }}</li>@endif
+                            @if($order->accepted_at)<li class="font-bold text-emerald-700">✓ Acceptée par le fournisseur le {{ $order->accepted_at->format('d/m/Y H:i') }}</li>@endif
+                            @if($order->declined_at)<li class="font-bold text-rose-700">✕ Refusée le {{ $order->declined_at->format('d/m/Y H:i') }} : « {{ $order->decline_reason }} »</li>@endif
+                            @if($order->shipped_at)<li class="font-bold text-amber-700">🚚 Expédiée le {{ $order->shipped_at->format('d/m/Y H:i') }} · {{ $order->batches->count() }} lot(s) déclaré(s)</li>@endif
                             @if($order->supplier_note)<li class="italic">« {{ $order->supplier_note }} »</li>@endif
-                            @if(! $order->shipped_at)<li>{{ $order->batches->count() }} lot(s) rattaché(s)</li>@endif
                         </ol>
-                        @if($order->acceptsShipment())
-                            <div class="mt-3 flex flex-wrap gap-2">
-                                <form method="POST" action="{{ route('brand.purchase-orders.send', $order) }}">@csrf<button class="rounded-lg bg-indigo-50 px-3 py-1.5 text-xs font-bold text-indigo-700 hover:bg-indigo-100">✉ {{ $order->sent_at ? 'Renvoyer' : 'Envoyer' }} au fournisseur</button></form>
-                                <button type="button" @click="link = !link" class="rounded-lg px-3 py-1.5 text-xs font-bold text-indigo-700 hover:bg-indigo-50">🔗 Lien fournisseur</button>
-                                <form method="POST" action="{{ route('brand.purchase-orders.update', $order) }}">@csrf @method('PATCH')<input type="hidden" name="status" value="received"><button class="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-bold text-white">Marquer reçue</button></form>
-                                @if($order->status !== 'shipped')<form method="POST" action="{{ route('brand.purchase-orders.update', $order) }}">@csrf @method('PATCH')<input type="hidden" name="status" value="cancelled"><button class="rounded-lg px-3 py-1.5 text-xs font-bold text-rose-600 hover:bg-rose-50">Annuler</button></form>@endif
-                            </div>
-                            <div x-cloak x-show="link" x-transition class="mt-3 rounded-xl bg-indigo-50 p-3">
-                                <p class="text-xs font-bold text-indigo-800">Lien sécurisé du fournisseur (valable 60 jours, sans compte) :</p>
-                                @php $portalUrl = $order->supplierPortalUrl(); @endphp
-                                <input readonly value="{{ $portalUrl }}" onclick="this.select()" class="field !mt-1 text-xs">
-                                <a href="{{ $portalUrl }}" target="_blank" class="mt-1 inline-block text-xs font-black text-indigo-700 underline">Ouvrir comme le fournisseur ↗</a>
-                            </div>
-                        @endif
+                        <div class="mt-3 flex flex-wrap gap-2">
+                            @if($order->awaitsSupplierAnswer() && ! $supplier->isSuspended())
+                                <form method="POST" action="{{ route('brand.purchase-orders.send', $order) }}">@csrf<button class="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-bold text-white">✉ {{ $order->sent_at ? 'Renvoyer l’e-mail' : 'Envoyer au fournisseur' }}</button></form>
+                            @endif
+                            @if($order->sent_at && app()->isLocal())
+                                <a href="{{ route('brand.purchase-orders.email', $order) }}" target="_blank" class="rounded-lg px-3 py-1.5 text-xs font-bold text-indigo-700 hover:bg-indigo-50" title="En local, les e-mails ne partent pas : voici celui reçu par le fournisseur">👁 Voir l’e-mail envoyé</a>
+                            @endif
+                            @if(in_array($order->status, ['accepted', 'shipped'], true))
+                                <form method="POST" action="{{ route('brand.purchase-orders.update', $order) }}">@csrf @method('PATCH')<input type="hidden" name="status" value="received"><button class="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white">Marquer reçue</button></form>
+                            @endif
+                            @if(in_array($order->status, ['ordered', 'sent', 'accepted'], true))
+                                <form method="POST" action="{{ route('brand.purchase-orders.update', $order) }}" onsubmit="return confirm('Annuler cette commande ?')">@csrf @method('PATCH')<input type="hidden" name="status" value="cancelled"><button class="rounded-lg px-3 py-1.5 text-xs font-bold text-rose-600 hover:bg-rose-50">Annuler</button></form>
+                            @endif
+                        </div>
                     </div>
                 @empty
                     <p class="text-sm text-slate-500">Aucune commande.</p>
