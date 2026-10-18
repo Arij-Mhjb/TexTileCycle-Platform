@@ -30,6 +30,7 @@ use Illuminate\Support\Facades\Route;
 // Portail fournisseur : sans compte, protégé par une URL signée (lien envoyé par e-mail).
 Route::middleware(['signed', 'throttle:20,1'])->prefix('fournisseur')->name('supplier-portal.')->group(function () {
     Route::get('/commandes/{purchaseOrder}', [SupplierPortalController::class, 'show'])->name('show');
+    Route::post('/commandes/{purchaseOrder}/reponse', [SupplierPortalController::class, 'answer'])->name('answer');
     Route::post('/commandes/{purchaseOrder}/expedition', [SupplierPortalController::class, 'ship'])->name('ship');
 });
 
@@ -85,6 +86,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/suppliers/{supplier}/purchase-orders', [BrandPurchaseOrderController::class, 'store'])->name('purchase-orders.store');
         Route::patch('/purchase-orders/{purchaseOrder}', [BrandPurchaseOrderController::class, 'update'])->name('purchase-orders.update');
         Route::post('/purchase-orders/{purchaseOrder}/send', [BrandPurchaseOrderController::class, 'send'])->name('purchase-orders.send');
+        Route::get('/purchase-orders/{purchaseOrder}/email', [BrandPurchaseOrderController::class, 'emailPreview'])->name('purchase-orders.email');
+        Route::patch('/suppliers/{supplier}/suspend', [BrandSupplierController::class, 'suspend'])->name('suppliers.suspend');
         Route::post('/suppliers/{supplier}/batches', [BrandSupplierBatchController::class, 'store'])->name('supplier-batches.store');
         Route::delete('/supplier-batches/{batch}', [BrandSupplierBatchController::class, 'destroy'])->name('supplier-batches.destroy');
         Route::post('/supplier-batches/{batch}/certificates', [BrandSupplierBatchController::class, 'certificate'])->name('certificates.store');
