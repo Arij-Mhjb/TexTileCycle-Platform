@@ -28,12 +28,40 @@ class SupplierPortalController extends Controller
             'materials' => Material::orderBy('name')->get(),
             // URL d'envoi signée elle aussi, pour que le formulaire reste protégé.
             'shipUrl' => URL::temporarySignedRoute('supplier-portal.ship', now()->addHours(12), ['purchaseOrder' => $purchaseOrder->id]),
+            'answerUrl' => URL::temporarySignedRoute('supplier-portal.answer', now()->addHours(12), ['purchaseOrder' => $purchaseOrder->id]),
         ]);
+    }
+
+    /** Le fournisseur accepte ou refuse la commande. */
+    public function answer(Request $request, PurchaseOrder $purchaseOrder): RedirectResponse
+    {
+        abort_unless($purchaseOrder->awaitsSupplierAnswer() && ! $purchaseOrder->supplier->isSuspended(), 410, 'Cette commande a déjà reçu une réponse.');
+        $data = $request->validate([
+            'decision' => 'required|in:accept,decline',
+            'decline_reason' => 'nullable|required_if:decision,decline|string|max:1000',
+        ], ['decline_reason.required_if' => 'Indiquez la raison du refus.'], ['decline_reason' => 'raison du refus']);
+
+        $accepted = $data['decision'] === 'accept';
+        $purchaseOrder->update($accepted
+            ? ['status' => 'accepted', 'accepted_at' => now()]
+            : ['status' => 'declined', 'declined_at' => now(), 'decline_reason' => $data['decline_reason']]);
+
+        BrandNotification::create([
+            'user_id' => $purchaseOrder->brand->user_id,
+            'type' => $accepted ? 'supplier_order_accepted' : 'supplier_order_declined',
+            'title' => $purchaseOrder->supplier->name.($accepted ? ' a accepté la commande' : ' a refusé la commande'),
+            'message' => 'Commande '.$purchaseOrder->reference.($accepted ? ' acceptée.' : ' refusée : '.$data['decline_reason']),
+            'url' => route('brand.suppliers.show', $purchaseOrder->supplier),
+        ]);
+
+        return back()->with('success', $accepted
+            ? 'Merci, commande acceptée ! Déclarez l’expédition ci-dessous lorsque la matière part.'
+            : 'Votre refus a été transmis à '.$purchaseOrder->brand->name.'.');
     }
 
     public function ship(Request $request, PurchaseOrder $purchaseOrder, SupplierTraceabilityService $traceability): RedirectResponse
     {
-        abort_unless($purchaseOrder->acceptsShipment(), 410, 'Cette commande est clôturée.');
+        abort_unless($purchaseOrder->acceptsShipment(), 410, 'Acceptez d’abord la commande.');
         $data = $request->validate([
             'material_id' => 'required|exists:materials,id',
             'quantity_kg' => 'required|numeric|min:0.1|max:9999999',
