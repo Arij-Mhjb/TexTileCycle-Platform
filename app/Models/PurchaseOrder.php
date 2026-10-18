@@ -6,7 +6,6 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Support\Facades\URL;
 
 class PurchaseOrder extends Model
 {
@@ -40,7 +39,7 @@ class PurchaseOrder extends Model
     public function statusLabel(): string
     {
         return [
-            'draft' => 'Brouillon', 'ordered' => 'Commandée', 'sent' => 'En attente de réponse du fournisseur',
+            'draft' => 'Brouillon', 'ordered' => 'En attente de réponse du fournisseur', 'sent' => 'En attente de réponse du fournisseur',
             'accepted' => 'Acceptée par le fournisseur', 'declined' => 'Refusée par le fournisseur',
             'shipped' => 'Expédiée par le fournisseur', 'received' => 'Reçue', 'cancelled' => 'Annulée',
         ][$this->status] ?? str($this->status)->headline();
@@ -62,11 +61,5 @@ class PurchaseOrder extends Model
     public function isOpen(): bool
     {
         return in_array($this->status, ['ordered', 'sent', 'accepted', 'shipped'], true);
-    }
-
-    /** Lien sécurisé (signé, valable 60 jours) envoyé au fournisseur : aucun compte nécessaire. */
-    public function supplierPortalUrl(): string
-    {
-        return URL::temporarySignedRoute('supplier-portal.show', now()->addDays(60), ['purchaseOrder' => $this->id]);
     }
 }
