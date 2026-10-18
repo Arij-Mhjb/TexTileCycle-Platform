@@ -20,7 +20,7 @@ $moduleGroups = [
 @endphp
 @foreach($moduleGroups as $group)
     <div>
-        <p class="mb-2 flex items-center gap-2 px-3 text-[10px] font-bold uppercase tracking-[.18em] text-slate-400"><span class="h-2 w-2 rounded-full {{ $group['dot'] }}"></span>{{ $group['label'] }}</p>
+        <p class="mb-2 flex items-center gap-2 px-3 text-[10px] font-bold text-slate-400"><span class="h-2 w-2 rounded-full {{ $group['dot'] }}"></span>{{ $group['label'] }}</p>
         <div class="space-y-1">
             @foreach($group['items'] as [$route, $pattern, $label, $icon])
                 <a href="{{ route($route) }}" class="group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition {{ request()->routeIs($pattern) ? $group['active'] : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-900 dark:hover:text-white' }}">
