@@ -4,7 +4,6 @@ namespace App\Services\Sms;
 
 use App\Models\SmsMessage;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log;
 use Throwable;
 
 /**
@@ -28,11 +27,15 @@ class SmsService
         return strlen($digits) >= 8 && strlen($digits) <= 15 ? '+'.$digits : null;
     }
 
-    public function send(?string $phone, string $body, ?int $supplierId = null): SmsMessage
+    /**
+     * $storedBody : version enregistrée dans l'historique (ex. mot de passe masqué) ;
+     * le texte complet n'est transmis qu'à l'API SMS.
+     */
+    public function send(?string $phone, string $body, ?int $supplierId = null, ?string $storedBody = null): SmsMessage
     {
         $to = $this->normalize($phone);
         $driver = (string) config('sms.driver', 'log');
-        $message = new SmsMessage(['supplier_id' => $supplierId, 'to' => $to ?? (string) $phone, 'body' => $body, 'driver' => $driver]);
+        $message = new SmsMessage(['supplier_id' => $supplierId, 'to' => $to ?? (string) $phone, 'body' => $storedBody ?? $body, 'driver' => $driver]);
 
         if (! $to) {
             $message->fill(['status' => 'failed', 'error' => 'Numéro de téléphone invalide.'])->save();
@@ -42,10 +45,10 @@ class SmsService
 
         try {
             match ($driver) {
-                'twilio' => $this->sendWithTwilio($message),
-                'smsgate' => $this->sendWithSmsGate($message),
-                'infobip' => $this->sendWithInfobip($message),
-                default => $this->log($message),
+                'twilio' => $this->sendWithTwilio($message, $body),
+                'smsgate' => $this->sendWithSmsGate($message, $body),
+                'infobip' => $this->sendWithInfobip($message, $body),
+                default => $this->log($message, $body),
             };
         } catch (Throwable $exception) {
             $message->fill(['status' => 'failed', 'error' => mb_substr($exception->getMessage(), 0, 500)]);
@@ -55,7 +58,7 @@ class SmsService
         return $message;
     }
 
-    private function sendWithTwilio(SmsMessage $message): void
+    private function sendWithTwilio(SmsMessage $message, string $body): void
     {
         ['sid' => $sid, 'token' => $token, 'from' => $from] = config('sms.twilio');
         if (! $sid || ! $token || ! $from) {
@@ -66,7 +69,7 @@ class SmsService
             ->post("https://api.twilio.com/2010-04-01/Accounts/{$sid}/Messages.json", [
                 'To' => $message->to,
                 'From' => $from,
-                'Body' => $message->body,
+                'Body' => $body,
             ]);
 
         if ($response->failed()) {
@@ -76,7 +79,7 @@ class SmsService
     }
 
     /** API SMS Infobip (POST /sms/2/text/advanced, en-tête « Authorization: App <clé> »). */
-    private function sendWithInfobip(SmsMessage $message): void
+    private function sendWithInfobip(SmsMessage $message, string $body): void
     {
         ['base_url' => $baseUrl, 'api_key' => $apiKey, 'from' => $from] = config('sms.infobip');
         if (! $baseUrl || ! $apiKey) {
@@ -88,7 +91,7 @@ class SmsService
             ->post($baseUrl.'/sms/2/text/advanced', ['messages' => [[
                 'destinations' => [['to' => ltrim($message->to, '+')]],
                 'from' => $from,
-                'text' => $message->body,
+                'text' => $body,
             ]]]);
 
         $status = $response->json('messages.0.status.groupName');
@@ -100,7 +103,7 @@ class SmsService
     }
 
     /** API cloud de l'application Android « SMS Gateway » : le téléphone envoie le SMS avec sa SIM. */
-    private function sendWithSmsGate(SmsMessage $message): void
+    private function sendWithSmsGate(SmsMessage $message, string $body): void
     {
         ['url' => $url, 'username' => $username, 'password' => $password] = config('sms.smsgate');
         if (! $username || ! $password) {
@@ -108,7 +111,7 @@ class SmsService
         }
 
         $response = Http::withBasicAuth($username, $password)->acceptJson()->timeout(20)
-            ->post($url, ['textMessage' => ['text' => $message->body], 'phoneNumbers' => [$message->to]]);
+            ->post($url, ['textMessage' => ['text' => $body], 'phoneNumbers' => [$message->to]]);
 
         if ($response->failed()) {
             throw new \RuntimeException('SMS Gateway : '.($response->json('message') ?? 'erreur HTTP '.$response->status()));
@@ -116,9 +119,10 @@ class SmsService
         $message->fill(['status' => 'sent', 'provider_id' => $response->json('id')]);
     }
 
-    private function log(SmsMessage $message): void
+    /** Mode démo : aucun envoi réel, le SMS complet est écrit dans storage/logs/sms-demo.log (côté serveur uniquement). */
+    private function log(SmsMessage $message, string $body): void
     {
-        Log::info('SMS (mode démo) vers '.$message->to.' : '.$message->body);
+        file_put_contents(storage_path('logs/sms-demo.log'), '['.now()->format('Y-m-d H:i:s').'] À '.$message->to.' : '.$body.PHP_EOL, FILE_APPEND | LOCK_EX);
         $message->fill(['status' => 'logged']);
     }
 }
