@@ -24,7 +24,7 @@
             @forelse($orders as $order)
                 <article class="consumer-card p-6">
                     <div class="flex flex-wrap items-start justify-between gap-3">
-                        <div><p class="text-xs font-black uppercase tracking-wider text-amber-600">{{ $order->reference }}</p><h2 class="mt-1 text-lg font-black">{{ $order->product?->name ?? 'Article' }}</h2><p class="text-sm text-slate-500">{{ $order->decisionLabel() ?? 'En attente de diagnostic' }}@if($order->repairCenter) · {{ $order->repairCenter->name }}@endif</p></div>
+                        <div><p class="text-[13px] font-semibold text-amber-600">{{ $order->reference }}</p><h2 class="mt-1 text-lg font-black">{{ $order->product?->name ?? 'Article' }}</h2><p class="text-sm text-slate-500">{{ $order->decisionLabel() ?? 'En attente de diagnostic' }}@if($order->repairCenter) · {{ $order->repairCenter->name }}@endif</p></div>
                         @include('modules.repair._status', ['order' => $order])
                     </div>
                     <div class="mt-5">@include('modules.repair._timeline', ['order' => $order])</div>

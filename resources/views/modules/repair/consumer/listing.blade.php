@@ -1,7 +1,7 @@
 <x-consumer-layout :title="$listing->title">
     @include('modules.repair.consumer._tabs')
     <div class="grid gap-8 lg:grid-cols-2">
-        <div class="overflow-hidden rounded-3xl bg-amber-50"><img src="{{ $listing->product?->image_url ?? asset('images/story/clothes-sorting.jpg') }}" alt="{{ $listing->title }}" class="h-full max-h-[32rem] w-full object-cover"></div>
+        <div class="overflow-hidden rounded-2xl bg-amber-50"><img src="{{ $listing->product?->image_url ?? asset('images/story/clothes-sorting.jpg') }}" alt="{{ $listing->title }}" class="h-full max-h-[32rem] w-full object-cover"></div>
         <div>
             <x-module.badge tone="repair">{{ $listing->gradeLabel() }} · Grade {{ $listing->condition_grade }}</x-module.badge>
             <h1 class="mt-3 text-3xl font-black tracking-tight">{{ $listing->title }}</h1>
@@ -9,8 +9,8 @@
             <p class="mt-5 text-4xl font-black text-amber-700">{{ number_format((float) $listing->price, 2, ',', ' ') }} <span class="text-lg">{{ $listing->currency }}</span></p>
             @if($listing->description)<p class="mt-5 leading-7 text-slate-600">{{ $listing->description }}</p>@endif
 
-            <div class="mt-6 rounded-3xl border border-amber-200 bg-amber-50/60 p-5 dark:border-amber-900 dark:bg-amber-950/20">
-                <p class="text-xs font-black uppercase tracking-wider text-amber-700">Passeport seconde vie</p>
+            <div class="mt-6 rounded-2xl border border-amber-200 bg-amber-50/60 p-5 dark:border-amber-900 dark:bg-amber-950/20">
+                <p class="text-[13px] font-semibold text-amber-700">Passeport seconde vie</p>
                 <ul class="mt-3 space-y-2 text-sm">
                     @if($listing->product?->materials->isNotEmpty())<li><strong>Composition :</strong> {{ $listing->product->materials->map(fn ($material) => $material->name.($material->pivot->percentage ? ' '.(float) $material->pivot->percentage.' %' : ''))->join(', ') }}</li>@endif
                     @if($listing->repairOrder)<li><strong>Origine :</strong> retour consommateur reconditionné ({{ $listing->repairOrder->reference }})</li>@endif

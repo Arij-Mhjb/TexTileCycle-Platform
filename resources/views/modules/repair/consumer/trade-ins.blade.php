@@ -15,7 +15,7 @@
         <div class="space-y-4 lg:col-span-2">
             @forelse($tradeIns as $tradeIn)
                 <article class="consumer-card flex flex-wrap items-center justify-between gap-4 p-5">
-                    <div><p class="text-xs font-black uppercase tracking-wider text-amber-600">{{ $tradeIn->reference }}</p><h2 class="mt-1 font-black">{{ $tradeIn->itemName() }}</h2><p class="text-sm text-slate-500">{{ \App\Models\TradeInRequest::CONDITIONS[$tradeIn->condition] ?? $tradeIn->condition }}@if($tradeIn->evaluation_note) · {{ $tradeIn->evaluation_note }}@endif</p></div>
+                    <div><p class="text-[13px] font-semibold text-amber-600">{{ $tradeIn->reference }}</p><h2 class="mt-1 font-black">{{ $tradeIn->itemName() }}</h2><p class="text-sm text-slate-500">{{ \App\Models\TradeInRequest::CONDITIONS[$tradeIn->condition] ?? $tradeIn->condition }}@if($tradeIn->evaluation_note) · {{ $tradeIn->evaluation_note }}@endif</p></div>
                     <div class="flex flex-wrap items-center gap-2">
                         @if($tradeIn->proposed_points)<span class="rounded-xl bg-amber-50 px-3 py-2 text-sm font-black text-amber-800">{{ $tradeIn->proposed_points }} pts</span>@endif
                         <x-module.badge :tone="['completed' => 'good', 'declined' => 'bad'][$tradeIn->status] ?? 'repair'">{{ $tradeIn->statusLabel() }}</x-module.badge>
