@@ -8,9 +8,11 @@ use App\Models\Material;
 use App\Models\MaterialOriginCertificate;
 use App\Models\Supplier;
 use App\Models\SupplierBatch;
+use App\Services\SupplierAccountService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class BrandSupplierController extends Controller
@@ -42,18 +44,19 @@ class BrandSupplierController extends Controller
         return view('modules.suppliers.brand.form', ['supplier' => new Supplier(['status' => 'active'])]);
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request, SupplierAccountService $accounts): RedirectResponse
     {
         $brand = $this->brand($request);
         $supplier = $brand->suppliers()->create($this->validated($request, $brand));
+        $redirect = to_route('brand.suppliers.show', $supplier)->with('success', 'Fournisseur ajouté.');
 
-        return to_route('brand.suppliers.show', $supplier)->with('success', 'Fournisseur ajouté. Déclarez maintenant ses lots et certificats.');
+        return $request->boolean('create_access') ? $this->withAccess($redirect, $supplier, $accounts) : $redirect;
     }
 
     public function show(Request $request, Supplier $supplier): View
     {
         $this->authorizeSupplier($request, $supplier);
-        $supplier->load(['purchaseOrders.batches', 'batches.material', 'batches.certificates', 'batches.purchaseOrder', 'batches.productLinks.product']);
+        $supplier->load(['user', 'purchaseOrders.batches', 'batches.material', 'batches.certificates', 'batches.purchaseOrder', 'batches.productLinks.product']);
 
         return view('modules.suppliers.brand.show', [
             'supplier' => $supplier,
@@ -69,12 +72,13 @@ class BrandSupplierController extends Controller
         return view('modules.suppliers.brand.form', ['supplier' => $supplier]);
     }
 
-    public function update(Request $request, Supplier $supplier): RedirectResponse
+    public function update(Request $request, Supplier $supplier, SupplierAccountService $accounts): RedirectResponse
     {
         $brand = $this->authorizeSupplier($request, $supplier);
         $supplier->update($this->validated($request, $brand, $supplier));
+        $redirect = to_route('brand.suppliers.show', $supplier)->with('success', 'Fournisseur mis à jour.');
 
-        return to_route('brand.suppliers.show', $supplier)->with('success', 'Fournisseur mis à jour.');
+        return $request->boolean('create_access') && ! $supplier->user_id ? $this->withAccess($redirect, $supplier, $accounts) : $redirect;
     }
 
     /** Suppression autorisée seulement sans preuve de traçabilité (lot vérifié ou relié à un produit). */
@@ -87,6 +91,28 @@ class BrandSupplierController extends Controller
         $supplier->delete();
 
         return to_route('brand.suppliers.index')->with('success', 'Fournisseur supprimé.');
+    }
+
+    /** Crée l'accès fournisseur ou régénère un mot de passe provisoire. */
+    public function access(Request $request, Supplier $supplier, SupplierAccountService $accounts): RedirectResponse
+    {
+        $this->authorizeSupplier($request, $supplier);
+        abort_if($supplier->isSuspended(), 422, 'Fournisseur suspendu.');
+
+        return $this->withAccess(back(), $supplier, $accounts);
+    }
+
+    /** Les identifiants ne sont affichés qu'une seule fois (session flash). */
+    private function withAccess(RedirectResponse $redirect, Supplier $supplier, SupplierAccountService $accounts): RedirectResponse
+    {
+        try {
+            $credentials = $accounts->grantAccess($supplier);
+        } catch (ValidationException $exception) {
+            return $redirect->withErrors($exception->errors());
+        }
+
+        return $redirect->with('supplier_access', $credentials + ['supplier' => $supplier->name, 'brand' => $supplier->brand->name, 'login_url' => route('login')])
+            ->with('success', $credentials['created'] ? 'Accès fournisseur créé.' : 'Nouveau mot de passe provisoire généré.');
     }
 
     /** Suspendre / réactiver : plus de nouvelles commandes, mais l'historique et les preuves sont conservés. */
