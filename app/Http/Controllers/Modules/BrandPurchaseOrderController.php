@@ -74,9 +74,15 @@ class BrandPurchaseOrderController extends Controller
      */
     public function emailPreview(Request $request, PurchaseOrder $purchaseOrder): Response
     {
-        abort_unless(app()->isLocal(), 404);
+        abort_unless(app()->environment(['local', 'testing']), 404);
         abort_unless($purchaseOrder->brand_id === $request->user()->brand?->id, 403);
 
-        return response((new SupplierPurchaseOrderMail($purchaseOrder))->toMail($purchaseOrder->supplier)->render());
+        // La marque voit le contenu de l'e-mail, mais PAS le lien secret du fournisseur.
+        $html = (string) (new SupplierPurchaseOrderMail($purchaseOrder))->toMail($purchaseOrder->supplier)->render();
+        $html = preg_replace('#https?://[^"\s<]*/fournisseur/commandes/[^"\s<]*#', '#lien-reserve-au-fournisseur', $html);
+        $banner = '<div style="background:#fef3c7;color:#92400e;padding:14px 18px;font:600 14px sans-serif;text-align:center">'
+            .'Aperçu de l’e-mail reçu par '.e($purchaseOrder->supplier->email).'. Le lien sécurisé est masqué : seul le fournisseur peut répondre.</div>';
+
+        return response($banner.$html);
     }
 }
