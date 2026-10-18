@@ -17,14 +17,20 @@
             <div class="rounded-2xl bg-white p-3"><dt class="text-xs font-bold uppercase text-slate-400">Identifiant</dt><dd class="mt-1 break-all text-sm font-semibold">{{ $credentials['email'] }}</dd></div>
             <div class="rounded-2xl bg-white p-3"><dt class="text-xs font-bold uppercase text-slate-400">Mot de passe provisoire</dt><dd class="mt-1 font-mono text-lg font-black tracking-wider">{{ $credentials['password'] }}</dd></div>
         </dl>
-        <p class="mt-3 text-sm text-emerald-900">Transmettez ces identifiants au fournisseur. Il devra choisir son propre mot de passe à la première connexion.</p>
+        @php $sms = $credentials['sms'] ?? null; @endphp
+        @if($sms && $sms['status'] === 'sent')
+            <p class="mt-4 rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-black text-white">📲 SMS envoyé automatiquement au {{ $sms['to'] }} via l’API SMS.</p>
+        @elseif($sms && $sms['status'] === 'logged')
+            <p class="mt-4 rounded-2xl bg-white px-4 py-3 text-sm font-bold text-emerald-900 ring-1 ring-emerald-200">📲 SMS préparé pour {{ $sms['to'] }} (mode démo : SMS_DRIVER=log, aucun envoi réel).</p>
+        @elseif($sms)
+            <p class="mt-4 rounded-2xl bg-rose-50 px-4 py-3 text-sm font-bold text-rose-800 ring-1 ring-rose-200">⚠️ L’envoi du SMS au {{ $sms['to'] }} a échoué : {{ $sms['error'] }} Utilisez WhatsApp ou copiez le message.</p>
+        @endif
+        <p class="mt-3 text-sm text-emerald-900">Il devra choisir son propre mot de passe à la première connexion. Si besoin, renvoyez-les aussi :</p>
         <div class="mt-4 flex flex-wrap gap-2">
             @if($digits)
                 <a href="https://wa.me/{{ $digits }}?text={{ rawurlencode($message) }}" target="_blank" rel="noopener" class="inline-flex items-center gap-2 rounded-xl bg-[#25D366] px-4 py-2.5 text-sm font-black text-white shadow-sm hover:brightness-95">💬 Envoyer par WhatsApp</a>
-                <a href="sms:+{{ $digits }}?body={{ rawurlencode($message) }}" class="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-black text-white shadow-sm lg:hidden">📱 Envoyer par SMS</a>
-                <span class="hidden items-center rounded-xl bg-white px-3 py-2 text-xs font-bold text-slate-500 ring-1 ring-slate-200 lg:inline-flex" title="Un ordinateur ne peut pas envoyer de SMS : ouvrez cette page sur un téléphone ou utilisez WhatsApp">📱 SMS : depuis un téléphone</span>
             @else
-                <p class="rounded-xl bg-white px-3 py-2 text-xs font-bold text-amber-700">Ajoutez le téléphone du fournisseur (Modifier) pour l’envoyer par WhatsApp ou SMS.</p>
+                <p class="rounded-xl bg-white px-3 py-2 text-xs font-bold text-amber-700">Ajoutez le téléphone du fournisseur (Modifier) pour l’envoi automatique par SMS.</p>
             @endif
             <button type="button" class="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-black text-emerald-800 ring-1 ring-emerald-300"
                     @click="navigator.clipboard.writeText(@js($message)); copied = true; setTimeout(() => copied = false, 2000)">
@@ -52,3 +58,17 @@
         </form>
     @endunless
 </section>
+
+@if($supplier->relationLoaded('smsMessages') && $supplier->smsMessages->isNotEmpty())
+    <section class="mb-6 rounded-3xl border border-indigo-100 bg-white p-5 shadow-sm">
+        <p class="text-xs font-black uppercase tracking-wider text-indigo-600">Historique des SMS</p>
+        <ul class="mt-3 divide-y divide-slate-100 text-sm">
+            @foreach($supplier->smsMessages->take(5) as $sms)
+                <li class="flex flex-wrap items-center justify-between gap-2 py-2">
+                    <span class="font-semibold">{{ $sms->to }} <span class="text-xs text-slate-400">· {{ $sms->created_at->format('d/m/Y H:i') }} · {{ $sms->driver }}</span></span>
+                    <x-module.badge :tone="['sent' => 'good', 'logged' => 'neutral', 'failed' => 'bad'][$sms->status] ?? 'neutral'">{{ $sms->statusLabel() }}</x-module.badge>
+                </li>
+            @endforeach
+        </ul>
+    </section>
+@endif
