@@ -24,7 +24,9 @@ use App\Http\Controllers\Modules\ConsumerMarketplaceController;
 use App\Http\Controllers\Modules\ConsumerRepairController;
 use App\Http\Controllers\Modules\ConsumerTradeInController;
 use App\Http\Controllers\Modules\ModuleAiController;
+use App\Http\Controllers\Modules\SupplierAreaController;
 use App\Http\Controllers\Modules\SupplierPortalController;
+use App\Http\Middleware\EnsureSupplierPasswordChanged;
 use Illuminate\Support\Facades\Route;
 
 // Portail fournisseur : sans compte, protégé par une URL signée (lien envoyé par e-mail).
@@ -80,6 +82,18 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/trade-ins/{tradeIn}/complete', [AdminTradeInController::class, 'complete'])->name('trade-ins.complete');
     });
 
+    // Espace du fournisseur connecté (rôle « supplier »). Mot de passe provisoire à changer d'abord.
+    Route::middleware('role:supplier')->prefix('espace-fournisseur')->name('supplier.')->group(function () {
+        Route::get('/mot-de-passe', [SupplierAreaController::class, 'editPassword'])->name('password.edit');
+        Route::put('/mot-de-passe', [SupplierAreaController::class, 'updatePassword'])->name('password.update');
+        Route::middleware(EnsureSupplierPasswordChanged::class)->group(function () {
+            Route::get('/', [SupplierAreaController::class, 'index'])->name('dashboard');
+            Route::get('/commandes/{purchaseOrder}', [SupplierAreaController::class, 'order'])->name('orders.show');
+            Route::post('/commandes/{purchaseOrder}/reponse', [SupplierAreaController::class, 'answerOrder'])->name('orders.answer');
+            Route::post('/commandes/{purchaseOrder}/expedition', [SupplierAreaController::class, 'shipOrder'])->name('orders.ship');
+        });
+    });
+
     Route::middleware('role:brand')->prefix('brand')->name('brand.')->group(function () {
         // 1. Fournisseurs & traçabilité
         Route::resource('suppliers', BrandSupplierController::class);
@@ -88,6 +102,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/purchase-orders/{purchaseOrder}/send', [BrandPurchaseOrderController::class, 'send'])->name('purchase-orders.send');
         Route::get('/purchase-orders/{purchaseOrder}/email', [BrandPurchaseOrderController::class, 'emailPreview'])->name('purchase-orders.email');
         Route::patch('/suppliers/{supplier}/suspend', [BrandSupplierController::class, 'suspend'])->name('suppliers.suspend');
+        Route::post('/suppliers/{supplier}/access', [BrandSupplierController::class, 'access'])->name('suppliers.access');
         Route::post('/suppliers/{supplier}/batches', [BrandSupplierBatchController::class, 'store'])->name('supplier-batches.store');
         Route::delete('/supplier-batches/{batch}', [BrandSupplierBatchController::class, 'destroy'])->name('supplier-batches.destroy');
         Route::post('/supplier-batches/{batch}/certificates', [BrandSupplierBatchController::class, 'certificate'])->name('certificates.store');
