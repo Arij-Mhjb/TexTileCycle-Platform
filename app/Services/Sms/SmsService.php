@@ -44,6 +44,7 @@ class SmsService
             match ($driver) {
                 'twilio' => $this->sendWithTwilio($message),
                 'smsgate' => $this->sendWithSmsGate($message),
+                'infobip' => $this->sendWithInfobip($message),
                 default => $this->log($message),
             };
         } catch (Throwable $exception) {
@@ -72,6 +73,30 @@ class SmsService
             throw new \RuntimeException('Twilio : '.($response->json('message') ?? 'erreur HTTP '.$response->status()));
         }
         $message->fill(['status' => 'sent', 'provider_id' => $response->json('sid')]);
+    }
+
+    /** API SMS Infobip (POST /sms/2/text/advanced, en-tête « Authorization: App <clé> »). */
+    private function sendWithInfobip(SmsMessage $message): void
+    {
+        ['base_url' => $baseUrl, 'api_key' => $apiKey, 'from' => $from] = config('sms.infobip');
+        if (! $baseUrl || ! $apiKey) {
+            throw new \RuntimeException('Infobip n’est pas configuré (INFOBIP_BASE_URL, INFOBIP_API_KEY).');
+        }
+        $baseUrl = str_starts_with($baseUrl, 'http') ? rtrim($baseUrl, '/') : 'https://'.rtrim($baseUrl, '/');
+
+        $response = Http::withHeaders(['Authorization' => 'App '.$apiKey])->acceptJson()->timeout(20)
+            ->post($baseUrl.'/sms/2/text/advanced', ['messages' => [[
+                'destinations' => [['to' => ltrim($message->to, '+')]],
+                'from' => $from,
+                'text' => $message->body,
+            ]]]);
+
+        $status = $response->json('messages.0.status.groupName');
+        if ($response->failed() || in_array($status, ['REJECTED', 'UNDELIVERABLE'], true)) {
+            throw new \RuntimeException('Infobip : '.($response->json('requestError.serviceException.text')
+                ?? $response->json('messages.0.status.description') ?? 'erreur HTTP '.$response->status()));
+        }
+        $message->fill(['status' => 'sent', 'provider_id' => $response->json('messages.0.messageId')]);
     }
 
     /** API cloud de l'application Android « SMS Gateway » : le téléphone envoie le SMS avec sa SIM. */
