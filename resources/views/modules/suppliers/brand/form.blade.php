@@ -24,6 +24,13 @@
             <x-module.field name="address" label="Adresse" :value="$supplier->address"/>
             <div class="md:col-span-2"><x-module.field name="certifications" label="Certifications déclarées" :value="$supplier->certifications" placeholder="GOTS, OEKO-TEX, GRS…"/></div>
             <div class="md:col-span-2"><x-ui.textarea name="notes" label="Notes internes" :value="$supplier->notes" rows="3"/></div>
+            @unless($supplier->user_id)
+                <label class="md:col-span-2 flex items-start gap-3 rounded-2xl border border-indigo-200 bg-indigo-50/60 p-4">
+                    <input type="hidden" name="create_access" value="0">
+                    <input type="checkbox" name="create_access" value="1" @checked(old('create_access', ! $supplier->exists)) class="mt-1 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500">
+                    <span><span class="block text-sm font-black text-indigo-900">Créer un accès fournisseur</span><span class="text-xs text-slate-600">Le fournisseur reçoit un compte TexTileCycle (avec l’e-mail ci-dessus) pour accepter vos commandes et déclarer ses expéditions. Vous pourrez lui envoyer ses identifiants par WhatsApp ou SMS.</span></span>
+                </label>
+            @endunless
         </div>
         <div class="mt-8 flex justify-end gap-3 border-t border-slate-100 pt-6">
             <a href="{{ $supplier->exists ? route('brand.suppliers.show', $supplier) : route('brand.suppliers.index') }}" class="btn-secondary">Annuler</a>
