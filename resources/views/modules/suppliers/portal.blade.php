@@ -53,8 +53,12 @@
             </dl>
         </section>
 
+        @if($readOnly)
+            <div class="mb-6 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-900"><strong>Lecture seule.</strong> Vous êtes connecté à TexTileCycle : seul le fournisseur destinataire de l’e-mail peut accepter, refuser ou déclarer l’expédition.</div>
+        @endif
+
         {{-- Réponse du fournisseur : accepter ou refuser --}}
-        @if($order->awaitsSupplierAnswer())
+        @if($order->awaitsSupplierAnswer() && ! $readOnly)
             <section class="mb-6 rounded-3xl border-2 border-indigo-200 bg-white p-6 shadow-sm" x-data="{ refuse: {{ $errors->has('decline_reason') ? 'true' : 'false' }} }">
                 <h2 class="text-lg font-black">Votre réponse</h2>
                 <p class="mt-1 text-sm text-slate-500">Acceptez-vous cette commande ?</p>
@@ -91,7 +95,7 @@
             </section>
         @endif
 
-        @if($order->acceptsShipment())
+        @if($order->acceptsShipment() && ! $readOnly)
             <form method="POST" action="{{ $shipUrl }}" enctype="multipart/form-data" class="rounded-3xl border border-indigo-100 bg-white p-6 shadow-sm sm:p-8" x-data="{ name: '' }">
                 @csrf
                 <p class="text-xs font-black uppercase tracking-wider text-indigo-600">{{ $order->batches->isEmpty() ? 'Déclarer l’expédition' : 'Déclarer une autre livraison' }}</p>
