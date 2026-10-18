@@ -174,6 +174,49 @@ class CircularModulesAiTest extends TestCase
         $this->post($shipUrl, [])->assertStatus(410);
     }
 
+    public function test_brand_opens_a_supplier_account_and_supplier_answers_from_his_space(): void
+    {
+        $brandUser = User::where('email', 'brand@textilecycle.test')->firstOrFail();
+
+        // La marque crée le fournisseur avec un accès : identifiants affichés une seule fois.
+        $this->actingAs($brandUser)->post(route('brand.suppliers.store'), [
+            'name' => 'Tissage Sahel', 'country' => 'Tunisie', 'status' => 'active', 'email' => 'contact@tissage-sahel.tn',
+            'phone' => '22 123 456', 'create_access' => '1',
+        ])->assertSessionHas('supplier_access.password');
+        $password = session('supplier_access.password');
+        $supplier = Supplier::where('name', 'Tissage Sahel')->firstOrFail();
+        $this->get(route('brand.suppliers.show', $supplier))->assertSee('wa.me/21622123456', false)->assertSee('Envoyer par SMS');
+        $account = $supplier->user;
+        $this->assertSame('supplier', $account->role);
+        $order = $supplier->purchaseOrders()->create(['brand_id' => $supplier->brand_id, 'reference' => 'PO-ACC-1', 'status' => 'ordered', 'ordered_at' => now()]);
+        auth()->logout();
+
+        // Le fournisseur se connecte : mot de passe provisoire à changer d'abord.
+        $this->post('/login', ['email' => 'contact@tissage-sahel.tn', 'password' => $password]);
+        $this->assertAuthenticatedAs($account);
+        $this->get(route('dashboard'))->assertRedirect(route('supplier.dashboard'));
+        $this->get(route('supplier.dashboard'))->assertRedirect(route('supplier.password.edit'));
+        $this->put(route('supplier.password.update'), ['password' => 'Fournisseur2026', 'password_confirmation' => 'Fournisseur2026'])->assertRedirect(route('supplier.dashboard'));
+
+        // Il voit SA commande, l'accepte ; il ne peut pas ouvrir celle d'un autre fournisseur ni l'espace marque.
+        $this->get(route('supplier.dashboard'))->assertOk()->assertSee('PO-ACC-1');
+        $this->post(route('supplier.orders.answer', $order), ['decision' => 'accept'])->assertSessionHasNoErrors();
+        $this->assertSame('accepted', $order->fresh()->status);
+        $other = Supplier::where('name', 'Filature Méditerranée')->firstOrFail()->purchaseOrders()->firstOrFail();
+        $this->get(route('supplier.orders.show', $other))->assertForbidden();
+        $this->get(route('brand.suppliers.index'))->assertForbidden();
+    }
+
+    public function test_supplier_access_cannot_reuse_an_email_of_another_account_type(): void
+    {
+        $brandUser = User::where('email', 'brand@textilecycle.test')->firstOrFail();
+        $supplier = Supplier::where('name', 'Filature Méditerranée')->firstOrFail();
+        $supplier->update(['email' => 'consumer@textilecycle.test']);
+
+        $this->actingAs($brandUser)->post(route('brand.suppliers.access', $supplier))->assertSessionHasErrors('email');
+        $this->assertNull($supplier->fresh()->user_id);
+    }
+
     public function test_supplier_risk_analysis_detects_expired_certificate_without_gemini(): void
     {
         $this->withoutGemini();
