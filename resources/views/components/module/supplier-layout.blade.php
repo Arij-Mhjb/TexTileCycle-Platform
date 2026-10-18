@@ -9,28 +9,31 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     <style>:focus-visible { outline-color: #a855f7; }</style>
 </head>
-<body class="min-h-screen bg-[#faf7fc] text-slate-800">
-    {{-- Bandeau violet-rose propre au module Fournisseurs --}}
-    <header class="relative overflow-hidden bg-gradient-to-r from-[#2a0838] via-purple-800 to-pink-600 text-white">
-        <div class="pointer-events-none absolute inset-0 opacity-[.08]" style="background-image: radial-gradient(#fff 1px, transparent 1px); background-size: 20px 20px;"></div>
-        <div class="relative mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-4 px-6 py-4">
+<body class="min-h-screen bg-[#f8f7f9] text-slate-800">
+    {{-- En-tête de l'espace fournisseur : tissu aubergine, couleur propre au module Fournisseurs --}}
+    <header class="relative text-white" style="background-color:#1d0b24; background-image: repeating-linear-gradient(45deg, rgba(255,255,255,.035) 0 1px, transparent 1px 5px)">
+        <div class="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-4 px-6 py-4">
             <a href="{{ auth()->user()?->role === 'supplier' ? route('supplier.dashboard') : url('/') }}" class="flex items-center gap-3">
-                <span class="grid h-10 w-10 place-items-center rounded-xl bg-white/15 text-xl shadow-[0_3px_0_rgba(0,0,0,.25)] ring-1 ring-white/25" aria-hidden="true">🧵</span>
-                <span class="leading-tight"><span class="block text-base font-black">{{ config('app.name') }}</span><span class="block text-xs font-semibold text-pink-100">Espace fournisseur</span></span>
+                <span class="grid h-9 w-9 grid-cols-3 gap-[3px] rounded-md bg-pink-400/15 p-[7px] ring-1 ring-pink-300/30" aria-hidden="true">
+                    @foreach(range(1, 9) as $i)<span class="rounded-[1px] {{ $i % 2 ? 'bg-pink-300' : 'bg-purple-400/60' }}"></span>@endforeach
+                </span>
+                <span class="leading-tight"><span class="block text-[15px] font-bold">{{ config('app.name') }}</span><span class="block text-xs text-pink-200/80">Espace fournisseur</span></span>
             </a>
             @if(auth()->user()?->role === 'supplier')
-                <nav class="flex flex-wrap items-center gap-1.5 text-sm font-bold" aria-label="Espace fournisseur">
-                    <a href="{{ route('supplier.dashboard') }}" class="rounded-xl px-3 py-2 transition {{ request()->routeIs('supplier.dashboard', 'supplier.orders.*') ? 'bg-white text-purple-800 shadow-[0_3px_0_rgba(0,0,0,.2)]' : 'text-white/85 hover:bg-white/10' }}">Mes commandes</a>
-                    <a href="{{ route('supplier.password.edit') }}" class="rounded-xl px-3 py-2 transition {{ request()->routeIs('supplier.password.*') ? 'bg-white text-purple-800 shadow-[0_3px_0_rgba(0,0,0,.2)]' : 'text-white/85 hover:bg-white/10' }}">Mot de passe</a>
-                    <span class="hidden px-2 text-xs font-semibold text-pink-100/80 md:inline">{{ auth()->user()->email }}</span>
-                    <form method="POST" action="{{ route('logout') }}">@csrf<button class="rounded-xl bg-black/25 px-4 py-2 text-white ring-1 ring-white/20 transition hover:bg-black/35">Déconnexion</button></form>
+                <nav class="flex flex-wrap items-center gap-1 text-sm font-semibold" aria-label="Espace fournisseur">
+                    <a href="{{ route('supplier.dashboard') }}" class="rounded-md px-3 py-2 transition-colors {{ request()->routeIs('supplier.dashboard', 'supplier.orders.*') ? 'bg-white/10 text-white' : 'text-white/70 hover:text-white' }}">Mes commandes</a>
+                    <a href="{{ route('supplier.password.edit') }}" class="rounded-md px-3 py-2 transition-colors {{ request()->routeIs('supplier.password.*') ? 'bg-white/10 text-white' : 'text-white/70 hover:text-white' }}">Mot de passe</a>
+                    <span class="mx-2 hidden h-5 w-px bg-white/15 md:block"></span>
+                    <span class="hidden pr-2 text-xs text-white/50 md:inline">{{ auth()->user()->email }}</span>
+                    <form method="POST" action="{{ route('logout') }}">@csrf<button class="rounded-md px-3 py-2 text-white/70 ring-1 ring-white/15 transition-colors hover:bg-white/10 hover:text-white">Déconnexion</button></form>
                 </nav>
             @endif
         </div>
+        <div class="h-[3px] bg-gradient-to-r from-purple-500 via-pink-400 to-purple-500"></div>
     </header>
     <main class="mx-auto max-w-5xl px-6 py-8">
         @if(session('success'))
-            <div class="mb-6 flex items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-800 shadow-[0_3px_0_#a7f3d0]"><span class="grid h-7 w-7 place-items-center rounded-full bg-emerald-600 text-white">✓</span>{{ session('success') }}</div>
+            <div class="mb-6 flex items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-800"><span class="grid h-7 w-7 place-items-center rounded-full bg-emerald-600 text-white">✓</span>{{ session('success') }}</div>
         @endif
         @if($errors->any())
             <div role="alert" class="mb-6 rounded-2xl border border-rose-200 bg-rose-50 px-5 py-4 text-sm text-rose-800"><ul class="list-inside list-disc">@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>
