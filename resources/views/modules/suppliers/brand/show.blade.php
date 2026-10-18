@@ -41,18 +41,14 @@
                         <div class="flex items-start justify-between gap-2"><p class="font-black">{{ $order->reference }}</p><x-module.badge :tone="['received' => 'good', 'accepted' => 'good', 'cancelled' => 'bad', 'declined' => 'bad', 'shipped' => 'warn', 'sent' => 'warn'][$order->status] ?? 'suppliers'">{{ $order->statusLabel() }}</x-module.badge></div>
                         <p class="mt-1 text-xs text-slate-500">Commandée le {{ $order->ordered_at->format('d/m/Y') }}@if($order->expected_at) · prévue le {{ $order->expected_at->format('d/m/Y') }}@endif @if($order->total_amount) · {{ number_format((float) $order->total_amount, 2, ',', ' ') }} {{ $order->currency }}@endif</p>
                         <ol class="mt-2 space-y-0.5 text-xs text-slate-500">
-                            @if($order->sent_at)<li>✉ Envoyée par e-mail le {{ $order->sent_at->format('d/m/Y H:i') }}</li>@endif
                             @if($order->accepted_at)<li class="font-bold text-emerald-700">✓ Acceptée par le fournisseur le {{ $order->accepted_at->format('d/m/Y H:i') }}</li>@endif
                             @if($order->declined_at)<li class="font-bold text-rose-700">✕ Refusée le {{ $order->declined_at->format('d/m/Y H:i') }} : « {{ $order->decline_reason }} »</li>@endif
                             @if($order->shipped_at)<li class="font-bold text-amber-700">🚚 Expédiée le {{ $order->shipped_at->format('d/m/Y H:i') }} · {{ $order->batches->count() }} lot(s) déclaré(s)</li>@endif
                             @if($order->supplier_note)<li class="italic">« {{ $order->supplier_note }} »</li>@endif
                         </ol>
                         <div class="mt-3 flex flex-wrap gap-2">
-                            @if($order->awaitsSupplierAnswer() && ! $supplier->isSuspended())
-                                <form method="POST" action="{{ route('brand.purchase-orders.send', $order) }}">@csrf<button class="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-bold text-white">✉ {{ $order->sent_at ? 'Renvoyer l’e-mail' : 'Envoyer au fournisseur' }}</button></form>
-                            @endif
-                            @if($order->sent_at && app()->isLocal())
-                                <a href="{{ route('brand.purchase-orders.email', $order) }}" target="_blank" class="rounded-lg px-3 py-1.5 text-xs font-bold text-indigo-700 hover:bg-indigo-50" title="En local, les e-mails ne partent pas : voici celui reçu par le fournisseur">👁 Voir l’e-mail envoyé</a>
+                            @if($order->awaitsSupplierAnswer())
+                                <p class="w-full text-xs font-bold {{ $supplier->user ? 'text-indigo-700' : 'text-amber-700' }}">{{ $supplier->user ? '⏳ Visible dans l’espace du fournisseur : en attente de sa réponse.' : '⚠ Créez l’accès fournisseur pour qu’il puisse répondre à cette commande.' }}</p>
                             @endif
                             @if(in_array($order->status, ['accepted', 'shipped'], true))
                                 <form method="POST" action="{{ route('brand.purchase-orders.update', $order) }}">@csrf @method('PATCH')<input type="hidden" name="status" value="received"><button class="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white">Marquer reçue</button></form>
