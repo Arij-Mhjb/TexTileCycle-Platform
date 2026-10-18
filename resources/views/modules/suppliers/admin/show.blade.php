@@ -16,7 +16,7 @@
             <h2 class="text-lg font-black">Contact</h2>
             <dl class="mt-4 space-y-3 text-sm">
                 @foreach(['Contact' => $supplier->contact_name, 'E-mail' => $supplier->email, 'Téléphone' => $supplier->phone, 'Certifications' => $supplier->certifications, 'Notes' => $supplier->notes] as $label => $value)
-                    <div><dt class="text-xs font-bold uppercase tracking-wider text-slate-400">{{ $label }}</dt><dd class="mt-0.5 text-slate-700">{{ $value ?: '—' }}</dd></div>
+                    <div><dt class="text-[13px] font-bold text-slate-400">{{ $label }}</dt><dd class="mt-0.5 text-slate-700">{{ $value ?: '—' }}</dd></div>
                 @endforeach
             </dl>
         </section>
@@ -25,7 +25,7 @@
                 <article class="panel p-5">
                     <div class="flex flex-wrap items-start justify-between gap-3">
                         <div>
-                            <p class="text-xs font-black uppercase tracking-wider text-purple-600">{{ $batch->material?->name }} · {{ $batch->origin_country }}</p>
+                            <p class="text-[13px] font-semibold text-purple-600">{{ $batch->material?->name }} · {{ $batch->origin_country }}</p>
                             <h3 class="mt-1 text-lg font-black">{{ $batch->batch_code }}</h3>
                             <p class="text-sm text-slate-500">{{ $batch->quantity_kg }} kg · utilisé dans {{ $batch->productLinks->count() }} produit(s)</p>
                         </div>

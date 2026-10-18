@@ -11,7 +11,7 @@
 
     <div class="mb-8 grid gap-6 xl:grid-cols-2">
         <section class="panel p-6">
-            <p class="text-xs font-black uppercase tracking-wider text-purple-600">File de vérification</p>
+            <p class="text-[13px] font-semibold text-purple-600">File de vérification</p>
             <h2 class="mt-1 text-lg font-black">Lots en attente</h2>
             <div class="mt-4 space-y-3">
                 @forelse($pendingBatches as $batch)
@@ -29,7 +29,7 @@
             </div>
         </section>
         <section class="panel p-6">
-            <p class="text-xs font-black uppercase tracking-wider text-purple-600">Preuves de provenance</p>
+            <p class="text-[13px] font-semibold text-purple-600">Preuves de provenance</p>
             <h2 class="mt-1 text-lg font-black">Certificats à contrôler</h2>
             <div class="mt-4 space-y-3">
                 @forelse($pendingCertificates as $certificate)
@@ -53,7 +53,7 @@
         </div>
         <div class="overflow-x-auto">
             <table class="min-w-full">
-                <thead class="bg-slate-50"><tr>@foreach(['Fournisseur', 'Marque', 'Pays', 'Lots', 'À vérifier', 'Conformité', ''] as $heading)<th class="px-5 py-3 text-left text-xs font-bold uppercase tracking-wider text-slate-400">{{ $heading }}</th>@endforeach</tr></thead>
+                <thead class="bg-slate-50"><tr>@foreach(['Fournisseur', 'Marque', 'Pays', 'Lots', 'À vérifier', 'Conformité', ''] as $heading)<th class="px-5 py-3 text-left text-[13px] font-bold text-slate-400">{{ $heading }}</th>@endforeach</tr></thead>
                 <tbody class="divide-y divide-slate-100">
                     @forelse($suppliers as $supplier)
                         <tr>

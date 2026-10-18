@@ -20,7 +20,7 @@
             <article class="panel p-5">
                 <div class="flex items-start justify-between gap-3">
                     <div>
-                        <p class="text-xs font-black uppercase tracking-wider text-slate-400">{{ $link->product->brandProfile?->name ?? $link->product->brand }}</p>
+                        <p class="text-[13px] font-semibold text-slate-400">{{ $link->product->brandProfile?->name ?? $link->product->brand }}</p>
                         <h2 class="mt-1 font-black">{{ $link->product->name }}</h2>
                         <p class="text-sm text-slate-500">Lot {{ $link->batch->batch_code }} · {{ $link->batch->material?->name }} · {{ $link->batch->supplier->name }} ({{ $link->batch->origin_country }})</p>
                     </div>
