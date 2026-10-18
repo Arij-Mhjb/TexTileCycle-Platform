@@ -124,7 +124,7 @@ class BrandSupplierController extends Controller
             'supplier' => $supplier->name,
             'brand' => $supplier->brand->name,
             'login_url' => route('login'),
-            'sms' => $sms ? ['to' => $sms->to, 'status' => $sms->status, 'label' => $sms->statusLabel(), 'error' => $sms->error] : null,
+            'sms' => $sms ? ['to' => $sms->to, 'driver' => $sms->driver, 'status' => $sms->status, 'label' => $sms->statusLabel(), 'error' => $sms->error] : null,
         ])->with('success', $credentials['created'] ? 'Accès fournisseur créé.' : 'Nouveau mot de passe provisoire généré.');
     }
 
