@@ -170,7 +170,8 @@ class CircularModulesAiTest extends TestCase
         ])->assertSessionHas('supplier_access.password');
         $password = session('supplier_access.password');
         $supplier = Supplier::where('name', 'Tissage Sahel')->firstOrFail();
-        $this->get(route('brand.suppliers.show', $supplier))->assertSee('wa.me/21622123456', false)->assertSee('Envoyer par SMS');
+        $this->get(route('brand.suppliers.show', $supplier))->assertSee('wa.me/21622123456', false)->assertSee('Historique des SMS');
+        $this->assertDatabaseHas('sms_messages', ['supplier_id' => $supplier->id, 'to' => '+21622123456', 'status' => 'logged']);
         $account = $supplier->user;
         $this->assertSame('supplier', $account->role);
         $order = $supplier->purchaseOrders()->create(['brand_id' => $supplier->brand_id, 'reference' => 'PO-ACC-1', 'status' => 'ordered', 'ordered_at' => now()]);
@@ -190,6 +191,37 @@ class CircularModulesAiTest extends TestCase
         $other = Supplier::where('name', 'Filature Méditerranée')->firstOrFail()->purchaseOrders()->firstOrFail();
         $this->get(route('supplier.orders.show', $other))->assertForbidden();
         $this->get(route('brand.suppliers.index'))->assertForbidden();
+    }
+
+    public function test_supplier_credentials_are_sent_by_sms_through_the_twilio_api(): void
+    {
+        config(['sms.driver' => 'twilio', 'sms.twilio' => ['sid' => 'ACtest', 'token' => 'secret', 'from' => '+15005550006']]);
+        Http::fake(['api.twilio.com/*' => Http::response(['sid' => 'SM123', 'status' => 'queued'], 201)]);
+        $brandUser = User::where('email', 'brand@textilecycle.test')->firstOrFail();
+        $supplier = Supplier::where('name', 'Filature Méditerranée')->firstOrFail();
+        $supplier->update(['phone' => '0021698765432', 'email' => 'acces@filature.tn']);
+
+        $this->actingAs($brandUser)->post(route('brand.suppliers.access', $supplier))->assertSessionHas('supplier_access.sms.status', 'sent');
+        $password = session('supplier_access.password');
+
+        Http::assertSent(fn ($request) => str_contains($request->url(), 'Accounts/ACtest/Messages.json')
+            && $request['To'] === '+21698765432' && str_contains($request['Body'], $password) && str_contains($request['Body'], 'acces@filature.tn'));
+        $this->assertDatabaseHas('sms_messages', ['supplier_id' => $supplier->id, 'status' => 'sent', 'provider_id' => 'SM123']);
+    }
+
+    public function test_sms_failure_keeps_the_access_and_shows_the_error(): void
+    {
+        config(['sms.driver' => 'twilio', 'sms.twilio' => ['sid' => 'ACtest', 'token' => 'secret', 'from' => '+15005550006']]);
+        Http::fake(['api.twilio.com/*' => Http::response(['message' => 'The number is unverified.'], 400)]);
+        $brandUser = User::where('email', 'brand@textilecycle.test')->firstOrFail();
+        $supplier = Supplier::where('name', 'Filature Méditerranée')->firstOrFail();
+        $supplier->update(['phone' => '98 765 432', 'email' => 'acces@filature.tn']);
+
+        $this->actingAs($brandUser)->post(route('brand.suppliers.access', $supplier))
+            ->assertSessionHas('supplier_access.sms.status', 'failed')->assertSessionHas('supplier_access.password');
+        $this->assertNotNull($supplier->fresh()->user_id);
+        $this->assertDatabaseHas('sms_messages', ['supplier_id' => $supplier->id, 'status' => 'failed', 'error' => 'Twilio : The number is unverified.']);
+        $this->get(route('brand.suppliers.show', $supplier))->assertSee('a échoué', false);
     }
 
     public function test_supplier_access_cannot_reuse_an_email_of_another_account_type(): void
