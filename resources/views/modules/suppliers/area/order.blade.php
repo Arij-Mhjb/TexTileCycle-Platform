@@ -10,7 +10,7 @@
         </x-module.hero>
 
         {{-- Détail complet de la commande --}}
-        <section class="shadow-[0_4px_0_rgba(15,23,42,.06),0_16px_30px_-20px_rgba(15,23,42,.4)] mb-6 rounded-3xl border border-slate-200 bg-white p-6">
+        <section class="shadow-[0_1px_2px_rgba(15,23,42,.05)] mb-6 rounded-2xl border border-slate-200 bg-white p-6">
             <h2 class="text-lg font-black">Détail de la commande</h2>
             <dl class="mt-4 grid gap-4 text-sm sm:grid-cols-2">
                 @foreach([
@@ -23,16 +23,16 @@
                     'Montant' => $order->total_amount ? number_format((float) $order->total_amount, 2, ',', ' ').' '.$order->currency : 'Non précisé',
                     'Certificats attendus' => $order->supplier->certifications ?: 'Certificat de provenance de la matière',
                 ] as $label => $value)
-                    <div class="rounded-2xl bg-slate-50 p-3"><dt class="text-xs font-bold uppercase tracking-wider text-slate-400">{{ $label }}</dt><dd class="mt-1 font-semibold text-slate-800">{{ $value ?: '—' }}</dd></div>
+                    <div class="rounded-2xl bg-slate-50 p-3"><dt class="text-[13px] font-bold text-slate-400">{{ $label }}</dt><dd class="mt-1 font-semibold text-slate-800">{{ $value ?: '—' }}</dd></div>
                 @endforeach
-                @if($order->notes)<div class="rounded-2xl bg-purple-50 p-3 sm:col-span-2"><dt class="text-xs font-bold uppercase tracking-wider text-purple-500">Message du client</dt><dd class="mt-1 text-slate-800">{{ $order->notes }}</dd></div>@endif
+                @if($order->notes)<div class="rounded-2xl bg-purple-50 p-3 sm:col-span-2"><dt class="text-[13px] font-bold text-purple-500">Message du client</dt><dd class="mt-1 text-slate-800">{{ $order->notes }}</dd></div>@endif
             </dl>
         </section>
 
 
         {{-- Réponse du fournisseur : accepter ou refuser --}}
         @if($order->awaitsSupplierAnswer())
-            <section class="shadow-[0_4px_0_rgba(15,23,42,.06),0_16px_30px_-20px_rgba(15,23,42,.4)] mb-6 rounded-3xl border-2 border-purple-200 bg-white p-6" x-data="{ refuse: {{ $errors->has('decline_reason') ? 'true' : 'false' }} }">
+            <section class="shadow-[0_1px_2px_rgba(15,23,42,.05)] mb-6 rounded-2xl border-2 border-purple-200 bg-white p-6" x-data="{ refuse: {{ $errors->has('decline_reason') ? 'true' : 'false' }} }">
                 <h2 class="text-lg font-black">Votre réponse</h2>
                 <p class="mt-1 text-sm text-slate-500">Acceptez-vous cette commande ?</p>
                 <div class="mt-4 flex flex-wrap gap-3" x-show="!refuse">
@@ -47,13 +47,13 @@
                 </form>
             </section>
         @elseif($order->status === 'declined')
-            <section class="mb-6 rounded-3xl border border-rose-200 bg-rose-50 p-6 text-sm text-rose-800"><strong>Commande refusée</strong> le {{ $order->declined_at?->format('d/m/Y') }} : « {{ $order->decline_reason }} »</section>
+            <section class="mb-6 rounded-2xl border border-rose-200 bg-rose-50 p-6 text-sm text-rose-800"><strong>Commande refusée</strong> le {{ $order->declined_at?->format('d/m/Y') }} : « {{ $order->decline_reason }} »</section>
         @elseif($order->accepted_at)
             <p class="mb-6 rounded-2xl bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-800">✓ Commande acceptée le {{ $order->accepted_at->format('d/m/Y à H:i') }}</p>
         @endif
 
         @if($order->batches->isNotEmpty())
-            <section class="shadow-[0_4px_0_rgba(15,23,42,.06),0_16px_30px_-20px_rgba(15,23,42,.4)] mb-6 rounded-3xl border border-slate-200 bg-white p-6">
+            <section class="shadow-[0_1px_2px_rgba(15,23,42,.05)] mb-6 rounded-2xl border border-slate-200 bg-white p-6">
                 <h2 class="text-lg font-black">Expéditions déclarées</h2>
                 <div class="mt-4 space-y-3">
                     @foreach($order->batches as $batch)
@@ -69,9 +69,9 @@
         @endif
 
         @if($order->acceptsShipment())
-            <form method="POST" action="{{ $shipUrl }}" enctype="multipart/form-data" class="shadow-[0_4px_0_rgba(15,23,42,.06),0_16px_30px_-20px_rgba(15,23,42,.4)] rounded-3xl border border-purple-100 bg-white p-6 sm:p-8" x-data="{ name: '' }">
+            <form method="POST" action="{{ $shipUrl }}" enctype="multipart/form-data" class="shadow-[0_1px_2px_rgba(15,23,42,.05)] rounded-2xl border border-purple-100 bg-white p-6 sm:p-8" x-data="{ name: '' }">
                 @csrf
-                <p class="text-xs font-black uppercase tracking-wider text-purple-600">{{ $order->batches->isEmpty() ? 'Déclarer l’expédition' : 'Déclarer une autre livraison' }}</p>
+                <p class="text-[13px] font-semibold text-purple-600">{{ $order->batches->isEmpty() ? 'Déclarer l’expédition' : 'Déclarer une autre livraison' }}</p>
                 <h2 class="mt-1 text-xl font-black">Matière expédiée</h2>
                 <div class="mt-5 grid gap-4 md:grid-cols-2">
                     <x-ui.select name="material_id" label="Matière" :options="$materials->pluck('name', 'id')" required/>
@@ -89,7 +89,7 @@
                 <div class="mt-6 flex justify-end"><x-module.button module="suppliers">Confirmer l’expédition</x-module.button></div>
             </form>
         @elseif(in_array($order->status, ['received', 'cancelled'], true))
-            <div class="rounded-3xl border border-slate-200 bg-white p-6 text-center text-sm font-semibold text-slate-600">Cette commande est {{ strtolower($order->statusLabel()) }} : aucune action n’est nécessaire.</div>
+            <div class="rounded-2xl border border-slate-200 bg-white p-6 text-center text-sm font-semibold text-slate-600">Cette commande est {{ strtolower($order->statusLabel()) }} : aucune action n’est nécessaire.</div>
         @endif
         <p class="mt-6 text-center text-xs text-slate-400">Espace fournisseur sécurisé · TexTileCycle, plateforme de traçabilité textile</p>
 </x-module.supplier-layout>
