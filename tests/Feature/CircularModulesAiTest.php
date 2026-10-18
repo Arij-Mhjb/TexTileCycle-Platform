@@ -9,15 +9,12 @@ use App\Models\RepairOrder;
 use App\Models\Supplier;
 use App\Models\SupplierBatch;
 use App\Models\User;
-use App\Notifications\SupplierPurchaseOrderMail;
 use App\Services\Ai\ImpactAdvisorService;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\URL;
 use Tests\TestCase;
 
 /**
@@ -97,62 +94,52 @@ class CircularModulesAiTest extends TestCase
         $this->actingAs($admin)->get(route('admin.suppliers.index'))->assertSee('Certificat (type non lu)')->assertSee('Voir le document');
     }
 
-    public function test_supplier_receives_signed_link_and_declares_shipment_with_certificate(): void
+    /** Fournisseur « Filature Méditerranée » avec un compte actif (mot de passe déjà choisi). */
+    private function supplierAccount(): array
     {
-        Notification::fake();
-        Storage::fake('local');
-        $brandUser = User::where('email', 'brand@textilecycle.test')->firstOrFail();
         $supplier = Supplier::where('name', 'Filature Méditerranée')->firstOrFail();
+        $account = User::factory()->create(['role' => 'supplier', 'email' => 'compte@filature.tn']);
+        $supplier->update(['user_id' => $account->id]);
+
+        return [$supplier, $account];
+    }
+
+    public function test_supplier_accepts_from_his_space_and_declares_shipment_with_certificate(): void
+    {
+        Storage::fake('local');
+        [$supplier, $account] = $this->supplierAccount();
+        $brandUser = User::where('email', 'brand@textilecycle.test')->firstOrFail();
         $order = $supplier->purchaseOrders()->create(['brand_id' => $supplier->brand_id, 'reference' => 'PO-TEST-1', 'status' => 'ordered', 'ordered_at' => now()]);
 
-        $this->actingAs($brandUser)->post(route('brand.purchase-orders.send', $order))->assertSessionHasNoErrors();
-        Notification::assertSentOnDemand(SupplierPurchaseOrderMail::class);
-        $this->assertSame('sent', $order->fresh()->status);
+        // La marque ne peut pas répondre à la place du fournisseur.
+        $this->actingAs($brandUser)->post(route('supplier.orders.answer', $order), ['decision' => 'accept'])->assertForbidden();
 
-        // L'aperçu de l'e-mail côté marque masque le lien du fournisseur.
-        $this->get(route('brand.purchase-orders.email', $order))->assertOk()->assertSee('lien-reserve-au-fournisseur')->assertDontSee('/fournisseur/commandes/'.$order->id.'?');
-        // La marque connectée ne peut pas répondre à la place du fournisseur, même avec le lien.
-        $this->get($order->supplierPortalUrl())->assertOk()->assertSee('Lecture seule')->assertDontSee('Accepter la commande');
-        $brandAnswer = URL::temporarySignedRoute('supplier-portal.answer', now()->addHour(), ['purchaseOrder' => $order->id]);
-        $this->post($brandAnswer, ['decision' => 'accept'])->assertForbidden();
-        $this->assertSame('sent', $order->fresh()->status);
-
-        // Sans signature : refusé. Avec le lien signé : accessible sans compte.
-        auth()->logout();
-        $this->get('/fournisseur/commandes/'.$order->id)->assertForbidden();
-        $this->get($order->supplierPortalUrl())->assertOk()->assertSee('PO-TEST-1')->assertSee('Accepter la commande')->assertDontSee('Confirmer l’expédition');
-
-        // Le fournisseur accepte la commande depuis la page ouverte par le bouton de l'e-mail.
-        $answerUrl = URL::temporarySignedRoute('supplier-portal.answer', now()->addHour(), ['purchaseOrder' => $order->id]);
-        $this->post($answerUrl, ['decision' => 'accept'])->assertSessionHasNoErrors();
+        $this->actingAs($account)->get(route('supplier.orders.show', $order))->assertOk()->assertSee('Accepter la commande')->assertDontSee('Confirmer l’expédition');
+        $this->post(route('supplier.orders.answer', $order), ['decision' => 'accept'])->assertSessionHasNoErrors();
         $this->assertSame('accepted', $order->fresh()->status);
         $this->assertDatabaseHas('brand_notifications', ['user_id' => $brandUser->id, 'type' => 'supplier_order_accepted']);
-        $this->get($order->supplierPortalUrl())->assertSee('Confirmer l’expédition');
 
         $this->fakeGemini(['is_certificate' => true, 'document_kind' => 'certificat GRS', 'type' => 'GRS', 'certificate_number' => 'CU-GRS-5555', 'issuer' => 'Control Union',
             'issued_at' => '2026-03-01', 'expires_at' => '2027-03-01', 'material' => 'Recycled polyester', 'holder' => 'Filature Méditerranée', 'confidence' => 90]);
-        $shipUrl = URL::temporarySignedRoute('supplier-portal.ship', now()->addHour(), ['purchaseOrder' => $order->id]);
-        $this->post($shipUrl, [
+        $this->post(route('supplier.orders.ship', $order), [
             'material_id' => Material::where('name', 'Polyester recyclé')->value('id'),
             'quantity_kg' => 250, 'origin_country' => 'Tunisie', 'certificate' => UploadedFile::fake()->image('grs.jpg'),
         ])->assertSessionHasNoErrors();
 
         $order->refresh();
         $this->assertSame('shipped', $order->status);
-        $batch = $order->batches()->with('certificates')->firstOrFail();
-        $this->assertSame('CU-GRS-5555', $batch->certificates->first()->certificate_number);
+        $this->assertSame('CU-GRS-5555', $order->batches()->firstOrFail()->certificates()->firstOrFail()->certificate_number);
         $this->assertDatabaseHas('brand_notifications', ['user_id' => $brandUser->id, 'type' => 'supplier_shipment']);
     }
 
-    public function test_supplier_portal_rejects_a_photo_that_is_not_a_certificate(): void
+    public function test_supplier_shipment_rejects_a_photo_that_is_not_a_certificate(): void
     {
         Storage::fake('local');
-        $supplier = Supplier::where('name', 'Filature Méditerranée')->firstOrFail();
+        [$supplier, $account] = $this->supplierAccount();
         $order = $supplier->purchaseOrders()->create(['brand_id' => $supplier->brand_id, 'reference' => 'PO-TEST-2', 'status' => 'accepted', 'ordered_at' => now()]);
         $this->fakeGemini(['is_certificate' => false, 'document_kind' => 'selfie', 'type' => null, 'certificate_number' => null, 'issuer' => null, 'issued_at' => null, 'expires_at' => null, 'material' => null, 'holder' => null, 'confidence' => 99]);
 
-        $shipUrl = URL::temporarySignedRoute('supplier-portal.ship', now()->addHour(), ['purchaseOrder' => $order->id]);
-        $this->post($shipUrl, ['material_id' => Material::value('id'), 'quantity_kg' => 10, 'origin_country' => 'Tunisie', 'certificate' => UploadedFile::fake()->image('selfie.jpg')])
+        $this->actingAs($account)->post(route('supplier.orders.ship', $order), ['material_id' => Material::value('id'), 'quantity_kg' => 10, 'origin_country' => 'Tunisie', 'certificate' => UploadedFile::fake()->image('selfie.jpg')])
             ->assertSessionHasErrors('certificate');
 
         $this->assertSame(0, $order->batches()->count());
@@ -161,17 +148,15 @@ class CircularModulesAiTest extends TestCase
 
     public function test_supplier_can_decline_with_a_reason_and_cannot_ship(): void
     {
-        $supplier = Supplier::where('name', 'Filature Méditerranée')->firstOrFail();
-        $order = $supplier->purchaseOrders()->create(['brand_id' => $supplier->brand_id, 'reference' => 'PO-TEST-3', 'status' => 'sent', 'ordered_at' => now()]);
-        $answerUrl = URL::temporarySignedRoute('supplier-portal.answer', now()->addHour(), ['purchaseOrder' => $order->id]);
+        [$supplier, $account] = $this->supplierAccount();
+        $order = $supplier->purchaseOrders()->create(['brand_id' => $supplier->brand_id, 'reference' => 'PO-TEST-3', 'status' => 'ordered', 'ordered_at' => now()]);
 
-        $this->post($answerUrl, ['decision' => 'decline'])->assertSessionHasErrors('decline_reason');
-        $this->post($answerUrl, ['decision' => 'decline', 'decline_reason' => 'Stock épuisé jusqu’en décembre.'])->assertSessionHasNoErrors();
+        $this->actingAs($account)->post(route('supplier.orders.answer', $order), ['decision' => 'decline'])->assertSessionHasErrors('decline_reason');
+        $this->post(route('supplier.orders.answer', $order), ['decision' => 'decline', 'decline_reason' => 'Stock épuisé jusqu’en décembre.'])->assertSessionHasNoErrors();
 
         $this->assertSame('declined', $order->fresh()->status);
         $this->assertDatabaseHas('brand_notifications', ['type' => 'supplier_order_declined']);
-        $shipUrl = URL::temporarySignedRoute('supplier-portal.ship', now()->addHour(), ['purchaseOrder' => $order->id]);
-        $this->post($shipUrl, [])->assertStatus(410);
+        $this->post(route('supplier.orders.ship', $order), [])->assertStatus(410);
     }
 
     public function test_brand_opens_a_supplier_account_and_supplier_answers_from_his_space(): void
