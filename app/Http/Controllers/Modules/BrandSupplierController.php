@@ -57,7 +57,7 @@ class BrandSupplierController extends Controller
     public function show(Request $request, Supplier $supplier): View
     {
         $this->authorizeSupplier($request, $supplier);
-        $supplier->load(['user', 'smsMessages', 'purchaseOrders.batches', 'batches.material', 'batches.certificates', 'batches.purchaseOrder', 'batches.productLinks.product']);
+        $supplier->load(['user', 'smsMessages', 'purchaseOrders.lines.batches', 'purchaseOrders.lines.material', 'batches.material', 'batches.certificates', 'batches.purchaseOrder', 'batches.productLinks.product']);
 
         return view('modules.suppliers.brand.show', [
             'supplier' => $supplier,
