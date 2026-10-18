@@ -8,6 +8,8 @@ use App\Models\ProductSupplierLink;
 use App\Models\Supplier;
 use App\Models\SupplierBatch;
 use App\Models\User;
+use App\Services\Ai\SupplierAiService;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Str;
 
 /**
@@ -16,6 +18,67 @@ use Illuminate\Support\Str;
  */
 class SupplierTraceabilityService
 {
+    public function __construct(private SupplierAiService $ai) {}
+
+    /**
+     * Ajoute un certificat à partir d'une simple photo : l'IA lit les informations,
+     * le document est conservé et le certificat attend la vérification de l'admin.
+     *
+     * @return array{ok: bool, message: string, certificate?: MaterialOriginCertificate}
+     */
+    public function addCertificateFromPhoto(SupplierBatch $batch, UploadedFile $file): array
+    {
+        $result = $this->ai->extractCertificate($file->getRealPath(), $batch);
+        if (($result['is_certificate'] ?? true) === false) {
+            return ['ok' => false, 'message' => 'L’IA ne reconnaît pas un certificat dans cette image ('.$result['document_kind'].'). Envoyez la photo du certificat GRS, GOTS, RWS, OEKO-TEX…'];
+        }
+
+        $fields = $result['fields'];
+        $certificate = $batch->certificates()->create([
+            'type' => array_key_exists((string) ($fields['type'] ?? ''), MaterialOriginCertificate::TYPES) ? $fields['type'] : null,
+            'certificate_number' => $this->cleanText($fields['certificate_number'] ?? null),
+            'issuer' => $this->cleanText($fields['issuer'] ?? null),
+            'issued_at' => $this->cleanDate($fields['issued_at'] ?? null),
+            'expires_at' => $this->cleanDate($fields['expires_at'] ?? null),
+            'document_path' => $file->store('certificates/'.$batch->id, 'local'),
+            'ai_extraction' => $result,
+            'status' => 'pending',
+        ]);
+        $this->refreshComplianceScore($batch->supplier);
+
+        $read = collect(['type', 'certificate_number', 'issuer', 'issued_at', 'expires_at'])->filter(fn ($key) => filled($fields[$key] ?? null))->count();
+
+        return [
+            'ok' => true,
+            'certificate' => $certificate,
+            'message' => $read > 0
+                ? 'Certificat ajouté : l’IA a lu '.$read.' information(s) sur 5. TexTileCycle va le vérifier.'
+                : 'Certificat ajouté. L’IA n’a pas pu le lire : TexTileCycle le vérifiera directement sur le document.',
+        ];
+    }
+
+    /** Code de lot généré automatiquement : LOT-<3 lettres du fournisseur>-<AAMM>-<n°>, ex. LOT-FIL-2610-003. */
+    public function nextBatchCode(Supplier $supplier): string
+    {
+        $prefix = 'LOT-'.Str::upper(Str::padRight(Str::substr(Str::slug($supplier->name, ''), 0, 3), 3, 'X')).'-'.now()->format('ym').'-';
+        $number = SupplierBatch::where('batch_code', 'like', $prefix.'%')->count() + 1;
+        do {
+            $code = $prefix.str_pad((string) $number++, 3, '0', STR_PAD_LEFT);
+        } while (SupplierBatch::where('batch_code', $code)->exists());
+
+        return $code;
+    }
+
+    private function cleanText(mixed $value): ?string
+    {
+        return is_string($value) && trim($value) !== '' ? mb_substr(trim($value), 0, 150) : null;
+    }
+
+    private function cleanDate(mixed $value): ?string
+    {
+        return is_string($value) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $value) && strtotime($value) ? $value : null;
+    }
+
     /**
      * Compare le lot fournisseur avec la composition déclarée du produit.
      *
