@@ -25,6 +25,7 @@ use App\Http\Controllers\Modules\ConsumerRepairController;
 use App\Http\Controllers\Modules\ConsumerTradeInController;
 use App\Http\Controllers\Modules\ModuleAiController;
 use App\Http\Controllers\Modules\SupplierAreaController;
+use App\Http\Controllers\Modules\SupplierInvitationController;
 use App\Http\Middleware\EnsureSupplierPasswordChanged;
 use Illuminate\Support\Facades\Route;
 
@@ -132,3 +133,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/trade-ins/{tradeIn}/decline', [ConsumerTradeInController::class, 'decline'])->name('trade-ins.decline');
     });
 });
+
+// Activation du compte fournisseur par lien d'invitation : page publique, protégée par le jeton secret et limitée en débit.
+Route::get('/invitation-fournisseur/{token}', [SupplierInvitationController::class, 'show'])->middleware('throttle:30,1')->name('supplier.invitation.show');
+Route::post('/invitation-fournisseur/{token}', [SupplierInvitationController::class, 'accept'])->middleware('throttle:10,1')->name('supplier.invitation.accept');
