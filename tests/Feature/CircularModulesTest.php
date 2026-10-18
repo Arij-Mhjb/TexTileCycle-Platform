@@ -46,7 +46,10 @@ class CircularModulesTest extends TestCase
         $supplier = Supplier::firstOrFail();
         $this->assertSame($brand->id, $supplier->brand_id);
 
-        $this->post(route('brand.purchase-orders.store', $supplier), ['ordered_at' => now()->toDateString()])->assertSessionHasNoErrors();
+        $this->post(route('brand.purchase-orders.store', $supplier), [
+            'ordered_at' => now()->toDateString(), 'lines' => [['material_id' => $cotton->id, 'quantity_kg' => 100, 'unit_price' => 12]],
+        ])->assertSessionHasNoErrors();
+        $this->assertSame(1200.0, (float) $supplier->purchaseOrders()->firstOrFail()->total_amount);
         $this->post(route('brand.supplier-batches.store', $supplier), [
             'material_id' => $cotton->id, 'quantity_kg' => 100, 'origin_country' => 'Tunisie',
         ])->assertSessionHasNoErrors();

@@ -110,6 +110,7 @@ class CircularModulesAiTest extends TestCase
         [$supplier, $account] = $this->supplierAccount();
         $brandUser = User::where('email', 'brand@textilecycle.test')->firstOrFail();
         $order = $supplier->purchaseOrders()->create(['brand_id' => $supplier->brand_id, 'reference' => 'PO-TEST-1', 'status' => 'ordered', 'ordered_at' => now()]);
+        $line = $order->lines()->create(['material_id' => Material::where('name', 'Polyester recyclé')->value('id'), 'quantity_kg' => 250]);
 
         // La marque ne peut pas répondre à la place du fournisseur.
         $this->actingAs($brandUser)->post(route('supplier.orders.answer', $order), ['decision' => 'accept'])->assertForbidden();
@@ -122,7 +123,7 @@ class CircularModulesAiTest extends TestCase
         $this->fakeGemini(['is_certificate' => true, 'document_kind' => 'certificat GRS', 'type' => 'GRS', 'certificate_number' => 'CU-GRS-5555', 'issuer' => 'Control Union',
             'issued_at' => '2026-03-01', 'expires_at' => '2027-03-01', 'material' => 'Recycled polyester', 'holder' => 'Filature Méditerranée', 'confidence' => 90]);
         $this->post(route('supplier.orders.ship', $order), [
-            'material_id' => Material::where('name', 'Polyester recyclé')->value('id'),
+            'purchase_order_line_id' => $line->id,
             'quantity_kg' => 250, 'origin_country' => 'Tunisie', 'certificate' => UploadedFile::fake()->image('grs.jpg'),
         ])->assertSessionHasNoErrors();
 
@@ -137,9 +138,10 @@ class CircularModulesAiTest extends TestCase
         Storage::fake('local');
         [$supplier, $account] = $this->supplierAccount();
         $order = $supplier->purchaseOrders()->create(['brand_id' => $supplier->brand_id, 'reference' => 'PO-TEST-2', 'status' => 'accepted', 'ordered_at' => now()]);
+        $line = $order->lines()->create(['material_id' => Material::value('id'), 'quantity_kg' => 10]);
         $this->fakeGemini(['is_certificate' => false, 'document_kind' => 'selfie', 'type' => null, 'certificate_number' => null, 'issuer' => null, 'issued_at' => null, 'expires_at' => null, 'material' => null, 'holder' => null, 'confidence' => 99]);
 
-        $this->actingAs($account)->post(route('supplier.orders.ship', $order), ['material_id' => Material::value('id'), 'quantity_kg' => 10, 'origin_country' => 'Tunisie', 'certificate' => UploadedFile::fake()->image('selfie.jpg')])
+        $this->actingAs($account)->post(route('supplier.orders.ship', $order), ['purchase_order_line_id' => $line->id, 'quantity_kg' => 10, 'origin_country' => 'Tunisie', 'certificate' => UploadedFile::fake()->image('selfie.jpg')])
             ->assertSessionHasErrors('certificate');
 
         $this->assertSame(0, $order->batches()->count());
@@ -208,14 +210,14 @@ class CircularModulesAiTest extends TestCase
         config(['sms.driver' => 'twilio', 'sms.twilio' => ['sid' => 'ACtest', 'token' => 'secret', 'from' => '+15005550006']]);
         Http::fake(['api.twilio.com/*' => Http::response(['sid' => 'SM123', 'status' => 'queued'], 201)]);
         $brandUser = User::where('email', 'brand@textilecycle.test')->firstOrFail();
-        $supplier = Supplier::where('name', 'Filature Méditerranée')->firstOrFail();
-        $supplier->update(['phone' => '0021698765432', 'email' => 'acces@filature.tn']);
+        $supplier = Supplier::where('name', 'Linificio Nord')->firstOrFail();
+        $supplier->update(['phone' => '0021698765432', 'email' => 'acces@linificio.fr']);
 
         $this->actingAs($brandUser)->post(route('brand.suppliers.access', $supplier))
             ->assertSessionHas('supplier_access.sms.status', 'sent')->assertSessionMissing('supplier_access.password');
 
         Http::assertSent(fn ($request) => str_contains($request->url(), 'Accounts/ACtest/Messages.json')
-            && $request['To'] === '+21698765432' && preg_match('/Mot de passe provisoire : \w{4}-\w{4}-\w{4}$/', $request['Body']) && str_contains($request['Body'], 'acces@filature.tn'));
+            && $request['To'] === '+21698765432' && preg_match('/Mot de passe provisoire : \w{4}-\w{4}-\w{4}$/', $request['Body']) && str_contains($request['Body'], 'acces@linificio.fr'));
         $this->assertDatabaseHas('sms_messages', ['supplier_id' => $supplier->id, 'status' => 'sent', 'provider_id' => 'SM123']);
     }
 
@@ -224,12 +226,12 @@ class CircularModulesAiTest extends TestCase
         config(['sms.driver' => 'smsgate', 'sms.smsgate' => ['url' => 'https://api.sms-gate.app/3rdparty/v1/messages', 'username' => 'demo', 'password' => 'secret']]);
         Http::fake(['api.sms-gate.app/*' => Http::response(['id' => 'msg-42', 'state' => 'Pending'], 202)]);
         $brandUser = User::where('email', 'brand@textilecycle.test')->firstOrFail();
-        $supplier = Supplier::where('name', 'Filature Méditerranée')->firstOrFail();
-        $supplier->update(['phone' => '29 444 051', 'email' => 'acces@filature.tn']);
+        $supplier = Supplier::where('name', 'Linificio Nord')->firstOrFail();
+        $supplier->update(['phone' => '29 444 051', 'email' => 'acces@linificio.fr']);
 
         $this->actingAs($brandUser)->post(route('brand.suppliers.access', $supplier))->assertSessionHas('supplier_access.sms.status', 'sent');
 
-        Http::assertSent(fn ($request) => $request['phoneNumbers'] === ['+21629444051'] && str_contains($request['textMessage']['text'], 'acces@filature.tn'));
+        Http::assertSent(fn ($request) => $request['phoneNumbers'] === ['+21629444051'] && str_contains($request['textMessage']['text'], 'acces@linificio.fr'));
         $this->assertDatabaseHas('sms_messages', ['supplier_id' => $supplier->id, 'driver' => 'smsgate', 'status' => 'sent', 'provider_id' => 'msg-42']);
     }
 
@@ -238,8 +240,8 @@ class CircularModulesAiTest extends TestCase
         config(['sms.driver' => 'infobip', 'sms.infobip' => ['base_url' => 'abc123.api.infobip.com', 'api_key' => 'key', 'from' => 'TexTileCycle']]);
         Http::fake(['abc123.api.infobip.com/*' => Http::response(['messages' => [['messageId' => 'ib-7', 'status' => ['groupName' => 'PENDING']]]], 200)]);
         $brandUser = User::where('email', 'brand@textilecycle.test')->firstOrFail();
-        $supplier = Supplier::where('name', 'Filature Méditerranée')->firstOrFail();
-        $supplier->update(['phone' => '29 444 051', 'email' => 'acces@filature.tn']);
+        $supplier = Supplier::where('name', 'Linificio Nord')->firstOrFail();
+        $supplier->update(['phone' => '29 444 051', 'email' => 'acces@linificio.fr']);
 
         $this->actingAs($brandUser)->post(route('brand.suppliers.access', $supplier))->assertSessionHas('supplier_access.sms.status', 'sent');
 
@@ -253,8 +255,8 @@ class CircularModulesAiTest extends TestCase
         config(['sms.driver' => 'twilio', 'sms.twilio' => ['sid' => 'ACtest', 'token' => 'secret', 'from' => '+15005550006']]);
         Http::fake(['api.twilio.com/*' => Http::response(['message' => 'The number is unverified.'], 400)]);
         $brandUser = User::where('email', 'brand@textilecycle.test')->firstOrFail();
-        $supplier = Supplier::where('name', 'Filature Méditerranée')->firstOrFail();
-        $supplier->update(['phone' => '98 765 432', 'email' => 'acces@filature.tn']);
+        $supplier = Supplier::where('name', 'Linificio Nord')->firstOrFail();
+        $supplier->update(['phone' => '98 765 432', 'email' => 'acces@linificio.fr']);
 
         $this->actingAs($brandUser)->post(route('brand.suppliers.access', $supplier))
             ->assertSessionHas('supplier_access.sms.status', 'failed')->assertSessionMissing('supplier_access.password');
@@ -266,8 +268,8 @@ class CircularModulesAiTest extends TestCase
     public function test_supplier_access_requires_a_phone_number_for_the_sms(): void
     {
         $brandUser = User::where('email', 'brand@textilecycle.test')->firstOrFail();
-        $supplier = Supplier::where('name', 'Filature Méditerranée')->firstOrFail();
-        $supplier->update(['phone' => null, 'email' => 'acces@filature.tn']);
+        $supplier = Supplier::where('name', 'Linificio Nord')->firstOrFail();
+        $supplier->update(['phone' => null, 'email' => 'acces@linificio.fr']);
 
         $this->actingAs($brandUser)->post(route('brand.suppliers.access', $supplier))->assertSessionHasErrors('phone');
         $this->assertNull($supplier->fresh()->user_id);
@@ -276,7 +278,7 @@ class CircularModulesAiTest extends TestCase
     public function test_supplier_access_cannot_reuse_an_email_of_another_account_type(): void
     {
         $brandUser = User::where('email', 'brand@textilecycle.test')->firstOrFail();
-        $supplier = Supplier::where('name', 'Filature Méditerranée')->firstOrFail();
+        $supplier = Supplier::where('name', 'Linificio Nord')->firstOrFail();
         $supplier->update(['email' => 'consumer@textilecycle.test']);
 
         $this->actingAs($brandUser)->post(route('brand.suppliers.access', $supplier))->assertSessionHasErrors('email');
