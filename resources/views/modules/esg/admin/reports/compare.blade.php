@@ -35,7 +35,7 @@
         </div>
         <div class="panel mt-6 overflow-x-auto">
             <table class="min-w-full text-sm">
-                <thead class="bg-slate-50"><tr>@foreach(['Produit', 'Catégorie', 'Classe', 'Score', 'CO₂ / kg', 'Eau / kg', 'Énergie / kg', 'Déchets / kg'] as $heading)<th class="px-5 py-3 text-left text-xs font-bold uppercase tracking-wider text-slate-400">{{ $heading }}</th>@endforeach</tr></thead>
+                <thead class="bg-slate-50"><tr>@foreach(['Produit', 'Catégorie', 'Classe', 'Score', 'CO₂ / kg', 'Eau / kg', 'Énergie / kg', 'Déchets / kg'] as $heading)<th class="px-5 py-3 text-left text-[13px] font-bold text-slate-400">{{ $heading }}</th>@endforeach</tr></thead>
                 <tbody class="divide-y divide-slate-100">
                     @foreach($reports->sortByDesc('impact_score') as $report)
                         <tr>

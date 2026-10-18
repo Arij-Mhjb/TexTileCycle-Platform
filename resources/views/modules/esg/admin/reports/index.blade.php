@@ -13,7 +13,7 @@
     <div class="mb-8 grid gap-6 xl:grid-cols-3">
         <form method="POST" action="{{ route('admin.impact-reports.store') }}" class="panel space-y-4 p-6">
             @csrf
-            <div><p class="text-xs font-black uppercase tracking-wider text-sky-600">Nouveau calcul</p><h2 class="mt-1 text-lg font-black">Générer un rapport produit</h2></div>
+            <div><p class="text-[13px] font-semibold text-sky-600">Nouveau calcul</p><h2 class="mt-1 text-lg font-black">Générer un rapport produit</h2></div>
             <x-ui.select name="product_id" label="Produit" :options="$products->mapWithKeys(fn ($product) => [$product->id => $product->name.' · '.$product->sku])" required/>
             <div class="grid grid-cols-2 gap-3">
                 <x-module.field name="product_weight_kg" type="number" step="0.01" min="0.05" label="Poids (kg)" placeholder="auto"/>
@@ -22,12 +22,12 @@
             <x-module.button module="esg" class="w-full">Calculer l’impact</x-module.button>
         </form>
         <section class="panel p-6">
-            <p class="text-xs font-black uppercase tracking-wider text-sky-600">Répartition</p>
+            <p class="text-[13px] font-semibold text-sky-600">Répartition</p>
             <h2 class="mt-1 text-lg font-black">Classes environnementales</h2>
             <div class="mt-3 h-56"><canvas aria-label="Répartition des classes" data-esg-chart="{{ json_encode(['type' => 'doughnut', 'grades' => true, 'labels' => $grades->keys(), 'datasets' => [['label' => 'Produits', 'data' => $grades->values()]]]) }}"></canvas></div>
         </section>
         <section class="panel p-6">
-            <p class="text-xs font-black uppercase tracking-wider text-sky-600">Par marque</p>
+            <p class="text-[13px] font-semibold text-sky-600">Par marque</p>
             <h2 class="mt-1 text-lg font-black">Score moyen</h2>
             <div class="mt-3 h-56"><canvas aria-label="Score moyen par marque" data-esg-chart="{{ json_encode(['type' => 'bar', 'horizontal' => true, 'labels' => $byBrand->keys(), 'datasets' => [['label' => 'Score', 'data' => $byBrand->values()]]]) }}"></canvas></div>
         </section>
@@ -40,7 +40,7 @@
         </form>
         <div class="overflow-x-auto">
             <table class="min-w-full">
-                <thead class="bg-slate-50"><tr>@foreach(['Produit', 'Classe', 'Score', 'CO₂ (kg)', 'Eau (L)', 'Statut', ''] as $heading)<th class="px-5 py-3 text-left text-xs font-bold uppercase tracking-wider text-slate-400">{{ $heading }}</th>@endforeach</tr></thead>
+                <thead class="bg-slate-50"><tr>@foreach(['Produit', 'Classe', 'Score', 'CO₂ (kg)', 'Eau (L)', 'Statut', ''] as $heading)<th class="px-5 py-3 text-left text-[13px] font-bold text-slate-400">{{ $heading }}</th>@endforeach</tr></thead>
                 <tbody class="divide-y divide-slate-100">
                     @forelse($reports as $report)
                         <tr>

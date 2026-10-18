@@ -13,7 +13,7 @@
 
     <div class="panel overflow-x-auto">
         <table class="min-w-full text-sm">
-            <thead class="bg-slate-50"><tr><th class="px-5 py-3 text-left text-xs font-bold uppercase tracking-wider text-slate-400">Matière</th>@foreach($categories as $category)<th class="px-5 py-3 text-left text-xs font-bold uppercase tracking-wider text-slate-400">{{ $category->name }}<br><span class="normal-case tracking-normal text-slate-300">{{ $category->unit }}/kg</span></th>@endforeach</tr></thead>
+            <thead class="bg-slate-50"><tr><th class="px-5 py-3 text-left text-[13px] font-bold text-slate-400">Matière</th>@foreach($categories as $category)<th class="px-5 py-3 text-left text-[13px] font-bold text-slate-400">{{ $category->name }}<br><span class="normal-case tracking-normal text-slate-300">{{ $category->unit }}/kg</span></th>@endforeach</tr></thead>
             <tbody class="divide-y divide-slate-100">
                 @foreach($materials as $material)
                     <tr>
