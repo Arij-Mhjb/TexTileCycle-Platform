@@ -101,6 +101,25 @@ class CircularModulesTest extends TestCase
         $this->assertSame($supplier->country, $supplier->batches->first()->origin_country);
     }
 
+    public function test_supplier_with_traceability_proofs_can_only_be_suspended(): void
+    {
+        $this->seed(DatabaseSeeder::class);
+        $brandUser = User::where('email', 'brand@textilecycle.test')->firstOrFail();
+        $withProofs = Supplier::where('name', 'Filature Méditerranée')->firstOrFail();
+
+        $this->actingAs($brandUser)->delete(route('brand.suppliers.destroy', $withProofs))->assertSessionHasErrors('supplier');
+        $this->assertDatabaseHas('suppliers', ['id' => $withProofs->id]);
+
+        $this->patch(route('brand.suppliers.suspend', $withProofs))->assertSessionHasNoErrors();
+        $this->assertTrue($withProofs->fresh()->isSuspended());
+        $this->post(route('brand.purchase-orders.store', $withProofs), ['ordered_at' => now()->toDateString()])->assertSessionHasErrors('supplier');
+        $this->assertGreaterThan(0, $withProofs->batches()->count());
+
+        $empty = Supplier::create(['brand_id' => $withProofs->brand_id, 'name' => 'Erreur de saisie', 'country' => 'Tunisie']);
+        $this->delete(route('brand.suppliers.destroy', $empty))->assertRedirect(route('brand.suppliers.index'));
+        $this->assertDatabaseMissing('suppliers', ['id' => $empty->id]);
+    }
+
     public function test_brand_cannot_access_another_brands_supplier(): void
     {
         [$brandUser] = $this->brandWithProduct();
