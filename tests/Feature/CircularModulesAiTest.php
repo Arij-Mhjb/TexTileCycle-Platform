@@ -109,6 +109,14 @@ class CircularModulesAiTest extends TestCase
         Notification::assertSentOnDemand(SupplierPurchaseOrderMail::class);
         $this->assertSame('sent', $order->fresh()->status);
 
+        // L'aperçu de l'e-mail côté marque masque le lien du fournisseur.
+        $this->get(route('brand.purchase-orders.email', $order))->assertOk()->assertSee('lien-reserve-au-fournisseur')->assertDontSee('/fournisseur/commandes/'.$order->id.'?');
+        // La marque connectée ne peut pas répondre à la place du fournisseur, même avec le lien.
+        $this->get($order->supplierPortalUrl())->assertOk()->assertSee('Lecture seule')->assertDontSee('Accepter la commande');
+        $brandAnswer = URL::temporarySignedRoute('supplier-portal.answer', now()->addHour(), ['purchaseOrder' => $order->id]);
+        $this->post($brandAnswer, ['decision' => 'accept'])->assertForbidden();
+        $this->assertSame('sent', $order->fresh()->status);
+
         // Sans signature : refusé. Avec le lien signé : accessible sans compte.
         auth()->logout();
         $this->get('/fournisseur/commandes/'.$order->id)->assertForbidden();
