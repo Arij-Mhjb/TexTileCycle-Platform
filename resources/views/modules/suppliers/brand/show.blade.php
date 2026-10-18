@@ -24,11 +24,11 @@
 
     <div class="grid gap-6 xl:grid-cols-3">
         {{-- Bons de commande --}}
-        <section class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-            <p class="text-xs font-black uppercase tracking-wider text-indigo-600">Achats</p>
+        <section class="shadow-[0_4px_0_rgba(15,23,42,.06),0_16px_30px_-20px_rgba(15,23,42,.4)] rounded-3xl border border-slate-200 bg-white p-6">
+            <p class="text-xs font-black uppercase tracking-wider text-purple-600">Achats</p>
             <h2 class="mt-1 text-xl font-black">Bons de commande</h2>
             @unless($supplier->isSuspended())
-            <form method="POST" action="{{ route('brand.purchase-orders.store', $supplier) }}" class="mt-4 grid gap-3 rounded-2xl bg-indigo-50/60 p-4">
+            <form method="POST" action="{{ route('brand.purchase-orders.store', $supplier) }}" class="mt-4 grid gap-3 rounded-2xl bg-purple-50/60 p-4">
                 @csrf
                 <div class="grid grid-cols-2 gap-3"><x-module.field name="ordered_at" type="date" label="Commandé le" :value="now()->toDateString()" required/><x-module.field name="expected_at" type="date" label="Livraison prévue"/></div>
                 <x-module.field name="total_amount" type="number" step="0.01" min="0" label="Montant (TND)"/>
@@ -48,7 +48,7 @@
                         </ol>
                         <div class="mt-3 flex flex-wrap gap-2">
                             @if($order->awaitsSupplierAnswer())
-                                <p class="w-full text-xs font-bold {{ $supplier->user ? 'text-indigo-700' : 'text-amber-700' }}">{{ $supplier->user ? '⏳ Visible dans l’espace du fournisseur : en attente de sa réponse.' : '⚠ Créez l’accès fournisseur pour qu’il puisse répondre à cette commande.' }}</p>
+                                <p class="w-full text-xs font-bold {{ $supplier->user ? 'text-purple-700' : 'text-amber-700' }}">{{ $supplier->user ? '⏳ Visible dans l’espace du fournisseur : en attente de sa réponse.' : '⚠ Créez l’accès fournisseur pour qu’il puisse répondre à cette commande.' }}</p>
                             @endif
                             @if(in_array($order->status, ['accepted', 'shipped'], true))
                                 <form method="POST" action="{{ route('brand.purchase-orders.update', $order) }}">@csrf @method('PATCH')<input type="hidden" name="status" value="received"><button class="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white">Marquer reçue</button></form>
@@ -65,11 +65,11 @@
         </section>
 
         {{-- Lots --}}
-        <section class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm xl:col-span-2">
-            <p class="text-xs font-black uppercase tracking-wider text-indigo-600">Provenance</p>
+        <section class="shadow-[0_4px_0_rgba(15,23,42,.06),0_16px_30px_-20px_rgba(15,23,42,.4)] rounded-3xl border border-slate-200 bg-white p-6 xl:col-span-2">
+            <p class="text-xs font-black uppercase tracking-wider text-purple-600">Provenance</p>
             <h2 class="mt-1 text-xl font-black">Lots de matières</h2>
             <p class="mt-1 text-sm text-slate-500">Un lot = une livraison de matière reçue de ce fournisseur. Son code est créé automatiquement ; ajoutez ensuite la photo du certificat et reliez le lot aux produits qui l’utilisent.</p>
-            <form method="POST" action="{{ route('brand.supplier-batches.store', $supplier) }}" class="mt-4 grid gap-3 rounded-2xl bg-indigo-50/60 p-4 md:grid-cols-3">
+            <form method="POST" action="{{ route('brand.supplier-batches.store', $supplier) }}" class="mt-4 grid gap-3 rounded-2xl bg-purple-50/60 p-4 md:grid-cols-3">
                 @csrf
                 <x-ui.select name="material_id" label="Matière" :options="$materials->pluck('name', 'id')" required/>
                 <x-module.field name="quantity_kg" type="number" step="0.1" min="0.1" label="Quantité (kg)" required/>
@@ -85,7 +85,7 @@
                     <article class="rounded-2xl border border-slate-200 p-5">
                         <div class="flex flex-wrap items-start justify-between gap-3">
                             <div>
-                                <p class="text-xs font-black uppercase tracking-wider text-indigo-600">{{ $batch->material?->name ?? 'Matière non renseignée' }} · {{ $batch->origin_country }}</p>
+                                <p class="text-xs font-black uppercase tracking-wider text-purple-600">{{ $batch->material?->name ?? 'Matière non renseignée' }} · {{ $batch->origin_country }}</p>
                                 <h3 class="mt-1 text-lg font-black">{{ $batch->batch_code }}</h3>
                                 <p class="text-sm text-slate-500">{{ $batch->quantity_kg }} kg @if($batch->production_date) · produit le {{ $batch->production_date->format('d/m/Y') }}@endif @if($batch->purchaseOrder) · {{ $batch->purchaseOrder->reference }}@endif</p>
                             </div>
@@ -95,7 +95,7 @@
                             </div>
                         </div>
                         @if($batch->verification_note)<p class="mt-3 rounded-xl bg-slate-50 p-3 text-sm text-slate-600">{{ $batch->verification_note }}</p>@endif
-                        @if($batch->productLinks->isNotEmpty())<p class="mt-3 inline-flex rounded-xl bg-indigo-50 px-3 py-2 text-xs font-bold text-indigo-700">Utilisé dans : {{ $batch->productLinks->pluck('product.name')->filter()->join(', ') }}</p>@endif
+                        @if($batch->productLinks->isNotEmpty())<p class="mt-3 inline-flex rounded-xl bg-purple-50 px-3 py-2 text-xs font-bold text-purple-700">Utilisé dans : {{ $batch->productLinks->pluck('product.name')->filter()->join(', ') }}</p>@endif
 
                         <div class="mt-4 grid gap-3 md:grid-cols-2">
                             @foreach($batch->certificates as $certificate)
@@ -104,15 +104,15 @@
 
                             {{-- Ajout d'un certificat : une simple photo, l'IA lit le reste --}}
                             <form method="POST" action="{{ route('brand.certificates.store', $batch) }}" enctype="multipart/form-data" x-data="{ name: '' }"
-                                  class="flex flex-col justify-center gap-3 rounded-2xl border-2 border-dashed border-violet-300 bg-gradient-to-br from-fuchsia-50/60 to-violet-50/60 p-4 text-center">
+                                  class="flex flex-col justify-center gap-3 rounded-2xl border-2 border-dashed border-pink-300 bg-gradient-to-br from-fuchsia-50/60 to-pink-50/60 p-4 text-center">
                                 @csrf
-                                <p class="text-sm font-black text-violet-800">✦ Ajouter un certificat</p>
+                                <p class="text-sm font-black text-pink-800">✦ Ajouter un certificat</p>
                                 <p class="text-xs text-slate-500">Envoyez la photo ou le scan : l’IA lit le type, le numéro, l’organisme et les dates.</p>
-                                <label class="mx-auto cursor-pointer rounded-xl bg-white px-4 py-2 text-xs font-bold text-violet-700 shadow-sm ring-1 ring-violet-200 hover:bg-violet-50">
+                                <label class="mx-auto cursor-pointer rounded-xl bg-white px-4 py-2 text-xs font-bold text-pink-700 shadow-sm ring-1 ring-pink-200 hover:bg-pink-50">
                                     <span x-text="name || 'Choisir la photo du certificat'"></span>
                                     <input type="file" name="document" accept="image/jpeg,image/png,image/webp" required class="sr-only" @change="name = $event.target.files[0]?.name || ''">
                                 </label>
-                                <button class="mx-auto rounded-xl bg-gradient-to-r from-fuchsia-600 to-violet-600 px-4 py-2 text-sm font-black text-white shadow-sm" :disabled="!name" :class="!name && 'opacity-50 cursor-not-allowed'">Envoyer à l’IA</button>
+                                <button class="mx-auto rounded-xl bg-gradient-to-r from-fuchsia-600 to-pink-600 px-4 py-2 text-sm font-black text-white shadow-sm" :disabled="!name" :class="!name && 'opacity-50 cursor-not-allowed'">Envoyer à l’IA</button>
                             </form>
                         </div>
                     </article>

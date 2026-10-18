@@ -20,9 +20,9 @@
     @endif
 @endif
 
-<section class="mb-6 flex flex-wrap items-center justify-between gap-4 rounded-3xl border border-indigo-100 bg-white p-5 shadow-sm">
+<section class="shadow-[0_4px_0_rgba(15,23,42,.06),0_16px_30px_-20px_rgba(15,23,42,.4)] mb-6 flex flex-wrap items-center justify-between gap-4 rounded-3xl border border-purple-100 bg-white p-5">
     <div>
-        <p class="text-xs font-black uppercase tracking-wider text-indigo-600">Accès fournisseur</p>
+        <p class="text-xs font-black uppercase tracking-wider text-purple-600">Accès fournisseur</p>
         @if($supplier->user)
             <p class="mt-1 font-black">✓ Compte actif · {{ $supplier->user->email }}</p>
             <p class="text-xs text-slate-500">{{ $supplier->user->must_change_password ? 'En attente de première connexion (mot de passe provisoire).' : 'Le fournisseur a choisi son mot de passe.' }} Il accepte vos commandes et déclare ses expéditions depuis son espace.</p>
@@ -40,8 +40,8 @@
 </section>
 
 @if($supplier->relationLoaded('smsMessages') && $supplier->smsMessages->isNotEmpty())
-    <section class="mb-6 rounded-3xl border border-indigo-100 bg-white p-5 shadow-sm">
-        <p class="text-xs font-black uppercase tracking-wider text-indigo-600">Historique des SMS</p>
+    <section class="shadow-[0_4px_0_rgba(15,23,42,.06),0_16px_30px_-20px_rgba(15,23,42,.4)] mb-6 rounded-3xl border border-purple-100 bg-white p-5">
+        <p class="text-xs font-black uppercase tracking-wider text-purple-600">Historique des SMS</p>
         <ul class="mt-3 divide-y divide-slate-100 text-sm">
             @foreach($supplier->smsMessages->take(5) as $sms)
                 <li class="flex flex-wrap items-center justify-between gap-2 py-2">
