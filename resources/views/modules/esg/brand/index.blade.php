@@ -10,9 +10,9 @@
     </x-module.hero>
 
     <div class="mb-8 grid gap-6 lg:grid-cols-3">
-        <form method="POST" action="{{ route('brand.impact.store') }}" class="shadow-[0_4px_0_rgba(15,23,42,.06),0_16px_30px_-20px_rgba(15,23,42,.4)] space-y-4 rounded-3xl border border-sky-100 bg-white p-6">
+        <form method="POST" action="{{ route('brand.impact.store') }}" class="shadow-[0_1px_2px_rgba(15,23,42,.05)] space-y-4 rounded-2xl border border-sky-100 bg-white p-6">
             @csrf
-            <div><p class="text-xs font-black uppercase tracking-wider text-sky-600">Calculer</p><h2 class="mt-1 text-lg font-black">Impact d’un produit</h2></div>
+            <div><p class="text-[13px] font-semibold text-sky-600">Calculer</p><h2 class="mt-1 text-lg font-black">Impact d’un produit</h2></div>
             <x-ui.select name="product_id" label="Produit" :options="$products->pluck('name', 'id')" required/>
             <div class="grid grid-cols-2 gap-3">
                 <x-module.field name="product_weight_kg" type="number" step="0.01" min="0.05" label="Poids (kg)" placeholder="auto"/>
@@ -20,20 +20,20 @@
             </div>
             <x-module.button module="esg" class="w-full">Lancer le calcul</x-module.button>
         </form>
-        <section class="shadow-[0_4px_0_rgba(15,23,42,.06),0_16px_30px_-20px_rgba(15,23,42,.4)] rounded-3xl border border-slate-200 bg-white p-6">
-            <p class="text-xs font-black uppercase tracking-wider text-sky-600">Catalogue</p>
+        <section class="shadow-[0_1px_2px_rgba(15,23,42,.05)] rounded-2xl border border-slate-200 bg-white p-6">
+            <p class="text-[13px] font-semibold text-sky-600">Catalogue</p>
             <h2 class="mt-1 text-lg font-black">Classes environnementales</h2>
             <div class="mt-3 h-52"><canvas aria-label="Classes" data-esg-chart="{{ json_encode(['type' => 'doughnut', 'grades' => true, 'labels' => $dashboard['grades']->keys(), 'datasets' => [['label' => 'Produits', 'data' => $dashboard['grades']->values()]]]) }}"></canvas></div>
         </section>
-        <section class="shadow-[0_4px_0_rgba(15,23,42,.06),0_16px_30px_-20px_rgba(15,23,42,.4)] rounded-3xl border border-slate-200 bg-white p-6">
-            <p class="text-xs font-black uppercase tracking-wider text-sky-600">Évolution</p>
+        <section class="shadow-[0_1px_2px_rgba(15,23,42,.05)] rounded-2xl border border-slate-200 bg-white p-6">
+            <p class="text-[13px] font-semibold text-sky-600">Évolution</p>
             <h2 class="mt-1 text-lg font-black">Score moyen par mois</h2>
             <div class="mt-3 h-52"><canvas aria-label="Évolution" data-esg-chart="{{ json_encode(['type' => 'line', 'labels' => $dashboard['trend']->keys(), 'datasets' => [['label' => 'Score', 'data' => $dashboard['trend']->values()]]]) }}"></canvas></div>
         </section>
     </div>
 
     <div class="grid gap-6 lg:grid-cols-3">
-        <section class="shadow-[0_4px_0_rgba(15,23,42,.06),0_16px_30px_-20px_rgba(15,23,42,.4)] rounded-3xl border border-slate-200 bg-white p-6 lg:col-span-2">
+        <section class="shadow-[0_1px_2px_rgba(15,23,42,.05)] rounded-2xl border border-slate-200 bg-white p-6 lg:col-span-2">
             <h2 class="text-lg font-black">Mes produits</h2>
             <div class="mt-4 divide-y divide-slate-100">
                 @forelse($dashboard['latest'] as $report)
@@ -47,7 +47,7 @@
                 @endforelse
             </div>
         </section>
-        <section class="shadow-[0_4px_0_rgba(15,23,42,.06),0_16px_30px_-20px_rgba(15,23,42,.4)] rounded-3xl border border-slate-200 bg-white p-6">
+        <section class="shadow-[0_1px_2px_rgba(15,23,42,.05)] rounded-2xl border border-slate-200 bg-white p-6">
             <h2 class="text-lg font-black">Score par catégorie</h2>
             <div class="mt-4 space-y-3">
                 @forelse($dashboard['byCategory'] as $category => $score)
