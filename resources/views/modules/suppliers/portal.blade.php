@@ -17,9 +17,9 @@
     </header>
 
     <main class="mx-auto max-w-4xl px-6 py-8">
-        <x-module.hero module="suppliers" :eyebrow="'Bon de commande · '.$order->brand->name" :title="$order->reference" :description="'Bonjour '.$order->supplier->name.' : déclarez ici votre expédition et joignez le certificat de provenance de la matière.'">
+        <x-module.hero module="suppliers" :eyebrow="'Bon de commande · '.$order->brand->name" :title="$order->reference" :description="'Bonjour '.$order->supplier->name.', voici le bon de commande de '.$order->brand->name.'. Consultez le détail puis acceptez ou refusez la commande.'">
             <x-slot:stats>
-                <x-module.stat label="Statut" :value="$order->statusLabel()"/>
+                <x-module.stat label="Statut" :value="['ordered' => 'À valider', 'sent' => 'À valider', 'accepted' => 'Acceptée', 'declined' => 'Refusée', 'shipped' => 'Expédiée', 'received' => 'Reçue', 'cancelled' => 'Annulée'][$order->status] ?? $order->statusLabel()"/>
                 <x-module.stat label="Commandée le" :value="$order->ordered_at->format('d/m/Y')"/>
                 <x-module.stat label="Livraison souhaitée" :value="$order->expected_at?->format('d/m/Y') ?? '—'"/>
                 <x-module.stat label="Montant" :value="$order->total_amount ? number_format((float) $order->total_amount, 0, ',', ' ').' '.$order->currency : '—'"/>
@@ -31,6 +31,48 @@
         @endif
         @if($errors->any())
             <div role="alert" class="mb-6 rounded-2xl border border-rose-200 bg-rose-50 px-5 py-4 text-sm text-rose-800"><ul class="list-inside list-disc">@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>
+        @endif
+
+        {{-- Détail complet de la commande --}}
+        <section class="mb-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+            <h2 class="text-lg font-black">Détail de la commande</h2>
+            <dl class="mt-4 grid gap-4 text-sm sm:grid-cols-2">
+                @foreach([
+                    'Client' => $order->brand->name.($order->brand->country ? ' · '.$order->brand->country : ''),
+                    'Contact client' => $order->brand->contact_email ?? $order->brand->user?->email,
+                    'Fournisseur' => $order->supplier->name.' · '.collect([$order->supplier->city, $order->supplier->country])->filter()->join(', '),
+                    'Référence' => $order->reference,
+                    'Date de commande' => $order->ordered_at->format('d/m/Y'),
+                    'Livraison souhaitée' => $order->expected_at?->format('d/m/Y') ?? 'Non précisée',
+                    'Montant' => $order->total_amount ? number_format((float) $order->total_amount, 2, ',', ' ').' '.$order->currency : 'Non précisé',
+                    'Certificats attendus' => $order->supplier->certifications ?: 'Certificat de provenance de la matière',
+                ] as $label => $value)
+                    <div class="rounded-2xl bg-slate-50 p-3"><dt class="text-xs font-bold uppercase tracking-wider text-slate-400">{{ $label }}</dt><dd class="mt-1 font-semibold text-slate-800">{{ $value ?: '—' }}</dd></div>
+                @endforeach
+                @if($order->notes)<div class="rounded-2xl bg-indigo-50 p-3 sm:col-span-2"><dt class="text-xs font-bold uppercase tracking-wider text-indigo-500">Message du client</dt><dd class="mt-1 text-slate-800">{{ $order->notes }}</dd></div>@endif
+            </dl>
+        </section>
+
+        {{-- Réponse du fournisseur : accepter ou refuser --}}
+        @if($order->awaitsSupplierAnswer())
+            <section class="mb-6 rounded-3xl border-2 border-indigo-200 bg-white p-6 shadow-sm" x-data="{ refuse: {{ $errors->has('decline_reason') ? 'true' : 'false' }} }">
+                <h2 class="text-lg font-black">Votre réponse</h2>
+                <p class="mt-1 text-sm text-slate-500">Acceptez-vous cette commande ?</p>
+                <div class="mt-4 flex flex-wrap gap-3" x-show="!refuse">
+                    <form method="POST" action="{{ $answerUrl }}">@csrf<input type="hidden" name="decision" value="accept"><button class="rounded-xl bg-emerald-600 px-6 py-3 text-sm font-black text-white shadow-sm hover:bg-emerald-500">✓ Accepter la commande</button></form>
+                    <button type="button" @click="refuse = true" class="rounded-xl border border-rose-200 bg-rose-50 px-6 py-3 text-sm font-black text-rose-700 hover:bg-rose-100">✕ Refuser</button>
+                </div>
+                <form method="POST" action="{{ $answerUrl }}" x-cloak x-show="refuse" x-transition class="mt-4 space-y-3">
+                    @csrf
+                    <input type="hidden" name="decision" value="decline">
+                    <x-ui.textarea name="decline_reason" label="Raison du refus" rows="3" required/>
+                    <div class="flex gap-3"><button class="rounded-xl bg-rose-600 px-5 py-2.5 text-sm font-black text-white">Confirmer le refus</button><button type="button" @click="refuse = false" class="btn-secondary">Retour</button></div>
+                </form>
+            </section>
+        @elseif($order->status === 'declined')
+            <section class="mb-6 rounded-3xl border border-rose-200 bg-rose-50 p-6 text-sm text-rose-800"><strong>Commande refusée</strong> le {{ $order->declined_at?->format('d/m/Y') }} : « {{ $order->decline_reason }} »</section>
+        @elseif($order->accepted_at)
+            <p class="mb-6 rounded-2xl bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-800">✓ Commande acceptée le {{ $order->accepted_at->format('d/m/Y à H:i') }}</p>
         @endif
 
         @if($order->batches->isNotEmpty())
@@ -69,7 +111,7 @@
                 </div>
                 <div class="mt-6 flex justify-end"><x-module.button module="suppliers">Confirmer l’expédition</x-module.button></div>
             </form>
-        @else
+        @elseif(in_array($order->status, ['received', 'cancelled'], true))
             <div class="rounded-3xl border border-slate-200 bg-white p-6 text-center text-sm font-semibold text-slate-600">Cette commande est {{ strtolower($order->statusLabel()) }} : aucune action n’est nécessaire.</div>
         @endif
         <p class="mt-6 text-center text-xs text-slate-400">Lien sécurisé et personnel · TexTileCycle, plateforme de traçabilité textile</p>
