@@ -104,8 +104,8 @@ class BrandSupplierController extends Controller
     }
 
     /**
-     * Les identifiants ne sont affichés qu'une seule fois (session flash)
-     * et envoyés automatiquement par SMS au numéro du fournisseur (API SMS).
+     * Le mot de passe provisoire n'est jamais montré à la marque :
+     * il est envoyé uniquement par SMS au numéro du fournisseur (l'historique le garde masqué).
      */
     private function withAccess(RedirectResponse $redirect, Supplier $supplier, SupplierAccountService $accounts): RedirectResponse
     {
@@ -115,16 +115,18 @@ class BrandSupplierController extends Controller
             return $redirect->withErrors($exception->errors());
         }
 
-        $sms = null;
-        if ($supplier->phone) {
-            $sms = app(SmsService::class)->send($supplier->phone, $accounts->smsText($supplier, $credentials), $supplier->id);
-        }
+        $sms = app(SmsService::class)->send(
+            $supplier->phone,
+            $accounts->smsText($supplier, $credentials),
+            $supplier->id,
+            $accounts->smsText($supplier, $credentials, masked: true),
+        );
 
-        return $redirect->with('supplier_access', $credentials + [
+        return $redirect->with('supplier_access', [
             'supplier' => $supplier->name,
-            'brand' => $supplier->brand->name,
-            'login_url' => route('login'),
-            'sms' => $sms ? ['to' => $sms->to, 'driver' => $sms->driver, 'status' => $sms->status, 'label' => $sms->statusLabel(), 'error' => $sms->error] : null,
+            'email' => $credentials['email'],
+            'created' => $credentials['created'],
+            'sms' => ['to' => $sms->to, 'driver' => $sms->driver, 'status' => $sms->status, 'error' => $sms->error],
         ])->with('success', $credentials['created'] ? 'Accès fournisseur créé.' : 'Nouveau mot de passe provisoire généré.');
     }
 
