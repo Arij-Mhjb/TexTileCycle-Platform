@@ -1,42 +1,44 @@
 @props(['module' => 'suppliers', 'eyebrow' => null, 'title', 'description' => null])
 @php
 $theme = [
-    'suppliers' => ['bg' => 'from-[#2a0838] via-purple-800 to-pink-600', 'glow' => 'bg-pink-400/40', 'text' => 'text-purple-100', 'chip' => 'bg-white/10 text-pink-100 ring-white/20', 'label' => 'Fournisseurs & traçabilité', 'icon' => '🧵'],
-    'esg' => ['bg' => 'from-sky-950 via-sky-800 to-cyan-600', 'glow' => 'bg-cyan-300/40', 'text' => 'text-sky-50', 'chip' => 'bg-white/10 text-sky-100 ring-white/20', 'label' => 'Impact ESG', 'icon' => '🌍'],
-    'repair' => ['bg' => 'from-amber-950 via-orange-800 to-amber-500', 'glow' => 'bg-amber-300/40', 'text' => 'text-amber-50', 'chip' => 'bg-white/10 text-amber-100 ring-white/20', 'label' => 'Seconde vie', 'icon' => '♻️'],
+    'suppliers' => ['base' => '#1d0b24', 'glow' => 'rgba(219,39,119,.32)', 'accent' => 'text-pink-300', 'rule' => 'bg-pink-400', 'text' => 'text-purple-100/80', 'label' => 'Fournisseurs & traçabilité'],
+    'esg' => ['base' => '#06192a', 'glow' => 'rgba(34,211,238,.26)', 'accent' => 'text-cyan-300', 'rule' => 'bg-cyan-400', 'text' => 'text-sky-100/80', 'label' => 'Impact ESG'],
+    'repair' => ['base' => '#1e1107', 'glow' => 'rgba(245,158,11,.30)', 'accent' => 'text-amber-300', 'rule' => 'bg-amber-400', 'text' => 'text-amber-50/80', 'label' => 'Seconde vie'],
 ][$module];
 @endphp
 @once
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@100..125,500..900&display=swap">
 <style>
-    .mod-scene { perspective: 900px; }
-    .mod-scene__inner { transform: rotateX(var(--rx, 8deg)) rotateY(var(--ry, -14deg)); transform-style: preserve-3d; transition: transform .35s cubic-bezier(.2,.8,.2,1); }
-    .mod-scene__shadow { transform: translateZ(-40px); }
-    .mod-tile { box-shadow: 0 1px 0 rgb(255 255 255 / .25) inset, 0 6px 0 rgb(0 0 0 / .22), 0 18px 30px -12px rgb(0 0 0 / .45); }
-    @media (prefers-reduced-motion: reduce) { .mod-scene__inner { transition: none; } }
+    .mod-display { font-family: 'Archivo', ui-sans-serif, system-ui, sans-serif; font-stretch: 118%; letter-spacing: -.025em; }
+    /* Armure sergé : la texture du tissu, très discrète */
+    .mod-weave { background-image: repeating-linear-gradient(45deg, rgba(255,255,255,.035) 0 1px, transparent 1px 5px), repeating-linear-gradient(-45deg, rgba(0,0,0,.18) 0 1px, transparent 1px 5px); }
+    .mod-thread { stroke-dasharray: 1400; animation: mod-weave-in 2.2s cubic-bezier(.65,0,.35,1) both; }
+    .mod-thread:nth-child(2) { animation-delay: .15s } .mod-thread:nth-child(3) { animation-delay: .3s } .mod-thread:nth-child(4) { animation-delay: .45s } .mod-thread:nth-child(5) { animation-delay: .6s }
+    @keyframes mod-weave-in { from { stroke-dashoffset: 1400; } to { stroke-dashoffset: 0; } }
+    @media (prefers-reduced-motion: reduce) { .mod-thread { animation: none; } }
 </style>
 @endonce
-<section {{ $attributes->merge(['class' => 'relative mb-8 overflow-hidden rounded-[2rem] bg-gradient-to-br p-7 text-white shadow-2xl sm:p-10 '.$theme['bg']]) }}>
-    <div class="pointer-events-none absolute -right-10 top-1/2 h-72 w-72 -translate-y-1/2 rounded-full blur-3xl {{ $theme['glow'] }}"></div>
-    <div class="pointer-events-none absolute inset-0 opacity-[.07]" style="background-image: radial-gradient(#fff 1px, transparent 1px); background-size: 22px 22px;"></div>
-
-    <div class="relative grid items-center gap-8 lg:grid-cols-[minmax(0,1fr)_21rem]">
-        <div class="max-w-3xl">
-            <span class="inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-bold ring-1 backdrop-blur {{ $theme['chip'] }}"><span aria-hidden="true">{{ $theme['icon'] }}</span>{{ $eyebrow ?? $theme['label'] }}</span>
-            <h1 class="mt-4 text-3xl font-black tracking-tight sm:text-[2.6rem] sm:leading-[1.1]">{{ $title }}</h1>
-            @if($description)<p class="mt-3 max-w-2xl text-[15px] leading-7 {{ $theme['text'] }}">{{ $description }}</p>@endif
-            @isset($actions)<div class="mt-6 flex flex-wrap gap-3">{{ $actions }}</div>@endisset
+<section {{ $attributes->merge(['class' => 'relative isolate mb-8 overflow-hidden rounded-2xl text-white shadow-[0_24px_60px_-28px_rgba(0,0,0,.6)]']) }} style="background-color: {{ $theme['base'] }}">
+    <div class="mod-weave absolute inset-0 -z-10"></div>
+    <div class="absolute inset-0 -z-10" style="background: radial-gradient(60% 90% at 88% 10%, {{ $theme['glow'] }}, transparent 70%)"></div>
+    <div class="relative px-7 pb-9 pt-9 sm:px-10 sm:pt-11">
+        <div class="pointer-events-none absolute inset-y-0 right-0 -z-10 hidden w-[48%] md:block" aria-hidden="true">
+            @include('components.module.threads.'.$module)
         </div>
-
-        {{-- Scène 3D isométrique du module : s'incline selon la position de la souris. --}}
-        <div class="mod-scene hidden lg:block" aria-hidden="true"
-             x-data
-             @pointermove="if (!matchMedia('(prefers-reduced-motion: reduce)').matches) { const r = $el.getBoundingClientRect(); $refs.inner.style.setProperty('--ry', ((($event.clientX - r.left) / r.width) - .5) * 30 + 'deg'); $refs.inner.style.setProperty('--rx', (.5 - (($event.clientY - r.top) / r.height)) * 22 + 'deg'); }"
-             @pointerleave="$refs.inner.style.removeProperty('--rx'); $refs.inner.style.removeProperty('--ry')">
-            <div x-ref="inner" class="mod-scene__inner">
-                @include('components.module.scenes.'.$module)
-            </div>
+        <div class="flex items-center gap-3">
+            <span class="h-px w-8 {{ $theme['rule'] }}"></span>
+            <p class="text-sm font-semibold {{ $theme['accent'] }}">{{ $eyebrow ?? $theme['label'] }}</p>
+        </div>
+        <div class="mt-4 max-w-2xl">
+            <h1 class="mod-display text-[2rem] font-extrabold leading-[1.05] sm:text-5xl">{{ $title }}</h1>
+            @if($description)<p class="mt-4 max-w-xl text-[15px] leading-7 {{ $theme['text'] }}">{{ $description }}</p>@endif
+            @isset($actions)<div class="mt-7 flex flex-wrap gap-3">{{ $actions }}</div>@endisset
         </div>
     </div>
 
-    @isset($stats)<div class="relative mt-9 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">{{ $stats }}</div>@endisset
+    @isset($stats)
+        {{-- Registre des chiffres clés : une ligne, des séparateurs fins, pas de cartes. --}}
+        <div class="grid grid-cols-2 border-t border-white/10 bg-black/20 backdrop-blur-sm lg:grid-cols-4 [&>*]:border-white/10 [&>*:nth-child(odd)]:border-r lg:[&>*]:border-r lg:[&>*:last-child]:border-r-0 [&>*:nth-child(-n+2)]:border-b lg:[&>*]:border-b-0">{{ $stats }}</div>
+    @endisset
 </section>
