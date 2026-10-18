@@ -24,8 +24,8 @@
 
     <div class="grid gap-6 xl:grid-cols-3">
         {{-- Bons de commande --}}
-        <section class="shadow-[0_4px_0_rgba(15,23,42,.06),0_16px_30px_-20px_rgba(15,23,42,.4)] rounded-3xl border border-slate-200 bg-white p-6">
-            <p class="text-xs font-black uppercase tracking-wider text-purple-600">Achats</p>
+        <section class="shadow-[0_1px_2px_rgba(15,23,42,.05)] rounded-2xl border border-slate-200 bg-white p-6">
+            <p class="text-[13px] font-semibold text-purple-600">Achats</p>
             <h2 class="mt-1 text-xl font-black">Bons de commande</h2>
             @unless($supplier->isSuspended())
             <form method="POST" action="{{ route('brand.purchase-orders.store', $supplier) }}" class="mt-4 grid gap-3 rounded-2xl bg-purple-50/60 p-4">
@@ -65,8 +65,8 @@
         </section>
 
         {{-- Lots --}}
-        <section class="shadow-[0_4px_0_rgba(15,23,42,.06),0_16px_30px_-20px_rgba(15,23,42,.4)] rounded-3xl border border-slate-200 bg-white p-6 xl:col-span-2">
-            <p class="text-xs font-black uppercase tracking-wider text-purple-600">Provenance</p>
+        <section class="shadow-[0_1px_2px_rgba(15,23,42,.05)] rounded-2xl border border-slate-200 bg-white p-6 xl:col-span-2">
+            <p class="text-[13px] font-semibold text-purple-600">Provenance</p>
             <h2 class="mt-1 text-xl font-black">Lots de matières</h2>
             <p class="mt-1 text-sm text-slate-500">Un lot = une livraison de matière reçue de ce fournisseur. Son code est créé automatiquement ; ajoutez ensuite la photo du certificat et reliez le lot aux produits qui l’utilisent.</p>
             <form method="POST" action="{{ route('brand.supplier-batches.store', $supplier) }}" class="mt-4 grid gap-3 rounded-2xl bg-purple-50/60 p-4 md:grid-cols-3">
@@ -85,7 +85,7 @@
                     <article class="rounded-2xl border border-slate-200 p-5">
                         <div class="flex flex-wrap items-start justify-between gap-3">
                             <div>
-                                <p class="text-xs font-black uppercase tracking-wider text-purple-600">{{ $batch->material?->name ?? 'Matière non renseignée' }} · {{ $batch->origin_country }}</p>
+                                <p class="text-[13px] font-semibold text-purple-600">{{ $batch->material?->name ?? 'Matière non renseignée' }} · {{ $batch->origin_country }}</p>
                                 <h3 class="mt-1 text-lg font-black">{{ $batch->batch_code }}</h3>
                                 <p class="text-sm text-slate-500">{{ $batch->quantity_kg }} kg @if($batch->production_date) · produit le {{ $batch->production_date->format('d/m/Y') }}@endif @if($batch->purchaseOrder) · {{ $batch->purchaseOrder->reference }}@endif</p>
                             </div>

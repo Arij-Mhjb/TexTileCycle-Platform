@@ -10,7 +10,7 @@
     @endif
 
     {{-- novalidate : la validation est faite côté serveur (validate()) et les messages s'affichent via @error --}}
-    <form method="POST" novalidate action="{{ $supplier->exists ? route('brand.suppliers.update', $supplier) : route('brand.suppliers.store') }}" class="shadow-[0_4px_0_rgba(15,23,42,.06),0_16px_30px_-20px_rgba(15,23,42,.4)] rounded-3xl border border-slate-200 bg-white p-6 sm:p-8">
+    <form method="POST" novalidate action="{{ $supplier->exists ? route('brand.suppliers.update', $supplier) : route('brand.suppliers.store') }}" class="shadow-[0_1px_2px_rgba(15,23,42,.05)] rounded-2xl border border-slate-200 bg-white p-6 sm:p-8">
         @csrf
         @if($supplier->exists) @method('PUT') @endif
         <div class="grid gap-5 md:grid-cols-2">

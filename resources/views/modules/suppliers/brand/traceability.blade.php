@@ -9,7 +9,7 @@
     </x-module.hero>
     @include('modules.suppliers.brand._tabs')
 
-    <form method="POST" action="{{ route('brand.traceability.store') }}" class="shadow-[0_4px_0_rgba(15,23,42,.06),0_16px_30px_-20px_rgba(15,23,42,.4)] mb-8 grid gap-4 rounded-3xl border border-purple-100 bg-white p-6 md:grid-cols-5">
+    <form method="POST" action="{{ route('brand.traceability.store') }}" class="shadow-[0_1px_2px_rgba(15,23,42,.05)] mb-8 grid gap-4 rounded-2xl border border-purple-100 bg-white p-6 md:grid-cols-5">
         @csrf
         <div class="md:col-span-2"><x-ui.select name="product_id" label="Produit" :options="$products->pluck('name', 'id')" required/></div>
         <div class="md:col-span-2"><x-ui.select name="supplier_batch_id" label="Lot fournisseur" :options="$batches->mapWithKeys(fn ($batch) => [$batch->id => $batch->batch_code.' · '.($batch->material?->name ?? '?').' · '.$batch->supplier->name.' ('.$batch->statusLabel().')'])" required/></div>
@@ -20,10 +20,10 @@
 
     <div class="space-y-5">
         @forelse($products as $product)
-            <article class="shadow-[0_4px_0_rgba(15,23,42,.06),0_16px_30px_-20px_rgba(15,23,42,.4)] rounded-3xl border border-slate-200 bg-white p-6">
+            <article class="shadow-[0_1px_2px_rgba(15,23,42,.05)] rounded-2xl border border-slate-200 bg-white p-6">
                 <div class="flex flex-wrap items-start justify-between gap-4">
                     <div>
-                        <p class="text-xs font-black uppercase tracking-wider text-slate-400">{{ $product->category }} · {{ $product->sku }}</p>
+                        <p class="text-[13px] font-semibold text-slate-400">{{ $product->category }} · {{ $product->sku }}</p>
                         <h2 class="mt-1 text-xl font-black">{{ $product->name }}</h2>
                         <p class="mt-1 text-sm text-slate-500">Composition déclarée :
                             @forelse($product->materials as $material){{ $material->name }}@if($material->pivot->percentage) {{ (float) $material->pivot->percentage }} %@endif @if($material->pivot->origin_country)({{ $material->pivot->origin_country }})@endif{{ $loop->last ? '' : ', ' }}@empty non renseignée @endforelse
