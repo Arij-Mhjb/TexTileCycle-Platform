@@ -27,6 +27,7 @@ class SupplierPortalController extends Controller
             'order' => $purchaseOrder,
             // Un utilisateur connecté (marque, admin…) n'est pas le fournisseur : lecture seule.
             'readOnly' => auth()->check(),
+            'account' => false,
             'materials' => Material::orderBy('name')->get(),
             // URL d'envoi signée elle aussi, pour que le formulaire reste protégé.
             'shipUrl' => URL::temporarySignedRoute('supplier-portal.ship', now()->addHours(12), ['purchaseOrder' => $purchaseOrder->id]),
@@ -38,6 +39,20 @@ class SupplierPortalController extends Controller
     public function answer(Request $request, PurchaseOrder $purchaseOrder): RedirectResponse
     {
         $this->ensureSupplier();
+
+        return $this->processAnswer($request, $purchaseOrder);
+    }
+
+    public function ship(Request $request, PurchaseOrder $purchaseOrder, SupplierTraceabilityService $traceability): RedirectResponse
+    {
+        $this->ensureSupplier();
+
+        return $this->processShipment($request, $purchaseOrder, $traceability);
+    }
+
+    /** Logique commune (lien signé ou compte fournisseur) : accepter / refuser. */
+    protected function processAnswer(Request $request, PurchaseOrder $purchaseOrder): RedirectResponse
+    {
         abort_unless($purchaseOrder->awaitsSupplierAnswer() && ! $purchaseOrder->supplier->isSuspended(), 410, 'Cette commande a déjà reçu une réponse.');
         $data = $request->validate([
             'decision' => 'required|in:accept,decline',
@@ -62,9 +77,9 @@ class SupplierPortalController extends Controller
             : 'Votre refus a été transmis à '.$purchaseOrder->brand->name.'.');
     }
 
-    public function ship(Request $request, PurchaseOrder $purchaseOrder, SupplierTraceabilityService $traceability): RedirectResponse
+    /** Logique commune (lien signé ou compte fournisseur) : déclarer une expédition. */
+    protected function processShipment(Request $request, PurchaseOrder $purchaseOrder, SupplierTraceabilityService $traceability): RedirectResponse
     {
-        $this->ensureSupplier();
         abort_unless($purchaseOrder->acceptsShipment(), 410, 'Acceptez d’abord la commande.');
         $data = $request->validate([
             'material_id' => 'required|exists:materials,id',
