@@ -42,6 +42,17 @@ class Supplier extends Model
         return $this->hasManyThrough(MaterialOriginCertificate::class, SupplierBatch::class);
     }
 
+    /** On ne supprime jamais une preuve : suppression seulement sans lot vérifié ni relié à un produit. */
+    public function canBeDeleted(): bool
+    {
+        return ! $this->batches()->where(fn ($query) => $query->where('status', 'verified')->orWhereHas('productLinks'))->exists();
+    }
+
+    public function isSuspended(): bool
+    {
+        return $this->status === 'suspended';
+    }
+
     public function statusLabel(): string
     {
         return ['active' => 'Actif', 'under_review' => 'En revue', 'suspended' => 'Suspendu'][$this->status] ?? str($this->status)->headline();
