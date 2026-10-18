@@ -10,8 +10,8 @@
     @include('modules.repair.admin._tabs')
 
     @if($eligibleReturns->isNotEmpty())
-        <section class="mb-8 rounded-3xl border border-amber-200 bg-amber-50/60 p-6 dark:border-amber-900 dark:bg-amber-950/20">
-            <p class="text-xs font-black uppercase tracking-wider text-amber-700">Décision de seconde vie</p>
+        <section class="mb-8 rounded-2xl border border-amber-200 bg-amber-50/60 p-6 dark:border-amber-900 dark:bg-amber-950/20">
+            <p class="text-[13px] font-semibold text-amber-700">Décision de seconde vie</p>
             <h2 class="mt-1 text-lg font-black">Retours en bon état à orienter</h2>
             <div class="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
                 @foreach($eligibleReturns as $return)
@@ -38,7 +38,7 @@
 
     <div class="panel overflow-x-auto">
         <table class="min-w-full">
-            <thead class="bg-slate-50"><tr>@foreach(['Référence', 'Article', 'Consommateur', 'Décision', 'Centre', 'État', ''] as $heading)<th class="px-5 py-3 text-left text-xs font-bold uppercase tracking-wider text-slate-400">{{ $heading }}</th>@endforeach</tr></thead>
+            <thead class="bg-slate-50"><tr>@foreach(['Référence', 'Article', 'Consommateur', 'Décision', 'Centre', 'État', ''] as $heading)<th class="px-5 py-3 text-left text-[13px] font-bold text-slate-400">{{ $heading }}</th>@endforeach</tr></thead>
             <tbody class="divide-y divide-slate-100">
                 @forelse($orders as $order)
                     <tr>

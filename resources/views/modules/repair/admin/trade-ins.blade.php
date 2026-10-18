@@ -12,7 +12,7 @@
         @forelse($tradeIns as $tradeIn)
             <article class="panel flex flex-wrap items-center justify-between gap-4 p-5">
                 <div class="min-w-0">
-                    <p class="text-xs font-black uppercase tracking-wider text-amber-600">{{ $tradeIn->reference }} · {{ \App\Models\TradeInRequest::CONDITIONS[$tradeIn->condition] ?? $tradeIn->condition }}</p>
+                    <p class="text-[13px] font-semibold text-amber-600">{{ $tradeIn->reference }} · {{ \App\Models\TradeInRequest::CONDITIONS[$tradeIn->condition] ?? $tradeIn->condition }}</p>
                     <h2 class="mt-1 font-black">{{ $tradeIn->itemName() }} <span class="text-sm font-semibold text-slate-500">· {{ $tradeIn->consumer->name }}</span></h2>
                     @if($tradeIn->description)<p class="text-sm text-slate-500">{{ $tradeIn->description }}</p>@endif
                     @if($tradeIn->proposed_points)<p class="mt-1 text-xs text-slate-500">Offre : <strong>{{ $tradeIn->proposed_points }} points</strong> @if($tradeIn->evaluation_note)· {{ $tradeIn->evaluation_note }}@endif</p>@endif
