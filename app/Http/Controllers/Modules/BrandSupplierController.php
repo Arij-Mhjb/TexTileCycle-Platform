@@ -8,6 +8,7 @@ use App\Models\Material;
 use App\Models\MaterialOriginCertificate;
 use App\Models\Supplier;
 use App\Models\SupplierBatch;
+use App\Services\Sms\SmsService;
 use App\Services\SupplierAccountService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -56,7 +57,7 @@ class BrandSupplierController extends Controller
     public function show(Request $request, Supplier $supplier): View
     {
         $this->authorizeSupplier($request, $supplier);
-        $supplier->load(['user', 'purchaseOrders.batches', 'batches.material', 'batches.certificates', 'batches.purchaseOrder', 'batches.productLinks.product']);
+        $supplier->load(['user', 'smsMessages', 'purchaseOrders.batches', 'batches.material', 'batches.certificates', 'batches.purchaseOrder', 'batches.productLinks.product']);
 
         return view('modules.suppliers.brand.show', [
             'supplier' => $supplier,
@@ -102,7 +103,10 @@ class BrandSupplierController extends Controller
         return $this->withAccess(back(), $supplier, $accounts);
     }
 
-    /** Les identifiants ne sont affichés qu'une seule fois (session flash). */
+    /**
+     * Les identifiants ne sont affichés qu'une seule fois (session flash)
+     * et envoyés automatiquement par SMS au numéro du fournisseur (API SMS).
+     */
     private function withAccess(RedirectResponse $redirect, Supplier $supplier, SupplierAccountService $accounts): RedirectResponse
     {
         try {
@@ -111,8 +115,17 @@ class BrandSupplierController extends Controller
             return $redirect->withErrors($exception->errors());
         }
 
-        return $redirect->with('supplier_access', $credentials + ['supplier' => $supplier->name, 'brand' => $supplier->brand->name, 'login_url' => route('login')])
-            ->with('success', $credentials['created'] ? 'Accès fournisseur créé.' : 'Nouveau mot de passe provisoire généré.');
+        $sms = null;
+        if ($supplier->phone) {
+            $sms = app(SmsService::class)->send($supplier->phone, $accounts->smsText($supplier, $credentials), $supplier->id);
+        }
+
+        return $redirect->with('supplier_access', $credentials + [
+            'supplier' => $supplier->name,
+            'brand' => $supplier->brand->name,
+            'login_url' => route('login'),
+            'sms' => $sms ? ['to' => $sms->to, 'status' => $sms->status, 'label' => $sms->statusLabel(), 'error' => $sms->error] : null,
+        ])->with('success', $credentials['created'] ? 'Accès fournisseur créé.' : 'Nouveau mot de passe provisoire généré.');
     }
 
     /** Suspendre / réactiver : plus de nouvelles commandes, mais l'historique et les preuves sont conservés. */
