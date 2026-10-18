@@ -112,7 +112,14 @@ class CircularModulesAiTest extends TestCase
         // Sans signature : refusé. Avec le lien signé : accessible sans compte.
         auth()->logout();
         $this->get('/fournisseur/commandes/'.$order->id)->assertForbidden();
-        $this->get($order->supplierPortalUrl())->assertOk()->assertSee('PO-TEST-1')->assertSee('Confirmer l’expédition');
+        $this->get($order->supplierPortalUrl())->assertOk()->assertSee('PO-TEST-1')->assertSee('Accepter la commande')->assertDontSee('Confirmer l’expédition');
+
+        // Le fournisseur accepte la commande depuis la page ouverte par le bouton de l'e-mail.
+        $answerUrl = URL::temporarySignedRoute('supplier-portal.answer', now()->addHour(), ['purchaseOrder' => $order->id]);
+        $this->post($answerUrl, ['decision' => 'accept'])->assertSessionHasNoErrors();
+        $this->assertSame('accepted', $order->fresh()->status);
+        $this->assertDatabaseHas('brand_notifications', ['user_id' => $brandUser->id, 'type' => 'supplier_order_accepted']);
+        $this->get($order->supplierPortalUrl())->assertSee('Confirmer l’expédition');
 
         $this->fakeGemini(['is_certificate' => true, 'document_kind' => 'certificat GRS', 'type' => 'GRS', 'certificate_number' => 'CU-GRS-5555', 'issuer' => 'Control Union',
             'issued_at' => '2026-03-01', 'expires_at' => '2027-03-01', 'material' => 'Recycled polyester', 'holder' => 'Filature Méditerranée', 'confidence' => 90]);
@@ -133,7 +140,7 @@ class CircularModulesAiTest extends TestCase
     {
         Storage::fake('local');
         $supplier = Supplier::where('name', 'Filature Méditerranée')->firstOrFail();
-        $order = $supplier->purchaseOrders()->create(['brand_id' => $supplier->brand_id, 'reference' => 'PO-TEST-2', 'status' => 'sent', 'ordered_at' => now()]);
+        $order = $supplier->purchaseOrders()->create(['brand_id' => $supplier->brand_id, 'reference' => 'PO-TEST-2', 'status' => 'accepted', 'ordered_at' => now()]);
         $this->fakeGemini(['is_certificate' => false, 'document_kind' => 'selfie', 'type' => null, 'certificate_number' => null, 'issuer' => null, 'issued_at' => null, 'expires_at' => null, 'material' => null, 'holder' => null, 'confidence' => 99]);
 
         $shipUrl = URL::temporarySignedRoute('supplier-portal.ship', now()->addHour(), ['purchaseOrder' => $order->id]);
@@ -141,7 +148,22 @@ class CircularModulesAiTest extends TestCase
             ->assertSessionHasErrors('certificate');
 
         $this->assertSame(0, $order->batches()->count());
-        $this->assertSame('sent', $order->fresh()->status);
+        $this->assertSame('accepted', $order->fresh()->status);
+    }
+
+    public function test_supplier_can_decline_with_a_reason_and_cannot_ship(): void
+    {
+        $supplier = Supplier::where('name', 'Filature Méditerranée')->firstOrFail();
+        $order = $supplier->purchaseOrders()->create(['brand_id' => $supplier->brand_id, 'reference' => 'PO-TEST-3', 'status' => 'sent', 'ordered_at' => now()]);
+        $answerUrl = URL::temporarySignedRoute('supplier-portal.answer', now()->addHour(), ['purchaseOrder' => $order->id]);
+
+        $this->post($answerUrl, ['decision' => 'decline'])->assertSessionHasErrors('decline_reason');
+        $this->post($answerUrl, ['decision' => 'decline', 'decline_reason' => 'Stock épuisé jusqu’en décembre.'])->assertSessionHasNoErrors();
+
+        $this->assertSame('declined', $order->fresh()->status);
+        $this->assertDatabaseHas('brand_notifications', ['type' => 'supplier_order_declined']);
+        $shipUrl = URL::temporarySignedRoute('supplier-portal.ship', now()->addHour(), ['purchaseOrder' => $order->id]);
+        $this->post($shipUrl, [])->assertStatus(410);
     }
 
     public function test_supplier_risk_analysis_detects_expired_certificate_without_gemini(): void
