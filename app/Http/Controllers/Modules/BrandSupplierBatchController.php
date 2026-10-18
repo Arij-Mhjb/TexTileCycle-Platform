@@ -6,12 +6,10 @@ use App\Http\Controllers\Controller;
 use App\Models\MaterialOriginCertificate;
 use App\Models\Supplier;
 use App\Models\SupplierBatch;
-use App\Services\Ai\SupplierAiService;
 use App\Services\SupplierTraceabilityService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -29,7 +27,7 @@ class BrandSupplierBatchController extends Controller
             'received_at' => 'nullable|date',
         ]);
 
-        $data['batch_code'] = $this->nextBatchCode($supplier);
+        $data['batch_code'] = $traceability->nextBatchCode($supplier);
         $supplier->batches()->create([...$data, 'status' => ! empty($data['received_at']) ? 'received' : 'pending']);
         $traceability->refreshComplianceScore($supplier);
 
@@ -51,7 +49,11 @@ class BrandSupplierBatchController extends Controller
      * La marque envoie seulement la photo du certificat : l'IA lit le type, le numéro,
      * l'organisme et les dates, et le certificat est enregistré (en attente de vérification admin).
      */
-    public function certificate(Request $request, SupplierBatch $batch, SupplierTraceabilityService $traceability, SupplierAiService $ai): RedirectResponse
+    /**
+     * La marque envoie seulement la photo du certificat : l'IA lit le type, le numéro,
+     * l'organisme et les dates (voir SupplierTraceabilityService::addCertificateFromPhoto).
+     */
+    public function certificate(Request $request, SupplierBatch $batch, SupplierTraceabilityService $traceability): RedirectResponse
     {
         abort_unless($batch->supplier->brand_id === $request->user()->brand?->id, 403);
         $request->validate(
@@ -60,31 +62,9 @@ class BrandSupplierBatchController extends Controller
             ['document' => 'document du certificat']
         );
 
-        $file = $request->file('document');
-        $result = $ai->extractCertificate($file->getRealPath(), $batch);
-        if (($result['is_certificate'] ?? true) === false) {
-            return back()->withErrors(['document' => 'L’IA ne reconnaît pas un certificat dans cette image ('.$result['document_kind'].'). Envoyez la photo du certificat GRS, GOTS, RWS, OEKO-TEX…']);
-        }
-        $fields = $result['fields'];
-        $path = $file->store('certificates/'.$batch->id, 'local');
+        $outcome = $traceability->addCertificateFromPhoto($batch, $request->file('document'));
 
-        $batch->certificates()->create([
-            'type' => array_key_exists((string) ($fields['type'] ?? ''), MaterialOriginCertificate::TYPES) ? $fields['type'] : null,
-            'certificate_number' => $this->text($fields['certificate_number'] ?? null),
-            'issuer' => $this->text($fields['issuer'] ?? null),
-            'issued_at' => $this->date($fields['issued_at'] ?? null),
-            'expires_at' => $this->date($fields['expires_at'] ?? null),
-            'document_path' => $path,
-            'ai_extraction' => $result,
-            'status' => 'pending',
-        ]);
-        $traceability->refreshComplianceScore($batch->supplier);
-
-        $read = collect(['type', 'certificate_number', 'issuer', 'issued_at', 'expires_at'])->filter(fn ($key) => filled($fields[$key] ?? null))->count();
-
-        return back()->with('success', $read > 0
-            ? 'Certificat ajouté : l’IA a lu '.$read.' information(s) sur 5. TexTileCycle va le vérifier.'
-            : 'Certificat ajouté. L’IA n’a pas pu le lire : TexTileCycle le vérifiera directement sur le document.');
+        return $outcome['ok'] ? back()->with('success', $outcome['message']) : back()->withErrors(['document' => $outcome['message']]);
     }
 
     public function document(Request $request, MaterialOriginCertificate $certificate): StreamedResponse
@@ -93,31 +73,5 @@ class BrandSupplierBatchController extends Controller
         abort_unless($certificate->document_path && Storage::disk('local')->exists($certificate->document_path), 404);
 
         return Storage::disk('local')->response($certificate->document_path);
-    }
-
-    /** Code de lot généré automatiquement : LOT-<3 lettres du fournisseur>-<AAMM>-<n°>, ex. LOT-FIL-2610-003. */
-    private function nextBatchCode(Supplier $supplier): string
-    {
-        $prefix = 'LOT-'.Str::upper(Str::padRight(Str::substr(Str::slug($supplier->name, ''), 0, 3), 3, 'X')).'-'.now()->format('ym').'-';
-        $number = SupplierBatch::where('batch_code', 'like', $prefix.'%')->count() + 1;
-        do {
-            $code = $prefix.str_pad((string) $number++, 3, '0', STR_PAD_LEFT);
-        } while (SupplierBatch::where('batch_code', $code)->exists());
-
-        return $code;
-    }
-
-    private function text(mixed $value): ?string
-    {
-        return is_string($value) && trim($value) !== '' ? mb_substr(trim($value), 0, 150) : null;
-    }
-
-    private function date(mixed $value): ?string
-    {
-        if (! is_string($value) || ! preg_match('/^\d{4}-\d{2}-\d{2}$/', $value) || ! strtotime($value)) {
-            return null;
-        }
-
-        return $value;
     }
 }
