@@ -1,9 +1,9 @@
 <x-module.supplier-layout title="Mes commandes">
     <x-module.hero module="suppliers" eyebrow="Espace fournisseur" :title="'Bonjour '.auth()->user()->name" description="Retrouvez les bons de commande de vos clients : acceptez-les ou refusez-les, puis déclarez vos expéditions avec le certificat de provenance.">
         <x-slot:stats>
-            <x-module.stat label="À valider" :value="$orders->whereIn('status', ['ordered', 'sent'])->count()"/>
-            <x-module.stat label="Acceptées" :value="$orders->where('status', 'accepted')->count()"/>
-            <x-module.stat label="Expédiées" :value="$orders->where('status', 'shipped')->count()"/>
+            <x-module.stat label="À répondre" :value="$orders->whereIn('status', ['ordered', 'sent'])->count()"/>
+            <x-module.stat label="À expédier" :value="$orders->whereIn('status', ['accepted', 'partially_shipped'])->count()"/>
+            <x-module.stat label="En retard" :value="$orders->filter->isLate()->count()"/>
             <x-module.stat label="Clients" :value="$orders->pluck('brand_id')->unique()->count()"/>
         </x-slot:stats>
     </x-module.hero>
@@ -17,8 +17,10 @@
                     <p class="text-sm text-slate-500">Commandée le {{ $order->ordered_at->format('d/m/Y') }}@if($order->expected_at) · livraison souhaitée le {{ $order->expected_at->format('d/m/Y') }}@endif @if($order->total_amount) · {{ number_format((float) $order->total_amount, 2, ',', ' ') }} {{ $order->currency }}@endif</p>
                 </div>
                 <div class="flex items-center gap-3">
-                    @if($order->awaitsSupplierAnswer())<span class="rounded-full bg-purple-600 px-3 py-1 text-xs font-black text-white">Réponse attendue</span>@endif
-                    <x-module.badge :tone="['received' => 'good', 'accepted' => 'good', 'cancelled' => 'bad', 'declined' => 'bad', 'shipped' => 'warn'][$order->status] ?? 'suppliers'">{{ $order->statusLabel() }}</x-module.badge>
+                    @if($order->awaitsSupplierAnswer())<span class="rounded-full bg-purple-700 px-3 py-1 text-xs font-semibold text-white">Réponse attendue</span>@endif
+                    @if($order->isLate())<span class="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800">En retard</span>@endif
+                    @if($order->lines->isNotEmpty() && $order->acceptsShipment())<span class="text-sm text-slate-500">{{ $order->shippedPercent() }} % expédié</span>@endif
+                    <x-module.badge :tone="$order->statusTone()">{{ $order->statusLabel() }}</x-module.badge>
                     <span class="text-purple-600">→</span>
                 </div>
             </a>
