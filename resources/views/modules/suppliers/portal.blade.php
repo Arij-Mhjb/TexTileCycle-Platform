@@ -1,22 +1,5 @@
-{{-- Portail fournisseur : page publique protégée par un lien signé (aucun compte requis). --}}
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="robots" content="noindex">
-    <title>Commande {{ $order->reference }} · {{ config('app.name') }}</title>
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
-</head>
-<body class="min-h-screen bg-slate-50 text-slate-800">
-    <header class="border-b bg-white">
-        <div class="mx-auto flex max-w-4xl items-center justify-between px-6 py-4">
-            <x-application-logo />
-            <span class="rounded-full bg-indigo-50 px-3 py-1 text-xs font-black text-indigo-700">Espace fournisseur</span>
-        </div>
-    </header>
-
-    <main class="mx-auto max-w-4xl px-6 py-8">
+{{-- Page commande côté fournisseur : via lien signé (sans compte) ou depuis l'espace fournisseur connecté. --}}
+<x-module.supplier-layout :title="'Commande '.$order->reference">
         <x-module.hero module="suppliers" :eyebrow="'Bon de commande · '.$order->brand->name" :title="$order->reference" :description="'Bonjour '.$order->supplier->name.', voici le bon de commande de '.$order->brand->name.'. Consultez le détail puis acceptez ou refusez la commande.'">
             <x-slot:stats>
                 <x-module.stat label="Statut" :value="['ordered' => 'À valider', 'sent' => 'À valider', 'accepted' => 'Acceptée', 'declined' => 'Refusée', 'shipped' => 'Expédiée', 'received' => 'Reçue', 'cancelled' => 'Annulée'][$order->status] ?? $order->statusLabel()"/>
@@ -25,13 +8,6 @@
                 <x-module.stat label="Montant" :value="$order->total_amount ? number_format((float) $order->total_amount, 0, ',', ' ').' '.$order->currency : '—'"/>
             </x-slot:stats>
         </x-module.hero>
-
-        @if(session('success'))
-            <div class="mb-6 flex items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-800"><span class="grid h-7 w-7 place-items-center rounded-full bg-emerald-600 text-white">✓</span>{{ session('success') }}</div>
-        @endif
-        @if($errors->any())
-            <div role="alert" class="mb-6 rounded-2xl border border-rose-200 bg-rose-50 px-5 py-4 text-sm text-rose-800"><ul class="list-inside list-disc">@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>
-        @endif
 
         {{-- Détail complet de la commande --}}
         <section class="mb-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -118,7 +94,5 @@
         @elseif(in_array($order->status, ['received', 'cancelled'], true))
             <div class="rounded-3xl border border-slate-200 bg-white p-6 text-center text-sm font-semibold text-slate-600">Cette commande est {{ strtolower($order->statusLabel()) }} : aucune action n’est nécessaire.</div>
         @endif
-        <p class="mt-6 text-center text-xs text-slate-400">Lien sécurisé et personnel · TexTileCycle, plateforme de traçabilité textile</p>
-    </main>
-</body>
-</html>
+        <p class="mt-6 text-center text-xs text-slate-400">{{ $account ? 'Espace fournisseur sécurisé' : 'Lien sécurisé et personnel' }} · TexTileCycle, plateforme de traçabilité textile</p>
+</x-module.supplier-layout>
