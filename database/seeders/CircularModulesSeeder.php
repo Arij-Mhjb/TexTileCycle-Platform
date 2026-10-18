@@ -13,6 +13,7 @@ use App\Models\Product;
 use App\Models\ProductImpactReport;
 use App\Models\ProductReturn;
 use App\Models\ProductSupplierLink;
+use App\Models\PurchaseOrder;
 use App\Models\RepairCenter;
 use App\Models\RepairOrder;
 use App\Models\Supplier;
@@ -20,9 +21,11 @@ use App\Models\SupplierBatch;
 use App\Models\TradeInRequest;
 use App\Models\User;
 use App\Services\ImpactCalculationService;
+use App\Services\PurchaseOrderService;
 use App\Services\RepairMarketplaceService;
 use App\Services\SupplierTraceabilityService;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\Hash;
 
 /**
  * Données de démonstration des modules Fournisseurs, Impact ESG et Seconde vie.
@@ -129,8 +132,17 @@ class CircularModulesSeeder extends Seeder
                     ]);
                 }
             }
+            // Lignes de la commande historique : une par matière livrée, lots rattachés.
+            foreach ($order->batches()->get()->groupBy('material_id') as $materialId => $materialBatches) {
+                $line = $order->lines()->updateOrCreate(['material_id' => $materialId ?: null], ['quantity_kg' => $materialBatches->sum('quantity_kg'), 'unit_price' => 12.5]);
+                SupplierBatch::whereIn('id', $materialBatches->pluck('id'))->update(['purchase_order_line_id' => $line->id]);
+            }
+            $order->load('lines.batches');
+            $order->update(['total_amount' => $order->linesAmount()]);
             $traceability->refreshComplianceScore($supplier);
         }
+
+        $this->purchaseOrderStory($brand);
 
         // Fournisseurs supplémentaires générés par factories (avec lots et certificats liés).
         if ($brand->suppliers()->count() < 5) {
@@ -155,6 +167,88 @@ class CircularModulesSeeder extends Seeder
                 $traceability->checkConformity($link);
             }
         }
+    }
+
+    /**
+     * Histoire d'achats de la collection Printemps-Été 2027, à chaque étape du cycle :
+     * une commande à laquelle le fournisseur doit répondre, une contre-proposition que la marque doit arbitrer,
+     * une commande livrée en partie (dont une livraison à réceptionner) et une commande en retard.
+     * Comptes fournisseurs de démonstration : fournisseur@textilecycle.test et laine@textilecycle.test (mot de passe : password).
+     */
+    private function purchaseOrderStory(Brand $brand): void
+    {
+        $orders = app(PurchaseOrderService::class);
+        $brandUser = User::find($brand->user_id);
+        $filature = Supplier::where('brand_id', $brand->id)->where('name', 'Filature Méditerranée')->first();
+        $wool = Supplier::where('brand_id', $brand->id)->where('name', 'Wool & Co Merino')->first();
+        $material = fn (string $name) => Material::where('name', $name)->value('id');
+        if (! $filature || ! $wool || ! $brandUser || User::where('email', 'fournisseur@textilecycle.test')->exists()) {
+            return;
+        }
+
+        $account = User::updateOrCreate(['email' => 'fournisseur@textilecycle.test'], [
+            'name' => 'Sami Ben Salah', 'role' => 'supplier', 'password' => Hash::make('password'),
+        ]);
+        $account->forceFill(['email_verified_at' => now(), 'must_change_password' => false])->save();
+        $filature->update(['user_id' => $account->id, 'contact_name' => 'Sami Ben Salah', 'email' => $account->email, 'phone' => '+216 73 000 000']);
+
+        $woolAccount = User::updateOrCreate(['email' => 'laine@textilecycle.test'], ['name' => 'Kate Morrison', 'role' => 'supplier', 'password' => Hash::make('password')]);
+        $woolAccount->forceFill(['email_verified_at' => now(), 'must_change_password' => false])->save();
+        $wool->update(['user_id' => $woolAccount->id, 'contact_name' => 'Kate Morrison', 'email' => $woolAccount->email]);
+
+        // Les commandes de démo sont datées dans le passé : leur journal l'est aussi.
+        $backdateCreation = fn (PurchaseOrder $order) => $order->events()->where('type', 'created')->update(['created_at' => $order->ordered_at->copy()->setTime(9, 12), 'updated_at' => $order->ordered_at->copy()->setTime(9, 12)]);
+
+        // 1. Commande à laquelle le fournisseur doit répondre (accepter / contre-proposer / refuser).
+        $backdateCreation($orders->create($filature, ['ordered_at' => now()->subDays(2)->toDateString(), 'expected_at' => now()->addWeeks(5)->toDateString(), 'notes' => 'Collection Printemps-Été 2027 : livraison en balles de 50 kg.'], [
+            ['material_id' => $material('Coton recyclé'), 'quantity_kg' => 500, 'unit_price' => 13.5],
+            ['material_id' => $material('Polyester recyclé'), 'quantity_kg' => 200, 'unit_price' => 9.8],
+        ], $brandUser));
+
+        // 2. Contre-proposition du fournisseur, à arbitrer par la marque.
+        $woolOrder = $orders->create($wool, ['ordered_at' => now()->subDays(6)->toDateString(), 'expected_at' => now()->addWeeks(3)->toDateString(), 'notes' => 'Mérinos pour les pulls de la capsule hiver.'], [
+            ['material_id' => $material('Laine mérinos'), 'quantity_kg' => 150, 'unit_price' => 42],
+        ], $brandUser);
+        $backdateCreation($woolOrder);
+        $counteredAt = now()->subDays(1)->setTime(16, 40);
+        $woolOrder->update(['status' => 'countered', 'countered_at' => $counteredAt, 'proposed_expected_at' => now()->addWeeks(5)->toDateString(), 'supplier_note' => 'Tonte retardée par la météo : 120 kg disponibles, deux semaines plus tard.']);
+        $woolOrder->lines()->first()->update(['confirmed_kg' => 120]);
+        $orders->log($woolOrder, 'supplier', 'countered', 'Contre-proposition : Laine mérinos : 120 kg au lieu de 150 kg ; livraison le '.now()->addWeeks(5)->format('d/m/Y').'. « Tonte retardée par la météo : 120 kg disponibles, deux semaines plus tard. »', $woolAccount, $counteredAt);
+
+        // 3. Commande livrée en partie : une livraison reçue, une en route ; le polyester reste à livrer.
+        $partial = $orders->create($filature, ['ordered_at' => now()->subWeeks(5)->toDateString(), 'expected_at' => now()->addDays(4)->toDateString(), 'notes' => 'Réassort ReLoop Shirt.'], [
+            ['material_id' => $material('Coton recyclé'), 'quantity_kg' => 400, 'unit_price' => 13.2],
+            ['material_id' => $material('Polyester recyclé'), 'quantity_kg' => 150, 'unit_price' => 9.6],
+        ], $brandUser);
+        $backdateCreation($partial);
+        $acceptedAt = now()->subWeeks(5)->addDay()->setTime(10, 5);
+        $partial->update(['status' => 'accepted', 'accepted_at' => $acceptedAt]);
+        $orders->log($partial, 'supplier', 'accepted', 'Commande acceptée telle quelle.', $account, $acceptedAt);
+        $cotton = $partial->lines()->where('material_id', $material('Coton recyclé'))->first();
+        foreach ([['LOT-FM-2027-11', 250, now()->subWeeks(2)->setTime(8, 30), now()->subWeeks(2)->addDays(3)->setTime(14, 15)], ['LOT-FM-2027-12', 150, now()->subDays(2)->setTime(8, 45), null]] as [$code, $kg, $shippedAt, $receivedAt]) {
+            $batch = $filature->batches()->updateOrCreate(['batch_code' => $code], [
+                'purchase_order_id' => $partial->id, 'purchase_order_line_id' => $cotton->id, 'material_id' => $cotton->material_id,
+                'quantity_kg' => $kg, 'origin_country' => 'Tunisie', 'production_date' => $shippedAt->copy()->subWeek(),
+                'received_at' => $receivedAt, 'status' => $receivedAt ? 'received' : 'pending',
+            ]);
+            $batch->forceFill(['created_at' => $shippedAt])->save();
+            $batch->certificates()->updateOrCreate(['certificate_number' => 'GRS-2027-'.substr($code, -2)], ['type' => 'GRS', 'issuer' => 'Control Union', 'issued_at' => now()->subMonths(3), 'expires_at' => now()->addYear(), 'status' => 'pending']);
+            $orders->log($partial, 'supplier', 'shipped', 'Livraison expédiée : lot '.$code.', '.$kg.' kg de Coton recyclé.', $account, $shippedAt);
+            if ($receivedAt) {
+                $orders->log($partial, 'brand', 'received', 'Livraison réceptionnée : lot '.$code.' ('.$kg.' kg).', $brandUser, $receivedAt);
+            }
+        }
+        $partial->update(['shipped_at' => now()->subWeeks(2)->setTime(8, 30)]);
+        $orders->refreshStatus($partial);
+
+        // 4. Commande acceptée mais en retard (date dépassée, rien d'expédié).
+        $late = $orders->create($wool, ['ordered_at' => now()->subWeeks(7)->toDateString(), 'expected_at' => now()->subDays(5)->toDateString(), 'notes' => 'Bonnets et écharpes.'], [
+            ['material_id' => $material('Laine mérinos'), 'quantity_kg' => 60, 'unit_price' => 41],
+        ], $brandUser);
+        $backdateCreation($late);
+        $lateAcceptedAt = now()->subWeeks(7)->addDays(2)->setTime(11, 20);
+        $late->update(['status' => 'accepted', 'accepted_at' => $lateAcceptedAt]);
+        $orders->log($late, 'supplier', 'accepted', 'Commande acceptée telle quelle.', $woolAccount, $lateAcceptedAt);
     }
 
     private function impactReports(Brand $brand, User $admin): void
