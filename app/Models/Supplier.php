@@ -33,6 +33,11 @@ class Supplier extends Model
         return $this->belongsTo(User::class);
     }
 
+    public function smsMessages(): HasMany
+    {
+        return $this->hasMany(SmsMessage::class)->latest();
+    }
+
     public function batches(): HasMany
     {
         return $this->hasMany(SupplierBatch::class)->latest();
