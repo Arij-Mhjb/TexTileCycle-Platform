@@ -8,7 +8,7 @@
         </x-slot:stats>
     </x-module.hero>
 
-    <form method="POST" action="{{ route('brand.marketplace.store') }}" class="mb-8 grid gap-4 rounded-3xl border border-amber-100 bg-white p-6 shadow-sm md:grid-cols-4">
+    <form method="POST" action="{{ route('brand.marketplace.store') }}" class="shadow-[0_4px_0_rgba(15,23,42,.06),0_16px_30px_-20px_rgba(15,23,42,.4)] mb-8 grid gap-4 rounded-3xl border border-amber-100 bg-white p-6 md:grid-cols-4">
         @csrf
         <div class="md:col-span-4"><p class="text-xs font-black uppercase tracking-wider text-amber-600">Publier</p><h2 class="mt-1 text-lg font-black">Mettre en vente un article reconditionné</h2></div>
         <x-ui.select name="product_id" label="Produit" :options="$products->pluck('name', 'id')" required/>
@@ -21,7 +21,7 @@
 
     <div class="space-y-5">
         @forelse($listings as $listing)
-            <article class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+            <article class="shadow-[0_4px_0_rgba(15,23,42,.06),0_16px_30px_-20px_rgba(15,23,42,.4)] rounded-3xl border border-slate-200 bg-white p-6">
                 <div class="flex flex-wrap items-start justify-between gap-3">
                     <div><p class="text-xs font-black uppercase tracking-wider text-amber-600">{{ $listing->gradeLabel() }} · {{ $listing->repair_order_id ? 'issu d’un retour '.$listing->repairOrder?->reference : 'stock marque' }}</p><h2 class="mt-1 text-lg font-black">{{ $listing->title }}</h2><p class="text-sm text-slate-500">{{ $listing->product?->name }}</p></div>
                     <div class="text-right"><p class="text-xl font-black text-amber-700">{{ number_format((float) $listing->price, 2, ',', ' ') }} {{ $listing->currency }}</p><x-module.badge :tone="['sold' => 'good', 'reserved' => 'warn'][$listing->status] ?? 'repair'">{{ $listing->statusLabel() }}</x-module.badge></div>
