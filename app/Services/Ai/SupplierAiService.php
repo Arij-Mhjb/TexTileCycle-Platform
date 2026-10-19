@@ -277,7 +277,8 @@ type de document ou de photo, éléments visibles, texte principal lisible.
 sinon false, et résume en quelques mots dans "document_kind" ce que c'est (ex. « diagramme UML », « photo d'un vêtement »).
 Extrais uniquement ce qui est réellement lisible ; mets null sinon. N'invente jamais un numéro ni une date.
 Dates au format YYYY-MM-DD. "type" doit être l'un de : GOTS, GRS, RWS, OEKO-TEX, FSC, origin, other.
-"confidence" est un entier de 0 à 100 sur la lisibilité globale.
+"confidence" (0 à 100) : pour un certificat, la fiabilité de la lecture des informations ;
+sinon, ta certitude que l'image n'est pas un certificat.
 Contexte : le lot {$batch->batch_code} déclare la matière « {$batch->material?->name} » fournie par « {$batch->supplier?->name} » ({$batch->origin_country}).
 PROMPT;
     }
