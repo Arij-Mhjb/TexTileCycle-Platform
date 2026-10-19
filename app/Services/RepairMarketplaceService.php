@@ -24,9 +24,11 @@ class RepairMarketplaceService
 
     public const REPAIR_POINTS = 25;
 
+    public function __construct(private readonly NotificationCenter $center = new NotificationCenter) {}
+
     public function requestRepair(User $consumer, array $data): RepairOrder
     {
-        return DB::transaction(function () use ($consumer, $data) {
+        $order = DB::transaction(function () use ($consumer, $data) {
             // Verrou sur le retour : deux envois simultanés (double clic) ne créent pas deux demandes.
             $return = ! empty($data['product_return_id']) ? ProductReturn::whereKey($data['product_return_id'])->lockForUpdate()->firstOrFail() : null;
             if ($return && $return->user_id !== $consumer->id) {
@@ -45,6 +47,12 @@ class RepairMarketplaceService
                 'status' => 'requested',
             ]);
         });
+
+        $this->center->toAdmins('repair_requested', 'Nouvelle demande de réparation',
+            $consumer->name.' · '.($order->product?->name ?? 'article').' ('.$order->reference.') : '.Str::limit($order->issue_description, 90),
+            route('admin.repair-orders.show', $order));
+
+        return $order;
     }
 
     public function createFromReturn(ProductReturn $return, string $decision, ?string $note = null): RepairOrder
@@ -147,7 +155,17 @@ class RepairMarketplaceService
         $this->guard(! $listing->isFromConsumer($buyer), 'Cet article vient de votre propre retour : vous ne pouvez pas faire d’offre dessus.');
         $this->guard(! $listing->offers()->where('user_id', $buyer->id)->where('status', 'pending')->exists(), 'Vous avez déjà une offre en attente sur cette annonce.');
 
-        return $listing->offers()->create(['user_id' => $buyer->id, 'offered_price' => $price, 'message' => $message, 'status' => 'pending']);
+        $offer = $listing->offers()->create(['user_id' => $buyer->id, 'offered_price' => $price, 'message' => $message, 'status' => 'pending']);
+
+        $title = 'Nouvelle offre sur « '.$listing->title.' »';
+        $text = $buyer->name.' propose '.number_format($price, 2, ',', ' ').' '.$listing->currency.' (prix affiché '.number_format((float) $listing->price, 2, ',', ' ').').';
+        if ($ownerId = $listing->brand?->user_id) {
+            $this->center->send($ownerId, 'resale_offer_received', $title, $text, route('brand.marketplace.index'));
+        } else {
+            $this->center->toAdmins('resale_offer_received', $title, $text, route('admin.marketplace.show', $listing));
+        }
+
+        return $offer;
     }
 
     public function respondToOffer(ResaleOffer $offer, bool $accept): ResaleOffer
@@ -177,17 +195,27 @@ class RepairMarketplaceService
         $listing->update(['status' => 'sold', 'sold_at' => now()]);
         $listing->repairOrder?->update(['status' => 'closed']);
 
+        if ($buyerId = $listing->offers()->where('status', 'accepted')->value('user_id')) {
+            $this->notify($buyerId, 'resale_sold', 'Achat confirmé', $listing->title.' est à vous. Merci de donner une seconde vie à ce vêtement !', route('consumer.marketplace.index'));
+        }
+
         return $listing;
     }
 
     public function submitTradeIn(User $consumer, array $data): TradeInRequest
     {
-        return TradeInRequest::create([
+        $tradeIn = TradeInRequest::create([
             ...$data,
             'reference' => $this->reference('TRD'),
             'user_id' => $consumer->id,
             'status' => 'submitted',
         ]);
+
+        $this->center->toAdmins('trade_in_submitted', 'Nouvelle demande de reprise',
+            $consumer->name.' propose « '.$tradeIn->itemName().' » ('.(TradeInRequest::CONDITIONS[$tradeIn->condition] ?? $tradeIn->condition).'). À évaluer.',
+            route('admin.trade-ins.index'));
+
+        return $tradeIn;
     }
 
     public function evaluateTradeIn(TradeInRequest $tradeIn, User $admin, int $points, ?string $note = null): TradeInRequest
@@ -215,6 +243,11 @@ class RepairMarketplaceService
             $this->reward($tradeIn->user_id, 'trade_in', (int) $tradeIn->proposed_points,
                 'Reprise '.$tradeIn->reference.' · validée à la réception', 'pending');
         }
+
+        $this->center->toAdmins('trade_in_'.($accept ? 'accepted' : 'declined'),
+            $accept ? 'Reprise acceptée · article à réceptionner' : 'Offre de reprise refusée',
+            $tradeIn->consumer?->name.' · '.$tradeIn->itemName().' ('.$tradeIn->proposed_points.' points)'.($accept ? ' : créditez les points à la réception.' : '.'),
+            route('admin.trade-ins.index'));
 
         return $tradeIn;
     }
