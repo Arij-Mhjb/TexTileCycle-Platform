@@ -26,21 +26,25 @@ class RepairMarketplaceService
 
     public function requestRepair(User $consumer, array $data): RepairOrder
     {
-        $return = ! empty($data['product_return_id']) ? ProductReturn::findOrFail($data['product_return_id']) : null;
-        if ($return && $return->user_id !== $consumer->id) {
-            abort(403);
-        }
+        return DB::transaction(function () use ($consumer, $data) {
+            // Verrou sur le retour : deux envois simultanés (double clic) ne créent pas deux demandes.
+            $return = ! empty($data['product_return_id']) ? ProductReturn::whereKey($data['product_return_id'])->lockForUpdate()->firstOrFail() : null;
+            if ($return && $return->user_id !== $consumer->id) {
+                abort(403);
+            }
+            if ($return && RepairOrder::where('product_return_id', $return->id)->where('status', '!=', 'cancelled')->exists()) {
+                throw ValidationException::withMessages(['product_return_id' => 'Une demande de réparation existe déjà pour cet article.']);
+            }
 
-        $order = RepairOrder::create([
-            'reference' => $this->reference('REP'),
-            'user_id' => $consumer->id,
-            'product_return_id' => $return?->id,
-            'product_id' => $return?->product_id ?? ($data['product_id'] ?? null),
-            'issue_description' => $data['issue_description'],
-            'status' => 'requested',
-        ]);
-
-        return $order;
+            return RepairOrder::create([
+                'reference' => $this->reference('REP'),
+                'user_id' => $consumer->id,
+                'product_return_id' => $return?->id,
+                'product_id' => $return?->product_id ?? ($data['product_id'] ?? null),
+                'issue_description' => $data['issue_description'],
+                'status' => 'requested',
+            ]);
+        });
     }
 
     public function createFromReturn(ProductReturn $return, string $decision, ?string $note = null): RepairOrder
