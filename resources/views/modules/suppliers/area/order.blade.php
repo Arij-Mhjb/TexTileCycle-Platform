@@ -117,9 +117,14 @@
                             <p class="font-bold">{{ $batch->batch_code }} <span class="font-normal text-slate-500">· {{ $fmt((float) $batch->quantity_kg) }} kg de {{ $batch->material?->name }}</span></p>
                             <x-module.badge :tone="$batch->received_at ? 'good' : 'warn'">{{ $batch->received_at ? 'Reçue par le client' : 'En route' }}</x-module.badge>
                         </div>
-                        @foreach($batch->certificates as $certificate)
-                            <p class="mt-1 text-xs text-slate-500">{{ $certificate->displayName() }} — {{ $certificate->statusLabel() }}</p>
-                        @endforeach
+                        <div class="mt-3 grid gap-3">
+                            @foreach($batch->certificates as $certificate)
+                                @include('modules.suppliers._certificate', ['documentRoute' => 'supplier.certificates.document'])
+                            @endforeach
+                            @unless($batch->certificates->contains(fn ($certificate) => ! $certificate->isNotACertificate() && $certificate->status !== 'rejected'))
+                                @include('modules.suppliers._add-certificate', ['action' => route('supplier.batches.certificate', $batch)])
+                            @endunless
+                        </div>
                     </div>
                 @empty
                     <p class="py-3 text-sm text-slate-500">Aucune livraison pour l’instant.</p>
