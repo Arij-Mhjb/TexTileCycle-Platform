@@ -24,6 +24,7 @@ use App\Http\Controllers\Modules\ConsumerMarketplaceController;
 use App\Http\Controllers\Modules\ConsumerRepairController;
 use App\Http\Controllers\Modules\ConsumerTradeInController;
 use App\Http\Controllers\Modules\ModuleAiController;
+use App\Http\Controllers\Modules\NotificationCenterController;
 use App\Http\Controllers\Modules\SupplierAreaController;
 use App\Http\Controllers\Modules\SupplierInvitationController;
 use App\Http\Controllers\Modules\SupplierProfileController;
@@ -31,6 +32,10 @@ use App\Http\Middleware\EnsureSupplierPasswordChanged;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth', 'verified'])->group(function () {
+
+    // Cloche de notifications commune (admin, marque, fournisseur, consommateur)
+    Route::post('/centre-notifications/tout-lire', [NotificationCenterController::class, 'readAll'])->name('notification-center.read-all');
+    Route::post('/centre-notifications/{notification}', [NotificationCenterController::class, 'open'])->whereNumber('notification')->name('notification-center.open');
 
     Route::middleware('role:admin')->prefix('admin')->name('admin.')->group(function () {
         // 1. Fournisseurs & traçabilité
