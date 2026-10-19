@@ -88,7 +88,7 @@ class CircularModulesTest extends TestCase
             ->assertSessionHasErrors(['name', 'country', 'email']);
 
         $this->get(route('brand.suppliers.create'))
-            ->assertSee('Le champ raison sociale est obligatoire.')
+            ->assertSee('Le champ nom et prénom est obligatoire.')
             ->assertSee('value="Sfax"', false);
     }
 

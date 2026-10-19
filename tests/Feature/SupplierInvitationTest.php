@@ -77,6 +77,36 @@ class SupplierInvitationTest extends TestCase
         $this->get(route('brand.suppliers.index'))->assertForbidden();
     }
 
+    public function test_status_is_automatic_pending_until_activation_then_active(): void
+    {
+        [$supplier, $url] = $this->inviteNewSupplier();
+        $this->assertSame('pending', $supplier->fresh()->status);
+        $this->get(route('brand.suppliers.index'))->assertSee('En attente d’activation', false);
+
+        // Le fournisseur active son compte : il passe « Actif » tout seul.
+        auth()->logout();
+        $this->post($url, ['password' => 'Sahel2026', 'password_confirmation' => 'Sahel2026']);
+        $this->assertSame('active', $supplier->fresh()->status);
+
+        // Suspendu par la marque, puis réactivé : il retrouve son statut automatique.
+        $this->actingAs($this->brandUser)->patch(route('brand.suppliers.suspend', $supplier));
+        $this->assertSame('suspended', $supplier->fresh()->status);
+        $this->patch(route('brand.suppliers.suspend', $supplier));
+        $this->assertSame('active', $supplier->fresh()->status);
+
+        // Le formulaire ne permet plus de choisir le statut ni de déclarer des certifications à la main.
+        $this->put(route('brand.suppliers.update', $supplier), ['name' => 'Sami Ben Salah', 'country' => 'Tunisie', 'status' => 'suspended', 'certifications' => 'GOTS']);
+        $this->assertSame('active', $supplier->fresh()->status);
+        $this->assertNull($supplier->fresh()->certificationsLabel());
+    }
+
+    public function test_certifications_come_from_verified_certificates_only(): void
+    {
+        $filature = Supplier::where('name', 'Filature Méditerranée')->firstOrFail();
+        $this->assertSame('GRS', $filature->certificationsLabel());
+        $this->actingAs($this->brandUser)->get(route('brand.suppliers.show', $filature))->assertSee('Certifications prouvées par ses certificats vérifiés : GRS');
+    }
+
     public function test_link_expires_after_72_hours_and_a_new_invitation_replaces_the_old_one(): void
     {
         [$supplier, $firstUrl] = $this->inviteNewSupplier();
