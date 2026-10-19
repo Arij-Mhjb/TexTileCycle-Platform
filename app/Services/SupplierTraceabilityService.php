@@ -21,16 +21,32 @@ class SupplierTraceabilityService
     public function __construct(private SupplierAiService $ai) {}
 
     /**
-     * Ajoute un certificat à partir d'une simple photo : l'IA lit les informations,
-     * le document est conservé et le certificat attend la vérification de l'admin.
+     * Ajoute un certificat à partir de n'importe quelle image : l'IA décrit toujours ce qu'elle voit.
+     * - Certificat : les informations sont lues et le certificat attend la vérification de l'admin.
+     * - Autre chose (photo, schéma…) : l'image est conservée avec la description de l'IA, marquée
+     *   « pas un certificat » ; elle ne compte pas comme preuve, et l'admin peut corriger l'IA.
      *
-     * @return array{ok: bool, message: string, certificate?: MaterialOriginCertificate}
+     * @return array{ok: bool, recognized: bool, message: string, description: ?string, certificate?: MaterialOriginCertificate}
      */
     public function addCertificateFromPhoto(SupplierBatch $batch, UploadedFile $file): array
     {
         $result = $this->ai->extractCertificate($file->getRealPath(), $batch);
+        $description = $result['description'] ?? null;
+
         if (($result['is_certificate'] ?? true) === false) {
-            return ['ok' => false, 'message' => 'L’IA ne reconnaît pas un certificat dans cette image ('.$result['document_kind'].'). Envoyez la photo du certificat GRS, GOTS, RWS, OEKO-TEX…'];
+            $certificate = $batch->certificates()->create([
+                'document_path' => $file->store('certificates/'.$batch->id, 'local'),
+                'ai_extraction' => $result,
+                'status' => 'rejected',
+                'review_note' => 'Rejeté automatiquement par l’IA : ce n’est pas un certificat. '.$description,
+                'reviewed_at' => now(),
+            ]);
+            $this->refreshComplianceScore($batch->supplier);
+
+            return [
+                'ok' => true, 'recognized' => false, 'certificate' => $certificate, 'description' => $description,
+                'message' => 'Image enregistrée, mais ce n’est pas un certificat. L’IA y voit : '.$description.' Elle ne compte pas comme preuve : ajoutez la photo du certificat (GRS, GOTS, RWS, OEKO-TEX…).',
+            ];
         }
 
         $fields = $result['fields'];
@@ -50,7 +66,9 @@ class SupplierTraceabilityService
 
         return [
             'ok' => true,
+            'recognized' => true,
             'certificate' => $certificate,
+            'description' => $description,
             'message' => $read > 0
                 ? 'Certificat ajouté : l’IA a lu '.$read.' information(s) sur 5. TexTileCycle va le vérifier.'
                 : 'Certificat ajouté. L’IA n’a pas pu le lire : TexTileCycle le vérifiera directement sur le document.',
@@ -170,7 +188,8 @@ class SupplierTraceabilityService
             return null;
         }
 
-        $certificates = $batches->flatMap->certificates;
+        // Les images que l'IA a reconnues comme « pas un certificat » ne pèsent pas dans le score (sauf si l'admin les a validées).
+        $certificates = $batches->flatMap->certificates->reject(fn (MaterialOriginCertificate $certificate) => $certificate->isNotACertificate());
         $batchRatio = $batches->where('status', 'verified')->count() / $batches->count();
         $certificateRatio = $certificates->isEmpty() ? 0 : $certificates->filter->isValid()->count() / $certificates->count();
         $score = (int) round($batchRatio * 50 + $certificateRatio * 50);
