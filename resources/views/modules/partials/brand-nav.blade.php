@@ -1,4 +1,5 @@
-{{-- Liens marque des modules : Fournisseurs (violet-rose), Impact ESG (sky), Seconde vie (amber). --}}
-<a href="{{ route('brand.suppliers.index') }}" class="rounded-lg px-2 py-1 {{ request()->routeIs('brand.suppliers.*', 'brand.traceability.*') ? 'bg-purple-50 text-purple-700' : 'text-purple-700 hover:bg-purple-50' }}">Fournisseurs</a>
-<a href="{{ route('brand.impact.index') }}" class="rounded-lg px-2 py-1 {{ request()->routeIs('brand.impact.*') ? 'bg-sky-50 text-sky-700' : 'text-sky-700 hover:bg-sky-50' }}">Impact ESG</a>
-<a href="{{ route('brand.marketplace.index') }}" class="rounded-lg px-2 py-1 {{ request()->routeIs('brand.marketplace.*') ? 'bg-amber-50 text-amber-800' : 'text-amber-700 hover:bg-amber-50' }}">Seconde vie</a>
+<x-brand-nav-dropdown label="Écosystème" :active="request()->routeIs('brand.suppliers.*', 'brand.traceability.*', 'brand.impact.*', 'brand.marketplace.*')">
+    <a role="menuitem" href="{{ route('brand.suppliers.index') }}" class="rounded-xl px-3 py-2.5 hover:bg-purple-50"><span class="block text-sm font-bold text-purple-800">Fournisseurs</span><span class="block text-xs text-slate-500">Commandes et traçabilité</span></a>
+    <a role="menuitem" href="{{ route('brand.impact.index') }}" class="rounded-xl px-3 py-2.5 hover:bg-sky-50"><span class="block text-sm font-bold text-sky-800">Impact ESG</span><span class="block text-xs text-slate-500">Mesurer les impacts des produits</span></a>
+    <a role="menuitem" href="{{ route('brand.marketplace.index') }}" class="rounded-xl px-3 py-2.5 hover:bg-amber-50"><span class="block text-sm font-bold text-amber-800">Seconde vie</span><span class="block text-xs text-slate-500">Réparation, reprise et revente</span></a>
+</x-brand-nav-dropdown>
