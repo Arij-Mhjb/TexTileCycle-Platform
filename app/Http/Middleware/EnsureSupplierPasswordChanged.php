@@ -12,7 +12,7 @@ class EnsureSupplierPasswordChanged
     public function handle(Request $request, Closure $next): Response
     {
         if ($request->user()?->must_change_password) {
-            return redirect()->route('supplier.password.edit');
+            return redirect()->route('supplier.account.edit');
         }
 
         return $next($request);

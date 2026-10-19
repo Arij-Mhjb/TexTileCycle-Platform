@@ -26,6 +26,7 @@ use App\Http\Controllers\Modules\ConsumerTradeInController;
 use App\Http\Controllers\Modules\ModuleAiController;
 use App\Http\Controllers\Modules\SupplierAreaController;
 use App\Http\Controllers\Modules\SupplierInvitationController;
+use App\Http\Controllers\Modules\SupplierProfileController;
 use App\Http\Middleware\EnsureSupplierPasswordChanged;
 use Illuminate\Support\Facades\Route;
 
@@ -77,8 +78,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // Espace du fournisseur connecté (rôle « supplier »). Mot de passe provisoire à changer d'abord.
     Route::middleware('role:supplier')->prefix('espace-fournisseur')->name('supplier.')->group(function () {
-        Route::get('/mot-de-passe', [SupplierAreaController::class, 'editPassword'])->name('password.edit');
-        Route::put('/mot-de-passe', [SupplierAreaController::class, 'updatePassword'])->name('password.update');
+        Route::get('/mon-compte', [SupplierProfileController::class, 'edit'])->name('account.edit');
+        Route::put('/mon-compte', [SupplierProfileController::class, 'update'])->name('account.update');
+        Route::put('/mon-compte/identifiant', [SupplierProfileController::class, 'updateEmail'])->name('account.email');
+        Route::put('/mon-compte/mot-de-passe', [SupplierProfileController::class, 'updatePassword'])->name('password.update');
+        Route::redirect('/mot-de-passe', '/espace-fournisseur/mon-compte#mot-de-passe')->name('password.edit');
         Route::middleware(EnsureSupplierPasswordChanged::class)->group(function () {
             Route::get('/', [SupplierAreaController::class, 'index'])->name('dashboard');
             Route::get('/commandes/{purchaseOrder}', [SupplierAreaController::class, 'order'])->name('orders.show');
