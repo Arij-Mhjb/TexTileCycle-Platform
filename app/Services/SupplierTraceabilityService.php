@@ -154,6 +154,9 @@ class SupplierTraceabilityService
         $this->notifyBrand($batch->supplier, 'supplier_batch_'.$status,
             $status === 'verified' ? 'Lot fournisseur vérifié' : 'Lot fournisseur refusé',
             'Lot '.$batch->batch_code.' ('.$batch->supplier->name.') : '.($note ?: ($status === 'verified' ? 'traçabilité confirmée.' : 'informations insuffisantes.')));
+        $this->notifySupplier($batch->supplier, 'supplier_batch_'.$status,
+            $status === 'verified' ? 'Votre lot est vérifié' : 'Votre lot a été refusé',
+            'Lot '.$batch->batch_code.' : '.($note ?: ($status === 'verified' ? 'traçabilité confirmée par TexTileCycle.' : 'informations insuffisantes, complétez le lot.')));
 
         return $batch;
     }
@@ -172,6 +175,9 @@ class SupplierTraceabilityService
         $this->notifyBrand($supplier, 'supplier_certificate_'.$status,
             $status === 'verified' ? 'Certificat de provenance validé' : 'Certificat de provenance refusé',
             $certificate->displayName().' — lot '.$certificate->batch->batch_code.'.');
+        $this->notifySupplier($supplier, 'supplier_certificate_'.$status,
+            $status === 'verified' ? 'Certificat validé' : 'Certificat refusé',
+            $certificate->displayName().' — lot '.$certificate->batch->batch_code.($note ? ' : « '.$note.' »' : '.'));
 
         return $certificate;
     }
@@ -202,6 +208,13 @@ class SupplierTraceabilityService
     public function nextPurchaseOrderReference(): string
     {
         return 'PO-'.now()->format('ymd').'-'.Str::upper(Str::random(5));
+    }
+
+    private function notifySupplier(Supplier $supplier, string $type, string $title, string $message): void
+    {
+        if ($supplier->user_id) {
+            app(NotificationCenter::class)->send($supplier->user_id, $type, $title, $message, route('supplier.batches.index'));
+        }
     }
 
     private function notifyBrand(Supplier $supplier, string $type, string $title, string $message): void
