@@ -33,20 +33,24 @@ class SupplierAiService
         $fields = null;
         $source = 'gemini';
 
+        $description = null;
         $answer = $this->gemini->ask($this->certificatePrompt($batch), $this->certificateSchema(), [$imagePath]);
         if ($answer) {
+            $description = filled($answer['image_description'] ?? null) ? (string) $answer['image_description'] : null;
             if (($answer['is_certificate'] ?? true) === false) {
                 return ['fields' => [], 'confidence' => (int) ($answer['confidence'] ?? 0), 'warnings' => [], 'source' => 'gemini', 'is_certificate' => false,
-                    'document_kind' => (string) ($answer['document_kind'] ?? 'document non identifié')];
+                    'document_kind' => (string) ($answer['document_kind'] ?? 'document non identifié'),
+                    'description' => $description ?? 'L’image montre : '.($answer['document_kind'] ?? 'un document non identifié').'.'];
             }
             $fields = collect($answer)->only(['type', 'certificate_number', 'issuer', 'issued_at', 'expires_at', 'material', 'holder', 'confidence'])->all();
         } else {
             $source = 'ocr';
-            $fields = $this->ocrFallback($imagePath);
+            [$fields, $description] = $this->ocrFallback($imagePath);
         }
 
         if ($fields === null) {
-            return ['fields' => [], 'confidence' => 0, 'warnings' => ['L’IA n’a pas pu lire ce document : TexTileCycle vérifiera le certificat directement sur le document envoyé.'], 'source' => 'none'];
+            return ['fields' => [], 'confidence' => 0, 'warnings' => ['L’IA n’a pas pu lire ce document : TexTileCycle vérifiera le certificat directement sur le document envoyé.'], 'source' => 'none',
+                'description' => $description ?? 'Analyse locale : aucun texte lisible détecté dans l’image.'];
         }
 
         $fields['type'] = $this->normaliseType($fields['type'] ?? null);
@@ -56,6 +60,8 @@ class SupplierAiService
             'confidence' => (int) ($fields['confidence'] ?? ($source === 'ocr' ? 55 : 70)),
             'warnings' => $this->certificateWarnings($fields, $batch),
             'source' => $source,
+            'is_certificate' => true,
+            'description' => $description,
         ];
     }
 
@@ -216,11 +222,12 @@ class SupplierAiService
     }
 
     /** OCR local (Tesseract) + expressions régulières, si Gemini n'est pas disponible. */
-    private function ocrFallback(string $imagePath): ?array
+    /** @return array{0: ?array, 1: ?string} [champs lus, description de l'image] */
+    private function ocrFallback(string $imagePath): array
     {
         $binary = (new ExecutableFinder)->find('tesseract');
         if (! $binary) {
-            return null;
+            return [null, null];
         }
         $text = '';
         foreach (['fra+eng', 'eng'] as $languages) {
@@ -233,8 +240,10 @@ class SupplierAiService
             }
         }
         if (trim($text) === '') {
-            return null;
+            return [null, 'Analyse locale (sans Gemini) : aucun texte lisible dans l’image.'];
         }
+        $excerpt = Str::limit(preg_replace('/\s+/', ' ', trim($text)), 140);
+        $description = 'Analyse locale (sans Gemini) : texte lu dans l’image « '.$excerpt.' ».';
 
         preg_match('/\b(GOTS|GRS|RWS|FSC|OEKO[- ]?TEX)\b/i', $text, $type);
         preg_match('/(?:n[°o]|number|num[ée]ro)[ \t]*[:#.]?[ \t]*([A-Z0-9][A-Z0-9\-\/\.]*\d[A-Z0-9\-\/\.]*)/i', $text, $number);
@@ -247,7 +256,7 @@ class SupplierAiService
         preg_match('/(Control Union|Ecocert|Bureau Veritas|SGS|Intertek|Textile Exchange|OEKO-TEX Association|CU\s?India)/i', $text, $issuer);
         $dates = collect($dates[1] ?? [])->map(fn ($date) => date('Y-m-d', strtotime(str_replace(['/', '.'], '-', $date))))->sort()->values();
 
-        return [
+        return [[
             'type' => $type[1] ?? null,
             'certificate_number' => $number[1] ?? null,
             'issuer' => $issuer[1] ?? null,
@@ -255,15 +264,17 @@ class SupplierAiService
             'expires_at' => $dates->count() > 1 ? $dates->last() : null,
             'material' => isset($material[1]) ? trim($material[1]) : null,
             'holder' => isset($holder[1]) ? trim($holder[1]) : null,
-        ];
+        ], $description];
     }
 
     private function certificatePrompt(SupplierBatch $batch): string
     {
         return <<<PROMPT
 Tu lis la photo d'un certificat textile (GOTS, GRS, RWS, OEKO-TEX, FSC ou certificat d'origine).
-D'abord, "is_certificate" : true seulement si l'image est réellement un certificat ou une attestation de provenance/conformité textile ;
-sinon false, et décris en quelques mots dans "document_kind" ce que montre l'image (ex. « diagramme UML », « photo d'un vêtement »).
+Dans tous les cas, décris dans "image_description" (1 à 2 phrases en français) ce que montre réellement l'image :
+type de document ou de photo, éléments visibles, texte principal lisible.
+"is_certificate" : true seulement si l'image est réellement un certificat ou une attestation de provenance/conformité textile ;
+sinon false, et résume en quelques mots dans "document_kind" ce que c'est (ex. « diagramme UML », « photo d'un vêtement »).
 Extrais uniquement ce qui est réellement lisible ; mets null sinon. N'invente jamais un numéro ni une date.
 Dates au format YYYY-MM-DD. "type" doit être l'un de : GOTS, GRS, RWS, OEKO-TEX, FSC, origin, other.
 "confidence" est un entier de 0 à 100 sur la lisibilité globale.
@@ -283,8 +294,9 @@ PROMPT;
                 'confidence' => ['type' => 'integer', 'minimum' => 0, 'maximum' => 100],
                 'is_certificate' => ['type' => 'boolean'],
                 'document_kind' => ['type' => 'string'],
+                'image_description' => ['type' => 'string'],
             ],
-            'required' => ['is_certificate', 'document_kind', 'type', 'certificate_number', 'issuer', 'issued_at', 'expires_at', 'material', 'holder', 'confidence'],
+            'required' => ['is_certificate', 'document_kind', 'image_description', 'type', 'certificate_number', 'issuer', 'issued_at', 'expires_at', 'material', 'holder', 'confidence'],
         ];
     }
 
