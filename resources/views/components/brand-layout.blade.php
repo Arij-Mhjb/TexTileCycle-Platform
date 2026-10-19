@@ -26,10 +26,13 @@
                 @include('modules.partials.brand-nav')
             </nav>
 
+            <div class="ml-auto flex items-center gap-3">
+            <x-module.notification-bell />
             <form method="POST" action="{{ route('logout') }}">
                 @csrf
                 <button class="rounded-lg bg-slate-900 px-4 py-2 text-white">Déconnexion</button>
             </form>
+            </div>
         </div>
     </header>
 

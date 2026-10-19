@@ -24,6 +24,7 @@
             </nav>
             <div class="relative" x-data="{ open: false }">
                 <div class="flex items-center gap-2">
+                <x-module.notification-bell />
                 <x-theme-toggle />
                 <button @click="open = !open" @keydown.escape="open = false" :aria-expanded="open" aria-label="Menu du compte" class="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-1.5 pr-3 shadow-sm transition-colors dark:border-slate-700 dark:bg-slate-900">
                     <span class="grid h-9 w-9 place-items-center rounded-xl bg-emerald-600 text-sm font-black text-white">{{ strtoupper(substr(auth()->user()->name, 0, 1)) }}</span>
