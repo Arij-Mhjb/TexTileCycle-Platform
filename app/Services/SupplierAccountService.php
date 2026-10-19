@@ -34,7 +34,7 @@ class SupplierAccountService
         return DB::transaction(function () use ($supplier, $user, $by) {
             $created = ! $user;
             if (! $user) {
-                $user = new User(['name' => $supplier->contact_name ?: $supplier->name, 'email' => $supplier->email, 'role' => 'supplier']);
+                $user = new User(['name' => $supplier->name, 'email' => $supplier->email, 'role' => 'supplier']);
                 // Mot de passe aléatoire que personne ne connaît : le compte n'est utilisable qu'après activation.
                 $user->password = Hash::make(Str::random(64));
                 $user->forceFill(['must_change_password' => true]);
@@ -72,6 +72,8 @@ class SupplierAccountService
                 'email_verified_at' => $user->email_verified_at ?? now(),
             ])->save();
             $invitation->update(['used_at' => now()]);
+            $invitation->supplier->setRelation('user', $user->fresh());
+            $invitation->supplier->syncAccountStatus(); // le fournisseur passe « Actif » automatiquement
 
             return $user;
         });
