@@ -56,6 +56,8 @@ class PurchaseOrderService
             $order->load('lines.batches', 'lines.material');
             $order->update(['total_amount' => $order->linesAmount()]);
             $this->log($order, 'brand', 'created', 'Commande créée : '.$this->describeLines($order).'.', $by);
+            $this->notifySupplier($order, 'purchase_order_created', 'Nouvelle commande de '.($order->brand?->name ?? 'la marque'),
+                $order->reference.' : '.$this->describeLines($order).($order->expected_at ? ', livraison souhaitée le '.$order->expected_at->format('d/m/Y') : '').'. À accepter, refuser ou contre-proposer.');
 
             return $order;
         });
@@ -135,9 +137,11 @@ class PurchaseOrderService
                 'total_amount' => $order->linesAmount(),
             ]);
             $this->log($order, 'brand', 'counter_accepted', 'Contre-proposition acceptée : la commande porte désormais sur '.$this->describeLines($order).'.', $by);
+            $this->notifySupplier($order, 'purchase_order_counter_accepted', 'Contre-proposition acceptée', $order->reference.' : vous pouvez préparer la livraison.');
         } else {
             $order->update(['status' => 'cancelled', 'close_reason' => $reason]);
             $this->log($order, 'brand', 'counter_rejected', 'Contre-proposition refusée, commande annulée'.($reason ? ' : « '.$reason.' »' : '.'), $by);
+            $this->notifySupplier($order, 'purchase_order_counter_rejected', 'Contre-proposition refusée', $order->reference.' est annulée'.($reason ? ' : « '.$reason.' »' : '.'));
         }
 
         return $order;
@@ -208,6 +212,7 @@ class PurchaseOrderService
         $batch->update(['received_at' => now()->toDateString(), 'status' => $batch->status === 'pending' ? 'received' : $batch->status]);
         $this->refreshStatus($order);
         $this->log($order, 'brand', 'received', 'Livraison réceptionnée : lot '.$batch->batch_code.' ('.$this->kg((float) $batch->quantity_kg).').', $by);
+        $this->notifySupplier($order, 'purchase_order_received', 'Livraison réceptionnée', 'Lot '.$batch->batch_code.' ('.$this->kg((float) $batch->quantity_kg).') bien reçu par '.($order->brand?->name ?? 'la marque').' · '.$order->reference.'.');
 
         return $order;
     }
@@ -223,6 +228,7 @@ class PurchaseOrderService
         $order->update(['closed_short_at' => now(), 'close_reason' => $reason]);
         $this->refreshStatus($order);
         $this->log($order, 'brand', 'closed_short', 'Commande soldée : '.$this->kg($remaining).' de reliquat abandonné(s). « '.$reason.' »', $by);
+        $this->notifySupplier($order, 'purchase_order_closed_short', 'Commande soldée par la marque', $order->reference.' : le reliquat de '.$this->kg($remaining).' n’est plus à livrer.');
 
         return $order;
     }
@@ -234,6 +240,7 @@ class PurchaseOrderService
         }
         $order->update(['status' => 'cancelled', 'close_reason' => $reason]);
         $this->log($order, 'brand', 'cancelled', 'Commande annulée par la marque'.($reason ? ' : « '.$reason.' »' : '.'), $by);
+        $this->notifySupplier($order, 'purchase_order_cancelled', 'Commande annulée', $order->reference.' a été annulée par '.($order->brand?->name ?? 'la marque').($reason ? ' : « '.$reason.' »' : '.'));
 
         return $order;
     }
@@ -272,6 +279,14 @@ class PurchaseOrderService
     {
         if ($userId = $order->brand?->user_id) {
             BrandNotification::create(['user_id' => $userId, 'type' => $type, 'title' => $title, 'message' => $message, 'url' => route('brand.purchase-orders.show', $order)]);
+        }
+    }
+
+    private function notifySupplier(PurchaseOrder $order, string $type, string $title, string $message): void
+    {
+        $userId = $order->supplier?->user_id;
+        if ($userId) {
+            app(NotificationCenter::class)->send($userId, $type, $title, $message, route('supplier.orders.show', $order));
         }
     }
 
