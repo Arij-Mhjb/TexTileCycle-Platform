@@ -193,6 +193,11 @@ class CircularModulesTest extends TestCase
         $this->assertSame('listed', $order->fresh()->status);
         $this->assertDatabaseHas('reward_transactions', ['user_id' => $consumer->id, 'type' => 'second_life', 'status' => 'validated']);
 
+        $this->actingAs($consumer)->get(route('consumer.marketplace.show', $listing))->assertOk()
+            ->assertSee('C’est votre article')->assertDontSee('Envoyer mon offre');
+        $this->post(route('consumer.marketplace.offer', $listing), ['offered_price' => 45])->assertSessionHasErrors('status');
+        $this->assertSame(0, $listing->offers()->count());
+
         $this->actingAs($buyer)->get(route('consumer.marketplace.index'))->assertOk()->assertSee('Chemise reconditionnée');
         $this->post(route('consumer.marketplace.offer', $listing), ['offered_price' => 45])->assertSessionHasNoErrors();
 
