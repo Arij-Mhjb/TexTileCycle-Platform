@@ -101,9 +101,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/supplier-batches/{batch}/receive', [BrandPurchaseOrderController::class, 'receive'])->name('purchase-orders.receive');
         Route::patch('/suppliers/{supplier}/suspend', [BrandSupplierController::class, 'suspend'])->name('suppliers.suspend');
         Route::post('/suppliers/{supplier}/access', [BrandSupplierController::class, 'access'])->name('suppliers.access');
-        Route::post('/suppliers/{supplier}/batches', [BrandSupplierBatchController::class, 'store'])->name('supplier-batches.store');
-        Route::delete('/supplier-batches/{batch}', [BrandSupplierBatchController::class, 'destroy'])->name('supplier-batches.destroy');
-        Route::post('/supplier-batches/{batch}/certificates', [BrandSupplierBatchController::class, 'certificate'])->name('certificates.store');
         Route::get('/certificates/{certificate}/document', [BrandSupplierBatchController::class, 'document'])->name('certificates.document');
         Route::post('/suppliers/{supplier}/ai-risk', [ModuleAiController::class, 'brandSupplierRisk'])->name('suppliers.ai-risk');
         Route::get('/traceability', [BrandTraceabilityController::class, 'index'])->name('traceability.index');
