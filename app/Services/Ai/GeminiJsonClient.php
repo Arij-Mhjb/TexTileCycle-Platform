@@ -72,11 +72,21 @@ class GeminiJsonClient
             return null;
         }
         $mime = mime_content_type($path) ?: '';
-        if (! in_array($mime, ['image/jpeg', 'image/png', 'image/webp'], true)) {
-            return null;
+        if (in_array($mime, ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'], true)) {
+            return ['type' => 'image', 'data' => base64_encode((string) file_get_contents($path)), 'mime_type' => $mime];
         }
 
-        return ['type' => 'image', 'data' => base64_encode((string) file_get_contents($path)), 'mime_type' => $mime];
+        // Autres formats (GIF, BMP…) : conversion en PNG pour que Gemini puisse les lire.
+        $image = function_exists('imagecreatefromstring') ? @imagecreatefromstring((string) file_get_contents($path)) : false;
+        if (! $image) {
+            return null;
+        }
+        ob_start();
+        imagepng($image);
+        $png = (string) ob_get_clean();
+        imagedestroy($image);
+
+        return ['type' => 'image', 'data' => base64_encode($png), 'mime_type' => 'image/png'];
     }
 
     private function text(array $response): ?string
