@@ -18,6 +18,13 @@
                 </ul>
             </div>
 
+            @if($listing->isFromConsumer(auth()->user()))
+                <div class="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-sm dark:border-emerald-900 dark:bg-emerald-950/30">
+                    <p class="font-semibold text-emerald-800 dark:text-emerald-300">C’est votre article</p>
+                    <p class="mt-1 text-emerald-700 dark:text-emerald-400">Vous l’avez retourné ({{ $listing->repairOrder->reference }}) et il a été reconditionné. Vous avez reçu {{ \App\Services\RepairMarketplaceService::RESALE_POINTS }} points pour sa seconde vie. Les autres membres peuvent maintenant faire une offre.</p>
+                    <a href="{{ route('consumer.repairs.index') }}" class="mt-3 inline-block font-semibold text-emerald-800 underline dark:text-emerald-300">Suivre dans Mes réparations</a>
+                </div>
+            @else
             @if($myOffer)
                 <div class="mt-6 rounded-2xl bg-slate-100 p-4 text-sm dark:bg-slate-800">Votre offre : <strong>{{ number_format((float) $myOffer->offered_price, 2, ',', ' ') }} {{ $listing->currency }}</strong> — {{ $myOffer->statusLabel() }}</div>
             @endif
@@ -28,6 +35,7 @@
                     <div class="sm:col-span-2"><x-module.field name="message" label="Message (facultatif)" placeholder="Disponible pour un retrait samedi…"/></div>
                     <div class="sm:col-span-3"><x-module.button module="repair" class="w-full">Envoyer mon offre</x-module.button></div>
                 </form>
+            @endif
             @endif
         </div>
     </div>
