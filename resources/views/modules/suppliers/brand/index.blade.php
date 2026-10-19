@@ -20,11 +20,11 @@
             <a href="{{ route('brand.suppliers.show', $supplier) }}" class="shadow-[0_1px_2px_rgba(15,23,42,.05)] group rounded-2xl border border-slate-200 bg-white p-6 transition hover:-translate-y-1 hover:border-purple-200 hover:shadow-xl hover:shadow-purple-900/5">
                 <div class="flex items-start justify-between gap-3">
                     <div class="grid h-12 w-12 place-items-center rounded-2xl bg-purple-50 text-lg font-black text-purple-700">{{ strtoupper(mb_substr($supplier->name, 0, 1)) }}</div>
-                    <x-module.badge :tone="$supplier->status === 'active' ? 'good' : ($supplier->status === 'suspended' ? 'bad' : 'warn')">{{ $supplier->statusLabel() }}</x-module.badge>
+                    <x-module.badge :tone="$supplier->statusTone()">{{ $supplier->statusLabel() }}</x-module.badge>
                 </div>
                 <h2 class="mt-4 text-lg font-black text-slate-900 group-hover:text-purple-700">{{ $supplier->name }}</h2>
                 <p class="text-sm text-slate-500">{{ collect([$supplier->city, $supplier->country])->filter()->join(', ') }}</p>
-                @if($supplier->certifications)<p class="mt-3 text-xs font-bold text-purple-600">{{ $supplier->certifications }}</p>@endif
+                @if($certifications = $supplier->certificationsLabel())<p class="mt-3 text-xs font-bold text-purple-600">{{ $certifications }}</p>@endif
                 <div class="mt-5 grid grid-cols-3 gap-2 text-center text-xs">
                     <div class="rounded-xl bg-slate-50 p-2"><p class="text-lg font-black text-slate-900">{{ $supplier->batches_count }}</p>lots</div>
                     <div class="rounded-xl bg-slate-50 p-2"><p class="text-lg font-black text-slate-900">{{ $supplier->verified_batches_count }}</p>vérifiés</div>

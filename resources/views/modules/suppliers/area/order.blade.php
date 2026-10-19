@@ -18,7 +18,7 @@
     <section class="mb-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-[0_1px_2px_rgba(15,23,42,.05)]">
         <div class="flex flex-wrap items-end justify-between gap-3">
             <h2 class="text-xl font-black">Ce que {{ $order->brand->name }} commande</h2>
-            <p class="text-sm text-slate-500">Certificat attendu : {{ $order->supplier->certifications ?: 'certificat de provenance de la matière' }}</p>
+            <p class="text-sm text-slate-500">À joindre à chaque livraison : le certificat de provenance (GRS, GOTS, RWS, OEKO-TEX…)</p>
         </div>
         <div class="mt-4">@include('modules.suppliers._order-lines')</div>
         @if($order->notes)<p class="mt-4 rounded-xl bg-purple-50 px-4 py-3 text-sm text-purple-950"><span class="font-semibold">Message du client :</span> {{ $order->notes }}</p>@endif

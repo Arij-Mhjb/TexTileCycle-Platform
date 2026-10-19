@@ -1,5 +1,5 @@
 <x-brand-layout>
-    <x-module.hero module="suppliers" :eyebrow="'Fournisseur · '.$supplier->country" :title="$supplier->name" :description="$supplier->certifications ? 'Certifications déclarées : '.$supplier->certifications : 'Suivi des commandes, lots et certificats de provenance.'">
+    <x-module.hero module="suppliers" :eyebrow="'Fournisseur · '.$supplier->country" :title="$supplier->name" :description="($certifications = $supplier->certificationsLabel()) ? 'Certifications prouvées par ses certificats vérifiés : '.$certifications : 'Suivi des commandes, lots et certificats de provenance. Aucune certification vérifiée pour l’instant.'">
         <x-slot:actions>
             <x-module.button module="suppliers" variant="light" :href="route('brand.suppliers.edit', $supplier)">Modifier</x-module.button>
             @if($supplier->canBeDeleted())
