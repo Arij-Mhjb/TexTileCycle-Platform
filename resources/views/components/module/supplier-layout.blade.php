@@ -22,6 +22,7 @@
             @if(auth()->user()?->role === 'supplier')
                 <nav class="flex flex-wrap items-center gap-1 text-sm font-semibold" aria-label="Espace fournisseur">
                     <a href="{{ route('supplier.dashboard') }}" class="rounded-md px-3 py-2 transition-colors {{ request()->routeIs('supplier.dashboard', 'supplier.orders.*') ? 'bg-white/10 text-white' : 'text-white/70 hover:text-white' }}">Mes commandes</a>
+                    <a href="{{ route('supplier.batches.index') }}" class="rounded-md px-3 py-2 transition-colors {{ request()->routeIs('supplier.batches.*') ? 'bg-white/10 text-white' : 'text-white/70 hover:text-white' }}">Mes lots & certificats</a>
                     <a href="{{ route('supplier.password.edit') }}" class="rounded-md px-3 py-2 transition-colors {{ request()->routeIs('supplier.password.*') ? 'bg-white/10 text-white' : 'text-white/70 hover:text-white' }}">Mot de passe</a>
                     <span class="mx-2 hidden h-5 w-px bg-white/15 md:block"></span>
                     <span class="hidden pr-2 text-xs text-white/50 md:inline">{{ auth()->user()->email }}</span>
