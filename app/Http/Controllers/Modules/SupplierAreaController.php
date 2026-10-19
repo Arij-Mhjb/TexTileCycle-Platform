@@ -3,13 +3,18 @@
 namespace App\Http\Controllers\Modules;
 
 use App\Http\Controllers\Controller;
+use App\Models\MaterialOriginCertificate;
 use App\Models\PurchaseOrder;
+use App\Models\SupplierBatch;
 use App\Services\PurchaseOrderService;
+use App\Services\SupplierTraceabilityService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
  * Espace du fournisseur connecté (rôle « supplier ») : ses commandes, accepter / refuser / contre-proposer,
@@ -53,6 +58,42 @@ class SupplierAreaController extends Controller
         $this->authorizeOrder($request, $purchaseOrder);
 
         return $this->processShipment($request, $purchaseOrder, $orders);
+    }
+
+    /** Tous les lots livrés par ce fournisseur, avec leurs certificats. */
+    public function batches(Request $request): View
+    {
+        $batches = SupplierBatch::with(['material', 'certificates', 'purchaseOrder.brand', 'supplier'])
+            ->whereHas('supplier', fn ($query) => $query->where('user_id', $request->user()->id))
+            ->latest()->get();
+
+        return view('modules.suppliers.area.batches', ['batches' => $batches]);
+    }
+
+    /** Le fournisseur ajoute (ou remplace) le certificat d'une de ses livraisons : n'importe quelle image, l'IA dit ce qu'elle voit. */
+    public function addCertificate(Request $request, SupplierBatch $batch, SupplierTraceabilityService $traceability): RedirectResponse
+    {
+        abort_unless($batch->supplier?->user_id === $request->user()->id, 403, 'Ce lot n’est pas le vôtre.');
+        $request->validate(
+            ['document' => 'required|file|mimes:jpg,jpeg,png,webp,gif,bmp,heic,heif|max:10240'],
+            ['document.required' => 'Choisissez la photo du certificat.'],
+            ['document' => 'photo du certificat']
+        );
+
+        $outcome = $traceability->addCertificateFromPhoto($batch, $request->file('document'));
+        if ($outcome['recognized'] && $batch->purchaseOrder) {
+            app(PurchaseOrderService::class)->log($batch->purchaseOrder, 'supplier', 'certificate_added', 'Certificat ajouté sur le lot '.$batch->batch_code.'.', $request->user());
+        }
+
+        return back()->with($outcome['recognized'] ? 'success' : 'warning', $outcome['message']);
+    }
+
+    public function certificateDocument(Request $request, MaterialOriginCertificate $certificate): StreamedResponse
+    {
+        abort_unless($certificate->batch?->supplier?->user_id === $request->user()->id, 403);
+        abort_unless($certificate->document_path && Storage::disk('local')->exists($certificate->document_path), 404);
+
+        return Storage::disk('local')->response($certificate->document_path);
     }
 
     public function editPassword(Request $request): View

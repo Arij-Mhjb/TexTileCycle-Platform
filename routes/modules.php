@@ -84,6 +84,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::get('/commandes/{purchaseOrder}', [SupplierAreaController::class, 'order'])->name('orders.show');
             Route::post('/commandes/{purchaseOrder}/reponse', [SupplierAreaController::class, 'answerOrder'])->name('orders.answer');
             Route::post('/commandes/{purchaseOrder}/expedition', [SupplierAreaController::class, 'shipOrder'])->name('orders.ship');
+            Route::get('/lots', [SupplierAreaController::class, 'batches'])->name('batches.index');
+            Route::post('/lots/{batch}/certificats', [SupplierAreaController::class, 'addCertificate'])->name('batches.certificate');
+            Route::get('/certificats/{certificate}/document', [SupplierAreaController::class, 'certificateDocument'])->name('certificates.document');
         });
     });
 
