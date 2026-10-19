@@ -17,7 +17,6 @@
             @if($digits)
                 <a href="https://wa.me/{{ $digits }}?text={{ rawurlencode($sent['message']) }}" target="_blank" rel="noopener" class="inline-flex items-center gap-2 rounded-lg bg-[#1fa855] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#178a45]">Envoyer par WhatsApp</a>
             @endif
-            <a href="mailto:{{ $sent['email'] }}?subject={{ rawurlencode('Votre accès fournisseur TexTileCycle') }}&body={{ rawurlencode($sent['message']) }}" class="inline-flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold text-purple-800 ring-1 ring-inset ring-purple-200 hover:bg-purple-50">Envoyer par e-mail</a>
             <button type="button" class="inline-flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold text-slate-700 ring-1 ring-inset ring-slate-200 hover:bg-slate-50"
                     @click="navigator.clipboard.writeText(@js($sent['message'])); copied = true; setTimeout(() => copied = false, 2000)">
                 <span x-text="copied ? 'Message copié' : 'Copier le message'"></span>
