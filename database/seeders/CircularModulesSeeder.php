@@ -124,6 +124,7 @@ class CircularModulesSeeder extends Seeder
                     'verified_by' => $status === 'verified' ? $admin->id : null,
                     'verified_at' => $status === 'verified' ? now()->subMonth() : null,
                 ]);
+                $batch->forceFill(['created_at' => now()->subMonths(2)->subDays(4)])->save(); // expédié quelques jours avant la réception
                 foreach ($certificates as [$type, $number, $issuer, $certificateStatus]) {
                     $batch->certificates()->updateOrCreate(['certificate_number' => $number], [
                         'type' => $type, 'issuer' => $issuer, 'issued_at' => now()->subYear(), 'expires_at' => now()->addYear(),
