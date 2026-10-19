@@ -42,13 +42,14 @@ class BrandSupplierController extends Controller
     {
         $this->brand($request);
 
-        return view('modules.suppliers.brand.form', ['supplier' => new Supplier(['status' => 'active'])]);
+        return view('modules.suppliers.brand.form', ['supplier' => new Supplier]);
     }
 
     public function store(Request $request, SupplierAccountService $accounts): RedirectResponse
     {
         $brand = $this->brand($request);
-        $supplier = $brand->suppliers()->create($this->validated($request, $brand));
+        // Nouveau fournisseur : « En attente d'activation » jusqu'à ce qu'il active son compte.
+        $supplier = $brand->suppliers()->create([...$this->validated($request, $brand), 'status' => 'pending']);
         $redirect = to_route('brand.suppliers.show', $supplier)->with('success', 'Fournisseur ajouté.');
 
         return $request->boolean('create_access') ? $this->withAccess($redirect, $supplier, $accounts) : $redirect;
@@ -138,7 +139,12 @@ class BrandSupplierController extends Controller
     {
         $this->authorizeSupplier($request, $supplier);
         $suspended = ! $supplier->isSuspended();
-        $supplier->update(['status' => $suspended ? 'suspended' : 'active']);
+        if ($suspended) {
+            $supplier->update(['status' => 'suspended']);
+        } else {
+            $supplier->update(['status' => 'pending']);
+            $supplier->syncAccountStatus(); // redevient « Actif » s'il a déjà activé son compte
+        }
 
         return back()->with('success', $suspended
             ? 'Fournisseur suspendu : plus de nouvelles commandes, son historique et ses preuves sont conservés.'
@@ -149,21 +155,17 @@ class BrandSupplierController extends Controller
     {
         return $request->validate([
             'name' => ['required', 'string', 'max:150', Rule::unique('suppliers')->where('brand_id', $brand->id)->ignore($supplier?->id)],
-            'contact_name' => 'nullable|string|max:120',
             'email' => 'nullable|email|max:150',
             'phone' => 'nullable|string|max:40',
             'country' => 'required|string|max:100',
             'city' => 'nullable|string|max:100',
             'address' => 'nullable|string|max:255',
-            'certifications' => 'nullable|string|max:255',
-            'status' => 'required|in:active,under_review,suspended',
             'notes' => 'nullable|string|max:2000',
         ], [
-            'name.unique' => 'Vous avez déjà un fournisseur avec ce nom.',
+            'name.unique' => 'Vous avez déjà un fournisseur à ce nom.',
         ], [
-            'name' => 'raison sociale', 'contact_name' => 'contact', 'email' => 'e-mail', 'phone' => 'téléphone',
-            'country' => 'pays', 'city' => 'ville', 'address' => 'adresse', 'certifications' => 'certifications',
-            'status' => 'statut', 'notes' => 'notes',
+            'name' => 'nom et prénom', 'email' => 'e-mail', 'phone' => 'téléphone',
+            'country' => 'pays', 'city' => 'ville', 'address' => 'adresse', 'notes' => 'notes',
         ]);
     }
 
