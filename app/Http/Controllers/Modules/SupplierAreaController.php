@@ -10,9 +10,7 @@ use App\Services\PurchaseOrderService;
 use App\Services\SupplierTraceabilityService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Validation\Rules\Password;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -94,22 +92,6 @@ class SupplierAreaController extends Controller
         abort_unless($certificate->document_path && Storage::disk('local')->exists($certificate->document_path), 404);
 
         return Storage::disk('local')->response($certificate->document_path);
-    }
-
-    public function editPassword(Request $request): View
-    {
-        return view('modules.suppliers.area.password', ['forced' => (bool) $request->user()->must_change_password]);
-    }
-
-    public function updatePassword(Request $request): RedirectResponse
-    {
-        $request->validate([
-            'password' => ['required', 'confirmed', Password::min(8)->letters()->numbers()],
-        ], [], ['password' => 'nouveau mot de passe']);
-
-        $request->user()->forceFill(['password' => Hash::make($request->password), 'must_change_password' => false])->save();
-
-        return to_route('supplier.dashboard')->with('success', 'Mot de passe enregistré. Bienvenue dans votre espace fournisseur !');
     }
 
     /** Accepter, refuser ou contre-proposer (quantités par ligne, nouvelle date). */
