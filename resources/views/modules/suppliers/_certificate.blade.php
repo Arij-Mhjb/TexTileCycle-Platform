@@ -19,7 +19,7 @@
         <x-module.badge :tone="$certificate->isValid() ? 'good' : ($certificate->status === 'pending' ? 'warn' : 'bad')">{{ $certificate->isNotACertificate() ? 'Rejeté par l’IA' : $certificate->statusLabel() }}</x-module.badge>
     </div>
     <div class="mt-2 flex flex-wrap items-center gap-2">
-        @if($ai)<x-module.ai-badge :source="$ai['source'] ?? 'local'"/>@if(! empty($ai['confidence']))<span class="text-xs font-bold text-pink-800 dark:text-pink-300">Confiance {{ $ai['confidence'] }} %</span>@endif @endif
+        @if($ai)<x-module.ai-badge :source="$ai['source'] ?? 'local'"/>@if(! empty($ai['confidence']))<span class="text-xs font-bold text-pink-800 dark:text-pink-300">{{ $certificate->isNotACertificate() ? 'Sûre à '.$ai['confidence'].' % que ce n’est pas un certificat' : 'Lecture fiable à '.$ai['confidence'].' %' }}</span>@endif @endif
         @if($certificate->document_path)<a href="{{ route($documentRoute, $certificate) }}" target="_blank" class="text-xs font-black text-purple-700 underline">Voir le document</a>@elseif($certificate->document_url)<a href="{{ $certificate->document_url }}" target="_blank" rel="noopener" class="text-xs font-black text-purple-700 underline">Voir le document</a>@endif
     </div>
     @if(filled($ai['description'] ?? null))
