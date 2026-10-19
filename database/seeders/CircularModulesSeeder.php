@@ -79,7 +79,7 @@ class CircularModulesSeeder extends Seeder
             foreach (['co2', 'water', 'energy', 'waste'] as $index => $code) {
                 ImpactMetric::updateOrCreate(
                     ['material_id' => $material->id, 'impact_category_id' => $categories[$code]],
-                    ['value_per_kg' => $values[$index], 'source' => 'Valeurs moyennes de démonstration (ordre de grandeur ACV)']
+                    ['value_per_kg' => $values[$index], 'source' => 'Valeur indicative (démo)']
                 );
             }
         }
