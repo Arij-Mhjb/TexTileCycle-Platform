@@ -134,7 +134,7 @@ class ImpactCalculationService
         $weight = max(0.05, $weightKg ?: $this->estimateWeight($product));
         ['stages' => $stages, 'totals' => $totals, 'avoided' => $avoided, 'bonus' => $bonus, 'score' => $score] = $this->compute($product, $weight);
 
-        return DB::transaction(function () use ($product, $author, $weight, $season, $stages, $totals, $avoided, $bonus, $score) {
+        $report = DB::transaction(function () use ($product, $author, $weight, $season, $stages, $totals, $avoided, $bonus, $score) {
             $report = ProductImpactReport::create([
                 'product_id' => $product->id,
                 'brand_id' => $product->brand_id,
@@ -159,6 +159,14 @@ class ImpactCalculationService
 
             return $report->load(['carbonFootprints', 'waterFootprints']);
         });
+
+        if ($author?->role === 'brand') {
+            app(NotificationCenter::class)->toAdmins('impact_report_submitted', 'Rapport d’impact à valider',
+                ($product->brandProfile?->name ?? ($product->brand ?: 'Une marque')).' a calculé l’impact de « '.$product->name.' » : '.$report->impact_score.'/100 (classe '.$report->grade.').',
+                route('admin.impact-reports.show', $report));
+        }
+
+        return $report;
     }
 
     public function validate(ProductImpactReport $report, User $admin, ?int $assessmentId = null, ?string $note = null): ProductImpactReport
