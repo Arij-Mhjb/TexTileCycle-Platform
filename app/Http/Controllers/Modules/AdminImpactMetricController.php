@@ -9,6 +9,7 @@ use App\Models\Material;
 use App\Services\ImpactCalculationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class AdminImpactMetricController extends Controller
@@ -30,8 +31,10 @@ class AdminImpactMetricController extends Controller
             'material_id' => 'required|exists:materials,id',
             'impact_category_id' => 'required|exists:impact_categories,id',
             'value_per_kg' => 'required|numeric|min:0|max:100000',
-            'source' => 'nullable|string|max:255',
-        ]);
+            'source' => ['nullable', Rule::in([...ImpactMetric::SOURCES, 'other'])],
+            'source_other' => 'nullable|required_if:source,other|string|max:255',
+        ], ['source_other.required_if' => 'Précisez la source.'], ['source_other' => 'autre source']);
+        $data['source'] = ($data['source'] ?? null) === 'other' ? $data['source_other'] : ($data['source'] ?? null);
 
         ImpactMetric::updateOrCreate(
             ['material_id' => $data['material_id'], 'impact_category_id' => $data['impact_category_id']],
