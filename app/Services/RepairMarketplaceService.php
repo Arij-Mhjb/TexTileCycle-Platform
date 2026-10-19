@@ -144,6 +144,7 @@ class RepairMarketplaceService
     public function makeOffer(MarketplaceListing $listing, User $buyer, float $price, ?string $message = null): ResaleOffer
     {
         $this->guard($listing->status === 'published', 'Cette annonce n’est plus disponible.');
+        $this->guard(! $listing->isFromConsumer($buyer), 'Cet article vient de votre propre retour : vous ne pouvez pas faire d’offre dessus.');
         $this->guard(! $listing->offers()->where('user_id', $buyer->id)->where('status', 'pending')->exists(), 'Vous avez déjà une offre en attente sur cette annonce.');
 
         return $listing->offers()->create(['user_id' => $buyer->id, 'offered_price' => $price, 'message' => $message, 'status' => 'pending']);
