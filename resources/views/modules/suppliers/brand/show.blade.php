@@ -103,17 +103,21 @@
         <section class="shadow-[0_1px_2px_rgba(15,23,42,.05)] rounded-2xl border border-slate-200 bg-white p-6 xl:col-span-3">
             <p class="text-[13px] font-semibold text-purple-600">Provenance</p>
             <h2 class="mt-1 text-xl font-black">Lots de matières</h2>
-            <p class="mt-1 text-sm text-slate-500">Un lot = une livraison de matière reçue de ce fournisseur. Son code est créé automatiquement ; ajoutez ensuite la photo du certificat et reliez le lot aux produits qui l’utilisent.</p>
-            <form method="POST" action="{{ route('brand.supplier-batches.store', $supplier) }}" class="mt-4 grid gap-3 rounded-2xl bg-purple-50/60 p-4 md:grid-cols-3">
-                @csrf
-                <x-ui.select name="material_id" label="Matière" :options="$materials->pluck('name', 'id')" required/>
-                <x-module.field name="quantity_kg" type="number" step="0.1" min="0.1" label="Quantité (kg)" required/>
-                <x-module.field name="origin_country" label="Pays d’origine" :value="$supplier->country" required/>
-                <x-module.field name="production_date" type="date" label="Production"/>
-                <x-module.field name="received_at" type="date" label="Réception"/>
-                <x-ui.select name="purchase_order_id" label="Bon de commande" :options="$supplier->purchaseOrders->where('status', '!=', 'cancelled')->pluck('reference', 'id')" placeholder="Aucun"/>
-                <div class="md:col-span-2 flex items-end"><x-module.button module="suppliers" class="w-full">Déclarer le lot</x-module.button></div>
-            </form>
+            @if($supplier->managesOwnLots())
+                <p class="mt-1 text-sm text-slate-500">Un lot = une livraison de matière. <strong class="font-semibold text-slate-700">{{ $supplier->name }} déclare lui-même ses livraisons et ses certificats</strong> depuis son espace fournisseur : vous les consultez, confirmez la réception sur la commande et reliez les lots à vos produits (onglet Traçabilité produits).</p>
+            @else
+                <p class="mt-1 text-sm text-slate-500">Un lot = une livraison de matière reçue de ce fournisseur. {{ $supplier->name }} n’a pas encore activé son accès : vous pouvez saisir ses livraisons et certificats à sa place.</p>
+                <form method="POST" action="{{ route('brand.supplier-batches.store', $supplier) }}" class="mt-4 grid gap-3 rounded-2xl bg-purple-50/60 p-4 md:grid-cols-3">
+                    @csrf
+                    <x-ui.select name="material_id" label="Matière" :options="$materials->pluck('name', 'id')" required/>
+                    <x-module.field name="quantity_kg" type="number" step="0.1" min="0.1" label="Quantité (kg)" required/>
+                    <x-module.field name="origin_country" label="Pays d’origine" :value="$supplier->country" required/>
+                    <x-module.field name="production_date" type="date" label="Production"/>
+                    <x-module.field name="received_at" type="date" label="Réception"/>
+                    <x-ui.select name="purchase_order_id" label="Bon de commande" :options="$supplier->purchaseOrders->where('status', '!=', 'cancelled')->pluck('reference', 'id')" placeholder="Aucun"/>
+                    <div class="md:col-span-2 flex items-end"><x-module.button module="suppliers" class="w-full">Saisir la livraison</x-module.button></div>
+                </form>
+            @endif
 
             <div class="mt-5 space-y-4">
                 @forelse($supplier->batches as $batch)
@@ -126,7 +130,7 @@
                             </div>
                             <div class="flex items-center gap-2">
                                 <x-module.badge :tone="['verified' => 'good', 'rejected' => 'bad'][$batch->status] ?? 'warn'">{{ $batch->statusLabel() }}</x-module.badge>
-                                @if($batch->status !== 'verified')<form method="POST" action="{{ route('brand.supplier-batches.destroy', $batch) }}" onsubmit="return confirm('Supprimer ce lot ?')">@csrf @method('DELETE')<button class="btn-danger !py-1 text-xs">Supprimer</button></form>@endif
+                                @if($batch->status !== 'verified' && ! $supplier->managesOwnLots())<form method="POST" action="{{ route('brand.supplier-batches.destroy', $batch) }}" onsubmit="return confirm('Supprimer ce lot ?')">@csrf @method('DELETE')<button class="btn-danger !py-1 text-xs">Supprimer</button></form>@endif
                             </div>
                         </div>
                         @if($batch->verification_note)<p class="mt-3 rounded-xl bg-slate-50 p-3 text-sm text-slate-600">{{ $batch->verification_note }}</p>@endif
@@ -137,18 +141,12 @@
                                 @include('modules.suppliers._certificate', ['documentRoute' => 'brand.certificates.document'])
                             @endforeach
 
-                            {{-- Ajout d'un certificat : une simple photo, l'IA lit le reste --}}
-                            <form method="POST" action="{{ route('brand.certificates.store', $batch) }}" enctype="multipart/form-data" x-data="{ name: '' }"
-                                  class="flex flex-col justify-center gap-3 rounded-2xl border-2 border-dashed border-pink-300 bg-gradient-to-br from-fuchsia-50/60 to-pink-50/60 p-4 text-center">
-                                @csrf
-                                <p class="text-sm font-black text-pink-800">✦ Ajouter un certificat</p>
-                                <p class="text-xs text-slate-500">Envoyez la photo ou le scan : l’IA lit le type, le numéro, l’organisme et les dates.</p>
-                                <label class="mx-auto cursor-pointer rounded-xl bg-white px-4 py-2 text-xs font-bold text-pink-700 shadow-sm ring-1 ring-pink-200 hover:bg-pink-50">
-                                    <span x-text="name || 'Choisir la photo du certificat'"></span>
-                                    <input type="file" name="document" accept="image/*,.heic,.heif" required class="sr-only" @change="name = $event.target.files[0]?.name || ''">
-                                </label>
-                                <button class="mx-auto rounded-xl bg-gradient-to-r from-fuchsia-600 to-pink-600 px-4 py-2 text-sm font-black text-white shadow-sm" :disabled="!name" :class="!name && 'opacity-50 cursor-not-allowed'">Envoyer à l’IA</button>
-                            </form>
+                            @if($batch->certificates->isEmpty() && $supplier->managesOwnLots())
+                                <p class="rounded-2xl border border-dashed border-slate-200 p-4 text-sm text-slate-500">Aucun certificat pour ce lot : {{ $supplier->name }} doit l’ajouter depuis son espace.</p>
+                            @endif
+                            @unless($supplier->managesOwnLots())
+                                @include('modules.suppliers._add-certificate', ['action' => route('brand.certificates.store', $batch)])
+                            @endunless
                         </div>
                     </article>
                 @empty
