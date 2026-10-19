@@ -3,7 +3,9 @@
     @include('modules.repair.consumer._tabs')
 
     <div class="grid gap-6 lg:grid-cols-3">
-        <form method="POST" action="{{ route('consumer.repairs.store') }}" enctype="multipart/form-data" class="consumer-card h-fit space-y-4 p-6">
+        {{-- L'analyse IA prend quelques secondes : le bouton est bloqué après le premier clic pour éviter les doublons. --}}
+        <form method="POST" action="{{ route('consumer.repairs.store') }}" enctype="multipart/form-data" class="consumer-card h-fit space-y-4 p-6"
+              x-data="{ sending: false }" @submit="if (sending) { $event.preventDefault(); } sending = true">
             @csrf
             <h2 class="text-lg font-black">Demander une réparation</h2>
             @if($returns->isEmpty())
@@ -17,7 +19,7 @@
                     <input type="file" name="photo" accept="image/jpeg,image/png,image/webp" class="mt-2 block w-full text-xs file:mr-2 file:rounded-lg file:border-0 file:bg-white file:px-2 file:py-1.5 file:text-xs file:font-bold file:text-violet-700">
                     @error('photo')<span class="mt-1 block text-sm font-semibold text-rose-600">{{ $message }}</span>@enderror
                 </label>
-                <x-module.button module="repair" class="w-full">Envoyer la demande</x-module.button>
+                <x-module.button module="repair" class="w-full disabled:cursor-wait disabled:opacity-60" x-bind:disabled="sending"><span x-text="sending ? 'Analyse IA en cours…' : 'Envoyer la demande'">Envoyer la demande</span></x-module.button>
             @endif
         </form>
         <div class="space-y-4 lg:col-span-2">
