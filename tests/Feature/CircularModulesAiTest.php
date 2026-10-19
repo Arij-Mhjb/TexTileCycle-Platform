@@ -52,10 +52,8 @@ class CircularModulesAiTest extends TestCase
         $brandUser = User::where('email', 'brand@textilecycle.test')->firstOrFail();
         $batch = SupplierBatch::where('batch_code', 'LOT-FM-2026-01')->firstOrFail();
 
-        // Filature Méditerranée gère ses lots : la marque ne peut pas ajouter le certificat à sa place.
-        $this->actingAs($brandUser)->post(route('brand.certificates.store', $batch), ['document' => UploadedFile::fake()->image('certificat.jpg')])
-            ->assertSessionHasErrors('supplier');
-        $this->assertSame(0, MaterialOriginCertificate::where('certificate_number', 'CU-GRS-778899')->count());
+        // La marque n'a aucun moyen d'ajouter un certificat : seul le fournisseur l'envoie.
+        $this->actingAs($brandUser)->get(route('brand.suppliers.show', $batch->supplier))->assertDontSee('Envoyer à l’IA', false);
 
         // C'est le fournisseur qui l'envoie depuis son espace ; l'IA remplit tout.
         $supplierAccount = User::where('email', 'fournisseur@textilecycle.test')->firstOrFail();
@@ -81,32 +79,33 @@ class CircularModulesAiTest extends TestCase
             'type' => null, 'certificate_number' => null, 'issuer' => null, 'issued_at' => null, 'expires_at' => null, 'material' => null, 'holder' => null, 'confidence' => 95]);
         Storage::fake('local');
         $brandUser = User::where('email', 'brand@textilecycle.test')->firstOrFail();
-        $batch = SupplierBatch::where('batch_code', 'LOT-LN-2026-03')->firstOrFail();
+        $batch = SupplierBatch::where('batch_code', 'LOT-FM-2026-02')->firstOrFail();
+        $supplierAccount = User::where('email', 'fournisseur@textilecycle.test')->firstOrFail();
         $scoreBefore = $batch->supplier->fresh()->compliance_score;
 
-        $this->actingAs($brandUser)->post(route('brand.certificates.store', $batch), ['document' => UploadedFile::fake()->image('diagramme.gif')])
+        $this->actingAs($supplierAccount)->post(route('supplier.batches.certificate', $batch), ['document' => UploadedFile::fake()->image('diagramme.gif')])
             ->assertSessionHasNoErrors()->assertSessionHas('warning', fn ($message) => str_contains($message, 'diagramme de classes UML'));
 
         // L'image est conservée avec la description, marquée « pas un certificat », et ne compte pas comme preuve.
-        $certificate = $batch->certificates()->firstOrFail();
+        $certificate = $batch->certificates()->reorder()->latest('id')->firstOrFail();
         $this->assertSame('rejected', $certificate->status);
         $this->assertTrue($certificate->isNotACertificate());
         $this->assertNotNull($certificate->document_path);
         $this->assertSame($scoreBefore, $batch->supplier->fresh()->compliance_score);
-        $this->get(route('brand.suppliers.show', $batch->supplier))->assertSee('Pas un certificat')->assertSee('Ce que l’IA voit', false)->assertSee('Rejeté par l’IA', false);
+        $this->actingAs($brandUser)->get(route('brand.suppliers.show', $batch->supplier))->assertSee('Pas un certificat')->assertSee('Ce que l’IA voit', false)->assertSee('Rejeté par l’IA', false);
     }
 
     public function test_unreadable_certificate_is_still_saved_for_admin_review(): void
     {
         $this->withoutGemini();
         Storage::fake('local');
-        $brandUser = User::where('email', 'brand@textilecycle.test')->firstOrFail();
-        $batch = SupplierBatch::where('batch_code', 'LOT-LN-2026-03')->firstOrFail();
+        $supplierAccount = User::where('email', 'fournisseur@textilecycle.test')->firstOrFail();
+        $batch = SupplierBatch::where('batch_code', 'LOT-FM-2026-02')->firstOrFail();
 
-        $this->actingAs($brandUser)->post(route('brand.certificates.store', $batch), ['document' => UploadedFile::fake()->image('flou.jpg', 20, 20)])
+        $this->actingAs($supplierAccount)->post(route('supplier.batches.certificate', $batch), ['document' => UploadedFile::fake()->image('flou.jpg', 20, 20)])
             ->assertSessionHasNoErrors();
 
-        $certificate = $batch->certificates()->latest('id')->firstOrFail();
+        $certificate = $batch->certificates()->reorder()->latest('id')->firstOrFail();
         $this->assertFalse($certificate->isComplete());
         $admin = User::where('role', 'admin')->firstOrFail();
         $this->actingAs($admin)->get(route('admin.suppliers.index'))->assertSee('Certificat (type non lu)')->assertSee('Voir le document');

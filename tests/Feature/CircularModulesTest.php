@@ -50,19 +50,24 @@ class CircularModulesTest extends TestCase
             'ordered_at' => now()->toDateString(), 'lines' => [['material_id' => $cotton->id, 'quantity_kg' => 100, 'unit_price' => 12]],
         ])->assertSessionHasNoErrors();
         $this->assertSame(1200.0, (float) $supplier->purchaseOrders()->firstOrFail()->total_amount);
-        $this->post(route('brand.supplier-batches.store', $supplier), [
-            'material_id' => $cotton->id, 'quantity_kg' => 100, 'origin_country' => 'Tunisie',
-        ])->assertSessionHasNoErrors();
-        $batch = SupplierBatch::firstOrFail();
-        $this->assertMatchesRegularExpression('/^LOT-FIL-\d{4}-001$/', $batch->batch_code);
+        // Le fournisseur (compte activé) accepte puis expédie : c'est lui qui crée le lot, avec son certificat.
+        $order = $supplier->purchaseOrders()->firstOrFail();
+        $account = User::factory()->create(['role' => 'supplier']);
+        $supplier->update(['user_id' => $account->id]);
         config(['services.gemini.enabled' => true, 'services.gemini.key' => 'test-key']);
         Http::fake(['generativelanguage.googleapis.com/*' => Http::response(['output_text' => json_encode([
             'type' => 'GRS', 'certificate_number' => 'GRS-1', 'issuer' => 'Control Union', 'issued_at' => now()->subMonth()->toDateString(),
             'expires_at' => now()->addYear()->toDateString(), 'material' => 'Recycled cotton', 'holder' => null, 'confidence' => 90,
         ])])]);
         Storage::fake('local');
-        $this->post(route('brand.certificates.store', $batch), ['document' => UploadedFile::fake()->image('grs.jpg')])->assertSessionHasNoErrors();
+        $this->actingAs($account)->post(route('supplier.orders.answer', $order), ['decision' => 'accept'])->assertSessionHasNoErrors();
+        $this->post(route('supplier.orders.ship', $order), [
+            'purchase_order_line_id' => $order->lines()->value('id'), 'quantity_kg' => 100, 'origin_country' => 'Tunisie', 'certificate' => UploadedFile::fake()->image('grs.jpg'),
+        ])->assertSessionHasNoErrors();
+        $batch = SupplierBatch::firstOrFail();
+        $this->assertMatchesRegularExpression('/^LOT-FIL-\d{4}-001$/', $batch->batch_code);
         $this->assertDatabaseHas('material_origin_certificates', ['certificate_number' => 'GRS-1', 'type' => 'GRS', 'status' => 'pending']);
+        $this->actingAs($brandUser);
 
         // Avant vérification admin : écart détecté.
         $this->post(route('brand.traceability.store'), ['product_id' => $product->id, 'supplier_batch_id' => $batch->id])->assertSessionHasNoErrors();
