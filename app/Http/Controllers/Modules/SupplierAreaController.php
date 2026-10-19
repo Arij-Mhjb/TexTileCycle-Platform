@@ -104,7 +104,7 @@ class SupplierAreaController extends Controller
             'quantity_kg' => 'required|numeric|min:0.1|max:9999999',
             'origin_country' => 'required|string|max:100',
             'production_date' => 'nullable|date|before_or_equal:today',
-            'certificate' => 'required|image|mimes:jpg,jpeg,png,webp|max:8192',
+            'certificate' => 'required|file|mimes:jpg,jpeg,png,webp,gif,bmp,heic,heif|max:10240',
             'supplier_note' => 'nullable|string|max:1000',
         ], ['certificate.required' => 'Joignez la photo du certificat de provenance.'], [
             'purchase_order_line_id' => 'ligne de commande', 'quantity_kg' => 'quantité', 'origin_country' => 'pays d’origine',
@@ -114,7 +114,7 @@ class SupplierAreaController extends Controller
 
         $result = $orders->ship($purchaseOrder, $line, $data, $request->file('certificate'), $request->user());
 
-        return back()->with('success', 'Livraison enregistrée (lot '.$result['batch']->batch_code.'). '.$result['message']);
+        return back()->with($result['recognized'] ? 'success' : 'warning', 'Livraison enregistrée (lot '.$result['batch']->batch_code.'). '.$result['message']);
     }
 
     private function authorizeOrder(Request $request, PurchaseOrder $purchaseOrder): void

@@ -71,14 +71,14 @@ class BrandSupplierBatchController extends Controller
     {
         abort_unless($batch->supplier->brand_id === $request->user()->brand?->id, 403);
         $request->validate(
-            ['document' => 'required|image|mimes:jpg,jpeg,png,webp|max:8192'],
+            ['document' => 'required|file|mimes:jpg,jpeg,png,webp,gif,bmp,heic,heif|max:10240'],
             ['document.required' => 'Ajoutez la photo ou le scan du certificat.'],
             ['document' => 'document du certificat']
         );
 
         $outcome = $traceability->addCertificateFromPhoto($batch, $request->file('document'));
 
-        return $outcome['ok'] ? back()->with('success', $outcome['message']) : back()->withErrors(['document' => $outcome['message']]);
+        return $outcome['recognized'] ? back()->with('success', $outcome['message']) : back()->with('warning', $outcome['message']);
     }
 
     public function document(Request $request, MaterialOriginCertificate $certificate): StreamedResponse
