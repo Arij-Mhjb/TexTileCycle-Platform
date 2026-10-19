@@ -65,17 +65,25 @@ class CircularModulesAiTest extends TestCase
         Http::assertSent(fn ($request) => str_contains($request->url(), 'generativelanguage') && $request['input'][1]['type'] === 'image');
     }
 
-    public function test_image_that_is_not_a_certificate_is_rejected_by_ai(): void
+    public function test_any_image_is_accepted_and_the_ai_says_what_it_shows(): void
     {
-        $this->fakeGemini(['is_certificate' => false, 'document_kind' => 'diagramme UML', 'type' => null, 'certificate_number' => null, 'issuer' => null, 'issued_at' => null, 'expires_at' => null, 'material' => null, 'holder' => null, 'confidence' => 95]);
+        $this->fakeGemini(['is_certificate' => false, 'document_kind' => 'diagramme UML', 'image_description' => 'Un diagramme de classes UML avec les entités Fournisseur, Lot et Certificat reliées par des flèches.',
+            'type' => null, 'certificate_number' => null, 'issuer' => null, 'issued_at' => null, 'expires_at' => null, 'material' => null, 'holder' => null, 'confidence' => 95]);
         Storage::fake('local');
         $brandUser = User::where('email', 'brand@textilecycle.test')->firstOrFail();
         $batch = SupplierBatch::where('batch_code', 'LOT-LN-2026-03')->firstOrFail();
+        $scoreBefore = $batch->supplier->fresh()->compliance_score;
 
-        $this->actingAs($brandUser)->post(route('brand.certificates.store', $batch), ['document' => UploadedFile::fake()->image('diagramme.png')])
-            ->assertSessionHasErrors('document');
+        $this->actingAs($brandUser)->post(route('brand.certificates.store', $batch), ['document' => UploadedFile::fake()->image('diagramme.gif')])
+            ->assertSessionHasNoErrors()->assertSessionHas('warning', fn ($message) => str_contains($message, 'diagramme de classes UML'));
 
-        $this->assertSame(0, $batch->certificates()->count());
+        // L'image est conservée avec la description, marquée « pas un certificat », et ne compte pas comme preuve.
+        $certificate = $batch->certificates()->firstOrFail();
+        $this->assertSame('rejected', $certificate->status);
+        $this->assertTrue($certificate->isNotACertificate());
+        $this->assertNotNull($certificate->document_path);
+        $this->assertSame($scoreBefore, $batch->supplier->fresh()->compliance_score);
+        $this->get(route('brand.suppliers.show', $batch->supplier))->assertSee('Pas un certificat')->assertSee('Ce que l’IA voit', false)->assertSee('Rejeté par l’IA', false);
     }
 
     public function test_unreadable_certificate_is_still_saved_for_admin_review(): void
@@ -133,19 +141,24 @@ class CircularModulesAiTest extends TestCase
         $this->assertDatabaseHas('brand_notifications', ['user_id' => $brandUser->id, 'type' => 'supplier_shipment']);
     }
 
-    public function test_supplier_shipment_rejects_a_photo_that_is_not_a_certificate(): void
+    public function test_shipment_with_a_photo_that_is_not_a_certificate_is_recorded_without_proof(): void
     {
         Storage::fake('local');
         [$supplier, $account] = $this->supplierAccount();
         $order = $supplier->purchaseOrders()->create(['brand_id' => $supplier->brand_id, 'reference' => 'PO-TEST-2', 'status' => 'accepted', 'ordered_at' => now()]);
         $line = $order->lines()->create(['material_id' => Material::value('id'), 'quantity_kg' => 10]);
-        $this->fakeGemini(['is_certificate' => false, 'document_kind' => 'selfie', 'type' => null, 'certificate_number' => null, 'issuer' => null, 'issued_at' => null, 'expires_at' => null, 'material' => null, 'holder' => null, 'confidence' => 99]);
+        $this->fakeGemini(['is_certificate' => false, 'document_kind' => 'selfie', 'image_description' => 'Un selfie d’une personne souriante devant un mur blanc.', 'type' => null, 'certificate_number' => null, 'issuer' => null, 'issued_at' => null, 'expires_at' => null, 'material' => null, 'holder' => null, 'confidence' => 99]);
 
         $this->actingAs($account)->post(route('supplier.orders.ship', $order), ['purchase_order_line_id' => $line->id, 'quantity_kg' => 10, 'origin_country' => 'Tunisie', 'certificate' => UploadedFile::fake()->image('selfie.jpg')])
-            ->assertSessionHasErrors('certificate');
+            ->assertSessionHasNoErrors()->assertSessionHas('warning', fn ($message) => str_contains($message, 'selfie'));
 
-        $this->assertSame(0, $order->batches()->count());
-        $this->assertSame('accepted', $order->fresh()->status);
+        // La livraison est enregistrée, mais le lot n'a aucune preuve valable et la marque est prévenue.
+        $batch = $order->batches()->firstOrFail();
+        $this->assertSame('pending', $batch->status);
+        $this->assertTrue($batch->certificates()->firstOrFail()->isNotACertificate());
+        $this->assertSame('shipped', $order->fresh()->status);
+        $this->assertDatabaseHas('purchase_order_events', ['purchase_order_id' => $order->id, 'type' => 'certificate_missing']);
+        $this->assertDatabaseHas('brand_notifications', ['type' => 'supplier_shipment', 'message' => 'Commande PO-TEST-2 : lot '.$batch->batch_code.' (10 kg). Confirmez la réception à l’arrivée. Attention : l’image jointe n’est pas un certificat (Un selfie d’une personne souriante devant un mur blanc.).']);
     }
 
     public function test_supplier_can_decline_with_a_reason_and_cannot_ship(): void
