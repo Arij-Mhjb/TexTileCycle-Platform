@@ -153,6 +153,9 @@ class CircularModulesSeeder extends Seeder
                 ->each(fn (Supplier $supplier) => $traceability->refreshComplianceScore($supplier));
         }
 
+        // Statut automatique : « Actif » seulement pour les fournisseurs qui ont activé leur compte.
+        $brand->suppliers()->with('user')->get()->each->syncAccountStatus();
+
         // Produits ↔ lots, puis contrôle automatique de conformité.
         foreach ([
             ['Winter Jacket 02', 'LOT-FM-2026-01', 'Tissu extérieur', 60],
