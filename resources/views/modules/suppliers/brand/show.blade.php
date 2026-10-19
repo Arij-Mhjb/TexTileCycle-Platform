@@ -103,21 +103,15 @@
         <section class="shadow-[0_1px_2px_rgba(15,23,42,.05)] rounded-2xl border border-slate-200 bg-white p-6 xl:col-span-3">
             <p class="text-[13px] font-semibold text-purple-600">Provenance</p>
             <h2 class="mt-1 text-xl font-black">Lots de matières</h2>
-            @if($supplier->managesOwnLots())
-                <p class="mt-1 text-sm text-slate-500">Un lot = une livraison de matière. <strong class="font-semibold text-slate-700">{{ $supplier->name }} déclare lui-même ses livraisons et ses certificats</strong> depuis son espace fournisseur : vous les consultez, confirmez la réception sur la commande et reliez les lots à vos produits (onglet Traçabilité produits).</p>
-            @else
-                <p class="mt-1 text-sm text-slate-500">Un lot = une livraison de matière reçue de ce fournisseur. {{ $supplier->name }} n’a pas encore activé son accès : vous pouvez saisir ses livraisons et certificats à sa place.</p>
-                <form method="POST" action="{{ route('brand.supplier-batches.store', $supplier) }}" class="mt-4 grid gap-3 rounded-2xl bg-purple-50/60 p-4 md:grid-cols-3">
-                    @csrf
-                    <x-ui.select name="material_id" label="Matière" :options="$materials->pluck('name', 'id')" required/>
-                    <x-module.field name="quantity_kg" type="number" step="0.1" min="0.1" label="Quantité (kg)" required/>
-                    <x-module.field name="origin_country" label="Pays d’origine" :value="$supplier->country" required/>
-                    <x-module.field name="production_date" type="date" label="Production"/>
-                    <x-module.field name="received_at" type="date" label="Réception"/>
-                    <x-ui.select name="purchase_order_id" label="Bon de commande" :options="$supplier->purchaseOrders->where('status', '!=', 'cancelled')->pluck('reference', 'id')" placeholder="Aucun"/>
-                    <div class="md:col-span-2 flex items-end"><x-module.button module="suppliers" class="w-full">Saisir la livraison</x-module.button></div>
-                </form>
-            @endif
+            <p class="mt-1 text-sm text-slate-500">Un lot = une livraison de matière. Les lots sont créés uniquement par le fournisseur quand il expédie une commande, avec son certificat : la preuve vient de la source. Vous les consultez, confirmez la réception sur la commande et les reliez à vos produits (onglet Traçabilité produits).</p>
+            @unless($supplier->managesOwnLots())
+                <div class="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-900">
+                    <p><strong>{{ $supplier->name }} n’a pas encore activé son accès.</strong> Il pourra déclarer ses livraisons et ses certificats dès qu’il l’aura activé.</p>
+                    @unless($supplier->isSuspended())
+                        <form method="POST" action="{{ route('brand.suppliers.access', $supplier) }}">@csrf<x-module.button module="suppliers" variant="soft">{{ $supplier->user ? 'Renvoyer l’invitation' : 'Inviter le fournisseur' }}</x-module.button></form>
+                    @endunless
+                </div>
+            @endunless
 
             <div class="mt-5 space-y-4">
                 @forelse($supplier->batches as $batch)
@@ -130,7 +124,6 @@
                             </div>
                             <div class="flex items-center gap-2">
                                 <x-module.badge :tone="['verified' => 'good', 'rejected' => 'bad'][$batch->status] ?? 'warn'">{{ $batch->statusLabel() }}</x-module.badge>
-                                @if($batch->status !== 'verified' && ! $supplier->managesOwnLots())<form method="POST" action="{{ route('brand.supplier-batches.destroy', $batch) }}" onsubmit="return confirm('Supprimer ce lot ?')">@csrf @method('DELETE')<button class="btn-danger !py-1 text-xs">Supprimer</button></form>@endif
                             </div>
                         </div>
                         @if($batch->verification_note)<p class="mt-3 rounded-xl bg-slate-50 p-3 text-sm text-slate-600">{{ $batch->verification_note }}</p>@endif
@@ -141,12 +134,9 @@
                                 @include('modules.suppliers._certificate', ['documentRoute' => 'brand.certificates.document'])
                             @endforeach
 
-                            @if($batch->certificates->isEmpty() && $supplier->managesOwnLots())
+                            @if($batch->certificates->isEmpty())
                                 <p class="rounded-2xl border border-dashed border-slate-200 p-4 text-sm text-slate-500">Aucun certificat pour ce lot : {{ $supplier->name }} doit l’ajouter depuis son espace.</p>
                             @endif
-                            @unless($supplier->managesOwnLots())
-                                @include('modules.suppliers._add-certificate', ['action' => route('brand.certificates.store', $batch)])
-                            @endunless
                         </div>
                     </article>
                 @empty
