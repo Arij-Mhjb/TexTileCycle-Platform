@@ -247,6 +247,24 @@ class CircularModulesAiTest extends TestCase
         $this->get(route('admin.repair-orders.show', $order))->assertSee('Semelle usée')->assertSee('IA Gemini Vision');
     }
 
+    public function test_a_returned_article_gets_only_one_repair_request(): void
+    {
+        $this->withoutGemini();
+        $consumer = User::where('email', 'consumer@textilecycle.test')->firstOrFail();
+        $return = $consumer->productReturns()->whereDoesntHave('repairOrders')->firstOrFail();
+        $payload = ['product_return_id' => $return->id, 'issue_description' => 'La fermeture éclair est cassée.'];
+
+        $this->actingAs($consumer)->post(route('consumer.repairs.store'), $payload)->assertSessionHasNoErrors();
+        // Double clic / renvoi du formulaire : refusé, pas de doublon.
+        $this->post(route('consumer.repairs.store'), $payload)->assertSessionHasErrors('product_return_id');
+        $this->assertSame(1, RepairOrder::where('product_return_id', $return->id)->count());
+
+        // Une demande annulée libère l'article pour une nouvelle demande.
+        RepairOrder::where('product_return_id', $return->id)->update(['status' => 'cancelled']);
+        $this->post(route('consumer.repairs.store'), $payload)->assertSessionHasNoErrors();
+        $this->assertSame(2, RepairOrder::where('product_return_id', $return->id)->count());
+    }
+
     public function test_consumer_repair_request_gets_local_pre_diagnosis(): void
     {
         $this->withoutGemini();
