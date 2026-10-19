@@ -154,7 +154,10 @@ class CircularModulesSeeder extends Seeder
         }
 
         // Statut automatique : « Actif » seulement pour les fournisseurs qui ont activé leur compte.
-        $brand->suppliers()->with('user')->get()->each->syncAccountStatus();
+        $brand->suppliers()->with('user')->get()->each(function (Supplier $supplier) use ($traceability) {
+            $supplier->syncAccountStatus();
+            $traceability->refreshComplianceScore($supplier); // score à jour, livraisons de démo comprises
+        });
 
         // Produits ↔ lots, puis contrôle automatique de conformité.
         foreach ([
