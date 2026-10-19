@@ -20,6 +20,9 @@ class BrandSupplierBatchController extends Controller
     public function store(Request $request, Supplier $supplier, SupplierTraceabilityService $traceability): RedirectResponse
     {
         abort_unless($supplier->brand_id === $request->user()->brand?->id, 403);
+        if ($supplier->managesOwnLots()) {
+            return back()->withErrors(['supplier' => $supplier->name.' déclare lui-même ses livraisons et ses certificats depuis son espace fournisseur.']);
+        }
         $data = $request->validate([
             'material_id' => 'required|exists:materials,id',
             'purchase_order_id' => ['nullable', Rule::exists('purchase_orders', 'id')->where('supplier_id', $supplier->id)],
@@ -51,6 +54,9 @@ class BrandSupplierBatchController extends Controller
     public function destroy(Request $request, SupplierBatch $batch, SupplierTraceabilityService $traceability): RedirectResponse
     {
         abort_unless($batch->supplier->brand_id === $request->user()->brand?->id, 403);
+        if ($batch->supplier->managesOwnLots()) {
+            return back()->withErrors(['supplier' => $batch->supplier->name.' déclare lui-même ses livraisons et ses certificats depuis son espace fournisseur.']);
+        }
         abort_if($batch->status === 'verified', 422, 'Un lot vérifié ne peut plus être supprimé.');
         $supplier = $batch->supplier;
         $batch->delete();
@@ -70,6 +76,9 @@ class BrandSupplierBatchController extends Controller
     public function certificate(Request $request, SupplierBatch $batch, SupplierTraceabilityService $traceability): RedirectResponse
     {
         abort_unless($batch->supplier->brand_id === $request->user()->brand?->id, 403);
+        if ($batch->supplier->managesOwnLots()) {
+            return back()->withErrors(['supplier' => $batch->supplier->name.' déclare lui-même ses livraisons et ses certificats depuis son espace fournisseur.']);
+        }
         $request->validate(
             ['document' => 'required|file|mimes:jpg,jpeg,png,webp,gif,bmp,heic,heif|max:10240'],
             ['document.required' => 'Ajoutez la photo ou le scan du certificat.'],
