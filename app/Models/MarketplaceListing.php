@@ -38,6 +38,12 @@ class MarketplaceListing extends Model
         return $this->belongsTo(RepairOrder::class);
     }
 
+    /** True when the listed item comes from this consumer's own return. */
+    public function isFromConsumer(?User $user): bool
+    {
+        return $user !== null && $this->repairOrder !== null && (int) $this->repairOrder->user_id === (int) $user->id;
+    }
+
     public function offers(): HasMany
     {
         return $this->hasMany(ResaleOffer::class)->latest();
