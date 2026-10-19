@@ -10,6 +10,16 @@ class ImpactMetric extends Model
 {
     use HasFactory;
 
+    /** Bases de données ACV reconnues pour justifier un facteur d'impact (ou « Autre » saisi à la main). */
+    public const SOURCES = [
+        'Base Empreinte (ADEME)',
+        'Higg Materials Sustainability Index',
+        'Ecoinvent',
+        'Textile Exchange — Materials Benchmark',
+        'Fiche fournisseur / déclaration environnementale',
+        'Valeur indicative (démo)',
+    ];
+
     protected $fillable = ['material_id', 'impact_category_id', 'value_per_kg', 'source'];
 
     protected function casts(): array
