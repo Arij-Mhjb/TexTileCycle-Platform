@@ -16,6 +16,9 @@
         </x-slot:stats>
     </x-module.hero>
     @include('modules.suppliers.brand._tabs')
+    @if(session('warning'))
+        <div role="status" class="mb-6 flex gap-3 rounded-2xl border border-amber-300 bg-amber-50 px-5 py-4 text-sm text-amber-900"><span class="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-amber-500 text-xs font-bold text-white">!</span><p>{{ session('warning') }}</p></div>
+    @endif
     @if($supplier->isSuspended())
         <div class="mb-6 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800"><strong>Fournisseur suspendu.</strong> Aucune nouvelle commande possible ; son historique, ses lots et ses certificats restent consultables comme preuves.</div>
     @endif
@@ -142,7 +145,7 @@
                                 <p class="text-xs text-slate-500">Envoyez la photo ou le scan : l’IA lit le type, le numéro, l’organisme et les dates.</p>
                                 <label class="mx-auto cursor-pointer rounded-xl bg-white px-4 py-2 text-xs font-bold text-pink-700 shadow-sm ring-1 ring-pink-200 hover:bg-pink-50">
                                     <span x-text="name || 'Choisir la photo du certificat'"></span>
-                                    <input type="file" name="document" accept="image/jpeg,image/png,image/webp" required class="sr-only" @change="name = $event.target.files[0]?.name || ''">
+                                    <input type="file" name="document" accept="image/*,.heic,.heif" required class="sr-only" @change="name = $event.target.files[0]?.name || ''">
                                 </label>
                                 <button class="mx-auto rounded-xl bg-gradient-to-r from-fuchsia-600 to-pink-600 px-4 py-2 text-sm font-black text-white shadow-sm" :disabled="!name" :class="!name && 'opacity-50 cursor-not-allowed'">Envoyer à l’IA</button>
                             </form>
