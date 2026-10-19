@@ -148,7 +148,7 @@ class PurchaseOrderService
      * avec le certificat lu par l'IA. Les quantités sont contrôlées avec la tolérance de sur-livraison.
      *
      * @param  array{quantity_kg: float|string, origin_country: string, production_date?: ?string, supplier_note?: ?string}  $data
-     * @return array{batch: SupplierBatch, message: string}
+     * @return array{batch: SupplierBatch, message: string, recognized: bool}
      */
     public function ship(PurchaseOrder $order, PurchaseOrderLine $line, array $data, UploadedFile $certificate, User $by): array
     {
@@ -174,10 +174,9 @@ class PurchaseOrderService
                 'production_date' => $data['production_date'] ?? null,
                 'status' => 'pending',
             ]);
+            // Toute image est acceptée : si ce n'est pas un certificat, la livraison est enregistrée
+            // mais le lot n'a pas encore de preuve valable (la marque est prévenue).
             $outcome = $this->traceability->addCertificateFromPhoto($batch, $certificate);
-            if (! $outcome['ok']) {
-                throw ValidationException::withMessages(['certificate' => $outcome['message']]);
-            }
             $order->forceFill(['shipped_at' => $order->shipped_at ?? now(), 'supplier_note' => $data['supplier_note'] ?? $order->supplier_note])->save();
             $this->refreshStatus($order);
             DB::commit();
@@ -190,9 +189,13 @@ class PurchaseOrderService
         $progress = $this->kg($line->shippedKg()).' / '.$this->kg($line->dueKg());
         $this->log($order, 'supplier', 'shipped', 'Livraison expédiée : lot '.$batch->batch_code.', '.$this->kg($quantity).' de '.($line->material?->name ?? 'matière').' ('.$progress.' sur la ligne).', $by);
         $this->notifyBrand($order, 'supplier_shipment', 'Livraison en route de '.$order->supplier->name,
-            'Commande '.$order->reference.' : lot '.$batch->batch_code.' ('.$this->kg($quantity).'). Confirmez la réception à l’arrivée.');
+            'Commande '.$order->reference.' : lot '.$batch->batch_code.' ('.$this->kg($quantity).'). Confirmez la réception à l’arrivée.'
+            .($outcome['recognized'] ? '' : ' Attention : l’image jointe n’est pas un certificat ('.$outcome['description'].').'));
+        if (! $outcome['recognized']) {
+            $this->log($order, 'system', 'certificate_missing', 'L’image jointe au lot '.$batch->batch_code.' n’est pas un certificat : '.$outcome['description'], null);
+        }
 
-        return ['batch' => $batch, 'message' => $outcome['message']];
+        return ['batch' => $batch, 'message' => $outcome['message'], 'recognized' => $outcome['recognized']];
     }
 
     /** La marque confirme l'arrivée d'une livraison (un lot). */
