@@ -42,7 +42,7 @@ class CircularModulesAiTest extends TestCase
         Http::fake();
     }
 
-    public function test_brand_only_uploads_the_certificate_photo_and_ai_fills_everything(): void
+    public function test_supplier_only_uploads_the_certificate_photo_and_ai_fills_everything(): void
     {
         $this->fakeGemini([
             'type' => 'GRS', 'certificate_number' => 'CU-GRS-778899', 'issuer' => 'Control Union', 'issued_at' => '2026-01-10',
@@ -52,10 +52,20 @@ class CircularModulesAiTest extends TestCase
         $brandUser = User::where('email', 'brand@textilecycle.test')->firstOrFail();
         $batch = SupplierBatch::where('batch_code', 'LOT-FM-2026-01')->firstOrFail();
 
+        // Filature Méditerranée gère ses lots : la marque ne peut pas ajouter le certificat à sa place.
         $this->actingAs($brandUser)->post(route('brand.certificates.store', $batch), ['document' => UploadedFile::fake()->image('certificat.jpg')])
-            ->assertSessionHasNoErrors();
+            ->assertSessionHasErrors('supplier');
+        $this->assertSame(0, MaterialOriginCertificate::where('certificate_number', 'CU-GRS-778899')->count());
+
+        // C'est le fournisseur qui l'envoie depuis son espace ; l'IA remplit tout.
+        $supplierAccount = User::where('email', 'fournisseur@textilecycle.test')->firstOrFail();
+        $this->actingAs($supplierAccount)->get(route('supplier.batches.index'))->assertOk()->assertSee('LOT-FM-2026-01');
+        $this->post(route('supplier.batches.certificate', $batch), ['document' => UploadedFile::fake()->image('certificat.jpg')])
+            ->assertSessionHasNoErrors()->assertSessionHas('success');
 
         $certificate = MaterialOriginCertificate::where('certificate_number', 'CU-GRS-778899')->firstOrFail();
+        $this->get(route('supplier.certificates.document', $certificate))->assertOk();
+        $this->actingAs($brandUser);
         $this->assertSame('GRS', $certificate->type);
         $this->assertSame('2027-01-09', $certificate->expires_at->toDateString());
         $this->assertSame('pending', $certificate->status);

@@ -180,21 +180,47 @@ class PurchaseOrderFlowTest extends TestCase
         $this->assertSame('ordered', $order->fresh()->status);
     }
 
-    public function test_brand_records_a_delivery_itself_on_the_matching_line(): void
+    public function test_brand_records_deliveries_only_for_a_supplier_without_active_access(): void
     {
+        // Filature Méditerranée a activé son accès : elle déclare elle-même ses livraisons.
         $order = $this->placeOrder();
         $order->update(['status' => 'accepted']);
-
         $this->actingAs($this->brandUser)->post(route('brand.supplier-batches.store', $this->supplier), [
-            'material_id' => $this->material('Laine mérinos'), 'quantity_kg' => 50, 'origin_country' => 'Tunisie', 'purchase_order_id' => $order->id,
-        ])->assertSessionHasErrors('material_id');
-
-        $this->post(route('brand.supplier-batches.store', $this->supplier), [
             'material_id' => $this->material('Coton recyclé'), 'quantity_kg' => 500, 'origin_country' => 'Tunisie', 'purchase_order_id' => $order->id,
+        ])->assertSessionHasErrors('supplier');
+        $this->assertSame(0, $order->batches()->count());
+
+        // Linificio Nord n'a pas d'accès : la marque saisit la livraison à sa place, sur la bonne ligne.
+        $linen = Supplier::where('name', 'Linificio Nord')->firstOrFail();
+        $this->post(route('brand.purchase-orders.store', $linen), [
+            'ordered_at' => now()->toDateString(), 'notes' => 'Lin printemps', 'lines' => [['material_id' => $this->material('Lin européen'), 'quantity_kg' => 100]],
         ])->assertSessionHasNoErrors();
-        $order->refresh()->load('lines.batches');
-        $this->assertSame(500.0, $order->lines->firstWhere('material_id', $this->material('Coton recyclé'))->shippedKg());
-        $this->assertSame('partially_shipped', $order->status);
+        $linenOrder = PurchaseOrder::where('notes', 'Lin printemps')->firstOrFail();
+        $linenOrder->update(['status' => 'accepted']);
+
+        $this->post(route('brand.supplier-batches.store', $linen), [
+            'material_id' => $this->material('Laine mérinos'), 'quantity_kg' => 50, 'origin_country' => 'France', 'purchase_order_id' => $linenOrder->id,
+        ])->assertSessionHasErrors('material_id');
+        $this->post(route('brand.supplier-batches.store', $linen), [
+            'material_id' => $this->material('Lin européen'), 'quantity_kg' => 60, 'origin_country' => 'France', 'purchase_order_id' => $linenOrder->id,
+        ])->assertSessionHasNoErrors();
+        $linenOrder->refresh()->load('lines.batches');
+        $this->assertSame(60.0, $linenOrder->lines->first()->shippedKg());
+        $this->assertSame('partially_shipped', $linenOrder->status);
+    }
+
+    public function test_supplier_adds_a_certificate_only_on_his_own_lots(): void
+    {
+        $intruder = User::factory()->create(['role' => 'supplier']);
+        Supplier::where('name', 'Linificio Nord')->firstOrFail()->update(['user_id' => $intruder->id]);
+        $batch = $this->supplier->batches()->firstOrFail();
+        $before = $batch->certificates()->count();
+
+        $this->actingAs($intruder)->post(route('supplier.batches.certificate', $batch), ['document' => UploadedFile::fake()->image('grs.jpg')])->assertForbidden();
+        $this->get(route('supplier.batches.index'))->assertOk()->assertDontSee($batch->batch_code);
+
+        $this->actingAs($this->supplierAccount)->post(route('supplier.batches.certificate', $batch), ['document' => UploadedFile::fake()->image('grs.jpg')])->assertSessionHasNoErrors();
+        $this->assertSame($before + 1, $batch->certificates()->count());
     }
 
     public function test_demo_story_shows_late_and_pending_orders(): void
