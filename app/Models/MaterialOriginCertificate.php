@@ -57,6 +57,12 @@ class MaterialOriginCertificate extends Model
         return $this->expires_at !== null && $this->expires_at->isPast();
     }
 
+    /** Image envoyée comme certificat mais reconnue par l'IA comme autre chose (et non validée par l'admin). */
+    public function isNotACertificate(): bool
+    {
+        return ($this->ai_extraction['is_certificate'] ?? true) === false && $this->status !== 'verified';
+    }
+
     public function isValid(): bool
     {
         return $this->status === 'verified' && ! $this->isExpired();
