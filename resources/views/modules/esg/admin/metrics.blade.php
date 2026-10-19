@@ -7,7 +7,21 @@
         <x-ui.select name="material_id" label="Matière" :options="$materials->pluck('name', 'id')" required/>
         <x-ui.select name="impact_category_id" label="Catégorie" :options="$categories->mapWithKeys(fn ($category) => [$category->id => $category->name.' ('.$category->unit.'/kg)'])" required/>
         <x-module.field name="value_per_kg" type="number" step="0.0001" min="0" label="Valeur par kg" required/>
-        <x-module.field name="source" label="Source" placeholder="Base Empreinte ADEME…"/>
+        {{-- Source : une base ACV reconnue, ou « Autre » à préciser --}}
+        <div x-data="{ source: @js(old('source', '')) }" class="space-y-2">
+            <label class="block"><span class="text-sm font-bold text-slate-700">Source</span>
+                <select name="source" x-model="source" class="field">
+                    <option value="">Non précisée</option>
+                    @foreach(\App\Models\ImpactMetric::SOURCES as $source)<option value="{{ $source }}">{{ $source }}</option>@endforeach
+                    <option value="other">Autre…</option>
+                </select>
+                @error('source')<p class="mt-1 text-sm font-semibold text-rose-600">{{ $message }}</p>@enderror
+            </label>
+            <div x-cloak x-show="source === 'other'">
+                <input type="text" name="source_other" value="{{ old('source_other') }}" placeholder="Précisez la source" class="field mt-0" aria-label="Autre source">
+                @error('source_other')<p class="mt-1 text-sm font-semibold text-rose-600">{{ $message }}</p>@enderror
+            </div>
+        </div>
         <div class="flex items-end"><x-module.button module="esg" class="w-full">Enregistrer</x-module.button></div>
     </form>
 
