@@ -34,6 +34,15 @@ class Supplier extends Model
         return $this->belongsTo(User::class);
     }
 
+    /**
+     * Le fournisseur a activé son accès : c'est lui qui déclare ses livraisons (lots) et ses certificats.
+     * La marque consulte, réceptionne et relie les lots à ses produits, mais ne saisit plus à sa place.
+     */
+    public function managesOwnLots(): bool
+    {
+        return $this->user !== null && ! $this->user->must_change_password;
+    }
+
     public function invitations(): HasMany
     {
         return $this->hasMany(SupplierInvitation::class);
