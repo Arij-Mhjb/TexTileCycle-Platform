@@ -54,6 +54,31 @@ class ProfessionalBrandWorkflowTest extends TestCase
         $this->assertDatabaseMissing('products', ['sku' => 'PRO-OVER']);
     }
 
+    public function test_duplicate_sku_has_a_clear_message_and_keeps_the_entered_value(): void
+    {
+        $user = $this->brandUser();
+        Product::create([
+            'brand_id' => $user->brand->id,
+            'name' => 'Produit existant',
+            'slug' => 'produit-existant',
+            'brand' => $user->brand->name,
+            'sku' => 'DUP-001',
+            'category' => 'T-shirt',
+        ]);
+
+        $this->actingAs($user)->from(route('brand.products.create'))->post(route('brand.products.store'), [
+            'name' => 'Nouveau produit',
+            'sku' => 'DUP-001',
+            'category' => 'T-shirt',
+        ])->assertRedirect(route('brand.products.create'))
+            ->assertSessionHasErrors([
+                'sku' => 'Cette référence SKU est déjà utilisée par un autre produit. Choisissez une référence différente, par exemple MARQUE-CATEGORIE-001.',
+            ])
+            ->assertSessionHasInput('sku', 'DUP-001');
+
+        $this->assertSame(1, Product::where('sku', 'DUP-001')->count());
+    }
+
     public function test_brand_product_photo_is_stored_locally_when_cloudinary_is_not_configured(): void
     {
         Storage::fake('public');

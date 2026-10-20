@@ -34,6 +34,15 @@ return [
         'email' => [
             'unique' => 'Cette adresse e-mail est déjà utilisée. Connectez-vous ou choisissez une autre adresse.',
         ],
+        'sku' => [
+            'unique' => 'Cette référence SKU est déjà utilisée par un autre produit. Choisissez une référence différente, par exemple MARQUE-CATEGORIE-001.',
+        ],
+        'barcode' => [
+            'unique' => 'Ce code-barres est déjà associé à un autre produit.',
+        ],
+        'qr_code' => [
+            'unique' => 'Cette valeur QR est déjà associée à un autre produit.',
+        ],
     ],
 
     'attributes' => [
@@ -42,6 +51,9 @@ return [
         'role' => 'type de compte',
         'brand_name' => 'nom de la marque',
         'password' => 'mot de passe',
+        'sku' => 'référence SKU',
+        'barcode' => 'code-barres',
+        'qr_code' => 'valeur QR',
         'analysis_consent' => 'consentement à l’analyse',
         'answers' => 'questionnaire',
         'file' => 'fichier',
