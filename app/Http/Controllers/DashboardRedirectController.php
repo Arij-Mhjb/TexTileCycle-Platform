@@ -13,6 +13,7 @@ class DashboardRedirectController extends Controller
             'admin' => 'admin.dashboard',
             'brand' => 'brand.dashboard',
             'collector' => 'collector.returns.index',
+            'supplier' => 'supplier.dashboard',
             default => 'consumer.home',
         };
 
