@@ -11,6 +11,8 @@ $groups = [
  ['label'=>'Circularité','items'=>[
   ['route'=>'recovery-programs.index','active'=>'recovery-programs.*','label'=>'Programmes','icon'=>'M20 7h-5V2M4 17h5v5M19 17a8 8 0 0 1-13 2M5 7A8 8 0 0 1 18 5'],
   ['route'=>'collection-points.index','active'=>'collection-points.*','label'=>'Points de collecte','icon'=>'M20 10c0 5-8 11-8 11S4 15 4 10a8 8 0 1 1 16 0Z M12 7v6m-3-3h6'],
+  ['route'=>'partners.index','active'=>'partners.*','label'=>'Partenaires circulaires','icon'=>'M4 7h16v10H4z M8 7V4h8v3M8 12h8M8 16h5'],
+  ['route'=>'admin.repair-partners.index','active'=>'admin.repair-partners.*','label'=>'Ateliers & partenaires','icon'=>'M12 3v18M3 12h18M7 7h10v10H7z'],
   ['route'=>'admin.collectors.index','active'=>'admin.collectors.*','label'=>'Collecteurs','icon'=>'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm13 10v-2a4 4 0 0 0-3-3.87'],
   ['route'=>'product-returns.index','active'=>'product-returns.*','label'=>'Retours','icon'=>'M9 14 4 9l5-5M4 9h11a5 5 0 0 1 0 10h-3'],
   ['route'=>'admin.material-reviews.index','active'=>'admin.material-reviews.*','label'=>'Contrôle matières','icon'=>'M9 12l2 2 4-4M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Z'],

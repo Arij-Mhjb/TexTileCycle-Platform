@@ -11,6 +11,8 @@ use App\Models\{
     Product,
     ProductReturn,
     RecoveryProgram,
+    RepairPartner,
+    RepairWorkshop,
     Scan,
     TreatmentResult,
     User
@@ -238,6 +240,11 @@ class DatabaseSeeder extends Seeder
                 );
             }
         }
+
+        $this->call([
+            RepairPartnerSeeder::class,
+            RepairWorkshopSeeder::class,
+        ]);
 
         // Enrichissements Catalogue, Smart Scan, marques et labels.
         $this->call(ExtendedDemoSeeder::class);
