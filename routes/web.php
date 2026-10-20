@@ -39,7 +39,10 @@ use App\Http\Controllers\ProductLabelRecommendationController;
 use App\Http\Controllers\ProductReturnController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\PublicBrandController;
+use App\Http\Controllers\PartnerController;
 use App\Http\Controllers\RecoveryProgramController;
+use App\Http\Controllers\RepairPartnerController;
+use App\Http\Controllers\RepairWorkshopController;
 use App\Http\Controllers\RoadmapProofController;
 use App\Http\Controllers\ScanController;
 use App\Http\Controllers\TreatmentResultController;
@@ -162,5 +165,15 @@ Route::middleware('auth')->group(function () {
     Route::patch('/profile',[ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile',[ProfileController::class, 'destroy'])->name('profile.destroy');
 });
+
+Route::middleware('role:admin')->prefix('admin')->name('admin.')->group(function () {
+    Route::resource('repair-partners', RepairPartnerController::class);
+    Route::resource('repair-workshops', RepairWorkshopController::class);
+});
+
+Route::get('/partners', [PartnerController::class, 'index'])->name('partners.index');
+Route::get('/partners/{repairPartner:slug}', [PartnerController::class, 'show'])->name('partners.show');
+Route::get('/public-workshops', [RepairWorkshopController::class, 'catalog'])->name('public-workshops.index');
+Route::get('/public-workshops/{repairWorkshop:slug}', [RepairWorkshopController::class, 'showPublic'])->name('public-workshops.show');
 
 require __DIR__.'/auth.php';
