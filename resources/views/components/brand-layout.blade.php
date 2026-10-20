@@ -13,7 +13,11 @@
                 TexTileCycle <span class="text-sm font-medium text-slate-500">Brand Studio</span>
             </a>
 
-            <div class="order-3 w-full lg:order-none lg:flex lg:w-auto lg:flex-1 lg:items-center" id="brand-navigation" x-cloak x-show="navigationOpen" x-transition.opacity lg:!block>
+            <div
+                id="brand-navigation"
+                class="order-3 hidden w-full lg:order-none lg:!flex lg:w-auto lg:flex-1 lg:items-center"
+                :class="navigationOpen ? '!block' : 'hidden'"
+            >
                 <nav class="grid gap-1 border-t border-slate-100 pt-4 lg:ml-6 lg:flex lg:items-center lg:border-0 lg:pt-0" aria-label="Navigation de l’espace marque">
                     <a href="{{ route('brand.dashboard') }}" class="rounded-xl px-3 py-2 text-sm font-bold transition {{ request()->routeIs('brand.dashboard') ? 'bg-emerald-50 text-emerald-800' : 'text-slate-700 hover:bg-slate-100' }}">Pilotage</a>
 
