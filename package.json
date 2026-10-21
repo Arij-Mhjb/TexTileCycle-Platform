@@ -3,6 +3,7 @@
     "private": true,
     "type": "module",
     "scripts": {
+        "postinstall": "node scripts/copy-mediapipe-wasm.mjs",
         "build": "vite build",
         "dev": "vite"
     },
