@@ -10,7 +10,7 @@
     <button
         x-ref="trigger"
         type="button"
-        class="flex w-full items-center justify-between gap-2 rounded-xl px-3 py-2 text-left text-sm font-bold transition lg:w-auto {{ $active ? 'bg-emerald-50 text-emerald-800' : 'text-slate-700 hover:bg-slate-100 hover:text-slate-950' }}"
+        class="flex w-full items-center justify-between gap-2 rounded-xl px-3 py-2 text-left text-sm font-bold transition lg:w-auto {{ $active ? 'bg-white/20 text-white shadow-sm' : 'text-emerald-50 hover:bg-white/10 hover:text-white' }}"
         aria-haspopup="true"
         :aria-expanded="open.toString()"
         @click="open = ! open"

@@ -8,7 +8,8 @@
     <x-theme-script />
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
-<body class="min-h-screen bg-slate-50 transition-colors duration-300 dark:bg-slate-950">
+@php($adminInterface = auth()->user()?->isAdmin() ?? false)
+<body @class(['min-h-screen transition-colors duration-300 dark:bg-slate-950', 'bg-indigo-50/60' => $adminInterface, 'bg-slate-50' => ! $adminInterface]) data-interface="{{ $adminInterface ? 'admin' : 'management' }}">
     <x-layout.sidebar />
     <div class="flex min-h-screen flex-col lg:pl-72">
         <x-layout.header :title="$title ?? null" />
