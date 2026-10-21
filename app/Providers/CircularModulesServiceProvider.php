@@ -32,6 +32,7 @@ class CircularModulesServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Route::middleware('web')->group(base_path('routes/modules.php'));
+        Route::middleware('web')->group(base_path('routes/modules-plus.php'));
 
         // Module 1 — Fournisseurs & traçabilité
         Brand::resolveRelationUsing('suppliers', fn (Brand $brand) => $brand->hasMany(Supplier::class));
