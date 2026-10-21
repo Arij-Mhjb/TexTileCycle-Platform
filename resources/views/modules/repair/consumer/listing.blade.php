@@ -7,6 +7,7 @@
             <h1 class="mt-3 text-3xl font-black tracking-tight">{{ $listing->title }}</h1>
             <p class="mt-1 text-sm text-slate-500">{{ $listing->brand?->name ?? 'TexTileCycle' }} · {{ $listing->statusLabel() }}</p>
             <p class="mt-5 text-4xl font-black text-amber-700">{{ number_format((float) $listing->price, 2, ',', ' ') }} <span class="text-lg">{{ $listing->currency }}</span></p>
+            @if($listing->points_price)<p class="mt-1 text-xl font-black text-emerald-700">ou {{ $listing->points_price }} points <span class="text-sm text-slate-500">· solde {{ $pointsBalance }}</span></p>@endif
             @if($listing->description)<p class="mt-5 leading-7 text-slate-600">{{ $listing->description }}</p>@endif
 
             <div class="mt-6 rounded-2xl border border-amber-200 bg-amber-50/60 p-5 dark:border-amber-900 dark:bg-amber-950/20">
@@ -25,13 +26,32 @@
                     <a href="{{ route('consumer.repairs.index') }}" class="mt-3 inline-block font-semibold text-emerald-800 underline dark:text-emerald-300">Suivre dans Mes réparations</a>
                 </div>
             @else
+            @if($listing->status === 'published' && $listing->points_price)
+                <form method="POST" action="{{ route('consumer.marketplace.buy-with-points', $listing) }}" data-confirm="Utiliser {{ $listing->points_price }} points pour acheter cet article ?" class="mt-6 space-y-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-5" x-data="{ fulfilment: 'pickup' }">
+                    @csrf
+                    <div class="flex items-center justify-between gap-3"><div><h2 class="font-black text-emerald-900">Acheter avec mes points</h2><p class="text-sm text-emerald-700">Débit sécurisé après confirmation.</p></div><strong class="text-xl text-emerald-800">{{ $listing->points_price }} pts</strong></div>
+                    <label class="block"><span class="text-sm font-bold">Mode de remise</span><select name="fulfilment_method" x-model="fulfilment" class="field" required><option value="pickup">Retrait en point partenaire</option><option value="delivery">Livraison</option></select></label>
+                    <div x-show="fulfilment === 'pickup'"><x-ui.select name="collection_point_id" label="Point de retrait" :options="$pickupPoints->mapWithKeys(fn($p)=>[$p->id=>$p->name.' · '.$p->city])" x-bind:required="fulfilment === 'pickup'"/></div>
+                    <div x-show="fulfilment === 'delivery'" x-cloak><x-ui.textarea name="delivery_address" label="Adresse de livraison" x-bind:required="fulfilment === 'delivery'"/></div>
+                    <button class="btn-primary w-full" @disabled($pointsBalance < $listing->points_price)>{{ $pointsBalance < $listing->points_price ? 'Solde insuffisant' : 'Acheter avec mes points' }}</button>
+                </form>
+            @endif
             @if($myOffer)
                 <div class="mt-6 rounded-2xl bg-slate-100 p-4 text-sm dark:bg-slate-800">Votre offre : <strong>{{ number_format((float) $myOffer->offered_price, 2, ',', ' ') }} {{ $listing->currency }}</strong> — {{ $myOffer->statusLabel() }}</div>
             @endif
             @if($myOrder && $myOrder->status === 'awaiting_checkout')
-                <form method="POST" action="{{ route('consumer.marketplace.checkout',$myOrder) }}" class="mt-6 space-y-3 rounded-2xl border border-amber-200 bg-amber-50 p-5">@csrf<h2 class="font-black">Finaliser la commande {{ $myOrder->reference }}</h2><x-ui.select name="fulfilment_method" label="Remise" :options="collect(['pickup'=>'Retrait en point partenaire','delivery'=>'Livraison'])" required/><x-ui.select name="collection_point_id" label="Point de retrait" :options="$pickupPoints->mapWithKeys(fn($p)=>[$p->id=>$p->name.' · '.$p->city])"/><x-ui.textarea name="delivery_address" label="Adresse si livraison"/><x-ui.select name="payment_method" label="Paiement" :options="collect(['pay_on_pickup'=>'Paiement au retrait','cash_on_delivery'=>'Paiement à la livraison'])" required/><button class="btn-primary w-full">Confirmer la commande</button></form>
+                <form method="POST" action="{{ route('consumer.marketplace.checkout',$myOrder) }}" data-confirm="Confirmer cette commande de {{ number_format((float) $myOrder->total_amount, 2, ',', ' ') }} {{ $listing->currency }} ?" class="mt-6 space-y-3 rounded-2xl border border-amber-200 bg-amber-50 p-5" x-data="{ fulfilment: 'pickup' }">
+                    @csrf
+                    <h2 class="font-black">Finaliser la commande {{ $myOrder->reference }}</h2>
+                    <x-ui.select name="fulfilment_method" label="Remise" :options="collect(['pickup'=>'Retrait en point partenaire','delivery'=>'Livraison'])" x-model="fulfilment" required/>
+                    <div x-show="fulfilment === 'pickup'"><x-ui.select name="collection_point_id" label="Point de retrait" :options="$pickupPoints->mapWithKeys(fn($p)=>[$p->id=>$p->name.' · '.$p->city])" x-bind:required="fulfilment === 'pickup'"/></div>
+                    <div x-show="fulfilment === 'delivery'" x-cloak><x-ui.textarea name="delivery_address" label="Adresse de livraison" x-bind:required="fulfilment === 'delivery'"/></div>
+                    <input type="hidden" name="payment_method" :value="fulfilment === 'pickup' ? 'pay_on_pickup' : 'cash_on_delivery'">
+                    <p class="text-sm text-amber-800" x-text="fulfilment === 'pickup' ? 'Paiement lors du retrait.' : 'Paiement à la livraison.'"></p>
+                    <button class="btn-primary w-full">Confirmer la commande</button>
+                </form>
             @elseif($myOrder)
-                <div class="mt-6 rounded-2xl bg-sky-50 p-5"><p class="font-black">Commande {{ $myOrder->reference }} · {{ $myOrder->statusLabel() }}</p>@if(in_array($myOrder->status,['ready','shipped']))<form method="POST" action="{{ route('consumer.marketplace.received',$myOrder) }}" class="mt-3">@csrf<button class="btn-primary">Confirmer la réception</button></form>@endif</div>
+                <div class="mt-6 rounded-2xl bg-sky-50 p-5"><p class="font-black">Commande {{ $myOrder->reference }} · {{ $myOrder->statusLabel() }}</p>@if(in_array($myOrder->status,['ready','shipped']))<form method="POST" action="{{ route('consumer.marketplace.received',$myOrder) }}" data-confirm="Confirmer que vous avez bien reçu cet article ?" class="mt-3">@csrf<button class="btn-primary">Confirmer la réception</button></form>@endif</div>
             @endif
             @if($listing->status === 'published' && (! $myOffer || $myOffer->status !== 'pending'))
                 <form method="POST" action="{{ route('consumer.marketplace.offer', $listing) }}" class="mt-6 grid gap-3 sm:grid-cols-3">

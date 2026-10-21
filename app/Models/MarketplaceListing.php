@@ -16,12 +16,12 @@ class MarketplaceListing extends Model
 
     protected $fillable = [
         'product_id', 'brand_id', 'repair_order_id', 'title', 'description', 'condition_grade', 'price', 'currency',
-        'status', 'published_at', 'sold_at',
+        'status', 'published_at', 'sold_at', 'points_price',
     ];
 
     protected function casts(): array
     {
-        return ['published_at' => 'datetime', 'sold_at' => 'datetime', 'price' => 'decimal:2'];
+        return ['published_at' => 'datetime', 'sold_at' => 'datetime', 'price' => 'decimal:2', 'points_price' => 'integer'];
     }
 
     public function product(): BelongsTo

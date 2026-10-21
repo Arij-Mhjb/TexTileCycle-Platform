@@ -75,7 +75,8 @@
                     <div class="md:col-span-3"><p class="text-[13px] font-semibold text-amber-600">Étape 4</p><h2 class="mt-1 text-lg font-black">Publier sur le marketplace</h2><p class="text-sm text-slate-500">Le consommateur recevra {{ \App\Services\RepairMarketplaceService::RESALE_POINTS }} points.</p></div>
                     <div class="md:col-span-2"><x-module.field name="title" label="Titre de l’annonce" :value="($order->product?->name ?? 'Article').' — reconditionné'" required/></div>
                     <x-module.field name="price" type="number" step="0.01" min="1" label="Prix (TND){{ isset($order->ai_diagnosis['resale_price']) ? ' — suggéré par l’IA' : '' }}" :value="$order->ai_diagnosis['resale_price'] ?? null" required/>
-                    <div class="md:col-span-3"><x-ui.textarea name="description" label="Description" rows="3" :value="$order->refurbishments->first()?->actions"/></div>
+                    <x-module.field name="points_price" type="number" min="1" label="Prix en points (facultatif)"/>
+                    <div class="md:col-span-2"><x-ui.textarea name="description" label="Description" rows="3" :value="$order->refurbishments->first()?->actions"/></div>
                     <div class="md:col-span-3 flex justify-end"><x-module.button module="repair">Publier l’annonce</x-module.button></div>
                 </form>
             @endif

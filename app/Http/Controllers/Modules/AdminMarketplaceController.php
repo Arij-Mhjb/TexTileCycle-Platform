@@ -51,6 +51,7 @@ class AdminMarketplaceController extends Controller
 
     public function archive(MarketplaceListing $listing): RedirectResponse
     {
+        abort_unless($listing->status === 'published', 409, 'Une annonce réservée ou vendue ne peut pas être archivée.');
         $listing->update(['status' => 'archived']);
 
         return back()->with('success', 'Annonce archivée.');

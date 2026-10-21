@@ -32,6 +32,7 @@ class BrandMarketplaceController extends Controller
             'description' => 'nullable|string|max:2000',
             'condition_grade' => 'required|in:A,B,C',
             'price' => 'required|numeric|min:1|max:100000',
+            'points_price' => 'nullable|integer|min:1|max:1000000',
         ]);
         $product = $brand->products()->findOrFail($data['product_id']);
 

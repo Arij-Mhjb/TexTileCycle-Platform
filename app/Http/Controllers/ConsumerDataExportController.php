@@ -12,7 +12,7 @@ class ConsumerDataExportController extends Controller
         $user = $request->user();
         $payload = [
             'exported_at' => now()->toIso8601String(),
-            'profile' => $user->only(['id', 'name', 'email', 'role', 'created_at', 'updated_at']),
+            'profile' => $user->only(['id', 'name', 'email', 'role', 'profile_photo_path', 'created_at', 'updated_at']),
             'scans' => $user->scans()->with('product:id,name,brand,sku')->get()->toArray(),
             'returns' => $user->productReturns()->with(['product:id,name,brand,sku', 'collectionPoint:id,name,city'])->get()->toArray(),
             'repairs' => $user->repairOrders()->with(['product:id,name,brand,sku', 'repairCenter:id,name,city'])->get()->toArray(),

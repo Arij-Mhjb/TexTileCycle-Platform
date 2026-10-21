@@ -299,9 +299,10 @@ class CircularModulesSeeder extends Seeder
         if ($first = $returns->get(0)) {
             $order = $service->createFromReturn($first, 'resale');
             $service->diagnose($order, ['decision' => 'resale', 'repair_center_id' => $centers['ReFab Lab'], 'estimated_cost' => 18]);
+            $order = $service->consumerDecision($order->fresh(), true);
             $service->startRepair($order);
             $service->refurbish($order, ['actions' => 'Nettoyage écologique, remplacement de la fermeture, contrôle des coutures.', 'grade' => 'A', 'cost' => 16, 'technician' => 'Sana B.']);
-            $listing = $service->publish($order->fresh(), ['title' => ($first->product?->name ?? 'Article').' — reconditionné', 'description' => 'Comme neuf après passage en atelier partenaire.', 'price' => 89]);
+            $listing = $service->publish($order->fresh(), ['title' => ($first->product?->name ?? 'Article').' — reconditionné', 'description' => 'Comme neuf après passage en atelier partenaire.', 'price' => 89, 'points_price' => 650]);
             $buyer = User::where('role', 'consumer')->where('id', '!=', $first->user_id)->first();
             if ($buyer) {
                 $service->makeOffer($listing, $buyer, 80, 'Je peux passer le récupérer cette semaine.');
@@ -311,6 +312,7 @@ class CircularModulesSeeder extends Seeder
         if ($second = $returns->get(1)) {
             $order = $service->createFromReturn($second, 'repair');
             $service->diagnose($order, ['decision' => 'repair', 'repair_center_id' => $centers['Atelier Retouche Médina'], 'estimated_cost' => 9, 'admin_note' => 'Couture d’épaule à reprendre.']);
+            $order = $service->consumerDecision($order->fresh(), true);
             $service->startRepair($order);
         }
         // 3) Demande consommateur à diagnostiquer.
@@ -321,7 +323,7 @@ class CircularModulesSeeder extends Seeder
         // Annonce publiée directement par la marque.
         if ($product = Product::whereNotNull('brand_id')->where('name', 'Heritage Wool Coat')->first()) {
             MarketplaceListing::firstOrCreate(['title' => 'Heritage Wool Coat — retour boutique réparé'], [
-                'product_id' => $product->id, 'brand_id' => $product->brand_id, 'condition_grade' => 'A', 'price' => 240,
+                'product_id' => $product->id, 'brand_id' => $product->brand_id, 'condition_grade' => 'A', 'price' => 240, 'points_price' => 1200,
                 'description' => 'Invendu légèrement abîmé, remis à neuf par la marque.', 'status' => 'published', 'published_at' => now(),
             ]);
         }

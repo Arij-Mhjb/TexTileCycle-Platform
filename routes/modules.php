@@ -134,6 +134,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/marketplace', [ConsumerMarketplaceController::class, 'index'])->name('marketplace.index');
         Route::get('/marketplace/{listing}', [ConsumerMarketplaceController::class, 'show'])->name('marketplace.show');
         Route::post('/marketplace/{listing}/offers', [ConsumerMarketplaceController::class, 'offer'])->name('marketplace.offer');
+        Route::post('/marketplace/{listing}/buy-with-points', [ConsumerMarketplaceController::class, 'buyWithPoints'])->name('marketplace.buy-with-points');
         Route::post('/marketplace-orders/{marketplaceOrder}/checkout', [ConsumerMarketplaceController::class, 'checkout'])->name('marketplace.checkout');
         Route::post('/marketplace-orders/{marketplaceOrder}/received', [ConsumerMarketplaceController::class, 'confirmReceipt'])->name('marketplace.received');
         Route::get('/repairs', [ConsumerRepairController::class, 'index'])->name('repairs.index');

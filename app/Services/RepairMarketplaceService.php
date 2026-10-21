@@ -156,6 +156,7 @@ class RepairMarketplaceService
                 'description' => $data['description'] ?? null,
                 'condition_grade' => $grade,
                 'price' => $data['price'],
+                'points_price' => $data['points_price'] ?? null,
                 'status' => 'published',
                 'published_at' => now(),
             ]);
@@ -185,6 +186,59 @@ class RepairMarketplaceService
         }
 
         return $offer;
+    }
+
+    public function purchaseWithPoints(MarketplaceListing $listing, User $buyer, array $data): MarketplaceOrder
+    {
+        $order = DB::transaction(function () use ($listing, $buyer, $data) {
+            $lockedListing = MarketplaceListing::whereKey($listing->id)->lockForUpdate()->firstOrFail();
+            $this->guard($lockedListing->status === 'published', 'Cet article n’est plus disponible.');
+            $this->guard(! $lockedListing->isFromConsumer($buyer), 'Vous ne pouvez pas acheter votre propre article.');
+            $this->guard((int) $lockedListing->points_price > 0, 'Cet article ne peut pas être acheté avec des points.');
+
+            $transactions = RewardTransaction::where('user_id', $buyer->id)->lockForUpdate()->get();
+            $balance = (int) $transactions->whereIn('status', ['validated', 'spent'])->sum('points');
+            $cost = (int) $lockedListing->points_price;
+            $this->guard($balance >= $cost, 'Votre solde de points est insuffisant.');
+
+            $order = MarketplaceOrder::create([
+                'reference' => $this->reference('ORD'),
+                'marketplace_listing_id' => $lockedListing->id,
+                'buyer_id' => $buyer->id,
+                'collection_point_id' => $data['collection_point_id'] ?? null,
+                'total_amount' => 0,
+                'points_spent' => $cost,
+                'currency' => $lockedListing->currency,
+                'fulfilment_method' => $data['fulfilment_method'],
+                'payment_method' => 'points',
+                'delivery_address' => $data['delivery_address'] ?? null,
+                'status' => 'confirmed',
+                'checked_out_at' => now(),
+            ]);
+            RewardTransaction::create([
+                'user_id' => $buyer->id,
+                'type' => 'marketplace_purchase',
+                'points' => -$cost,
+                'status' => 'spent',
+                'description' => 'Achat marketplace '.$lockedListing->title.' · '.$order->reference,
+                'validated_at' => now(),
+            ]);
+            $lockedListing->update(['status' => 'reserved']);
+            $lockedListing->offers()->where('status', 'pending')->update(['status' => 'declined', 'responded_at' => now()]);
+
+            return $order;
+        });
+
+        $this->notify($buyer->id, 'marketplace_points_purchase', 'Achat en points confirmé',
+            $listing->title.' · '.$order->points_spent.' points utilisés.', route('consumer.marketplace.show', $listing));
+        $sellerMessage = $buyer->name.' a réservé « '.$listing->title.' » avec '.$order->points_spent.' points. Préparez la commande.';
+        if ($ownerId = $listing->brand?->user_id) {
+            $this->center->send($ownerId, 'marketplace_points_purchase', 'Nouvel achat en points', $sellerMessage, route('brand.marketplace.index'));
+        } else {
+            $this->center->toAdmins('marketplace_points_purchase', 'Nouvel achat en points', $sellerMessage, route('admin.marketplace.show', $listing));
+        }
+
+        return $order;
     }
 
     public function respondToOffer(ResaleOffer $offer, bool $accept): ResaleOffer
@@ -228,8 +282,10 @@ class RepairMarketplaceService
             $listing->order->update(['status' => $listing->order->fulfilment_method === 'delivery' ? 'shipped' : 'ready']);
         }
 
-        if ($buyerId = $listing->offers()->where('status', 'accepted')->value('user_id')) {
-            $this->notify($buyerId, 'resale_sold', 'Achat confirmé', $listing->title.' est à vous. Merci de donner une seconde vie à ce vêtement !', route('consumer.marketplace.index'));
+        $buyerId = $listing->order?->buyer_id ?? $listing->offers()->where('status', 'accepted')->value('user_id');
+        if ($buyerId) {
+            $nextStep = $listing->order?->fulfilment_method === 'delivery' ? 'Votre commande a été expédiée.' : 'Votre commande est prête à être retirée.';
+            $this->notify($buyerId, 'resale_sold', 'Votre vêtement est prêt', $listing->title.' : '.$nextStep, route('consumer.marketplace.show', $listing));
         }
 
         return $listing;

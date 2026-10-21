@@ -6,12 +6,11 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     <title>{{ config('app.name') }} · Marque</title>
 </head>
-<body class="min-h-screen bg-emerald-50/40 text-slate-900">
-    <header class="border-b border-emerald-800 bg-gradient-to-r from-emerald-950 via-emerald-900 to-teal-800 text-white shadow-lg shadow-emerald-950/10">
+<body class="min-h-screen bg-slate-50 text-slate-900">
+    <header class="border-b bg-white">
         <div class="mx-auto flex max-w-7xl flex-wrap items-center gap-4 px-6 py-4" x-data="{ navigationOpen: false }">
-            <a href="{{ route('brand.dashboard') }}" class="flex items-center gap-3 text-xl font-black text-white">
-                <span class="grid h-10 w-10 place-items-center rounded-2xl bg-white/15 text-lg ring-1 ring-white/20">T</span>
-                <span>TexTileCycle <span class="block text-[10px] font-black uppercase tracking-[.22em] text-emerald-200">Espace marque</span></span>
+            <a href="{{ route('brand.dashboard') }}" class="text-xl font-black text-emerald-700">
+                TexTileCycle <span class="text-sm font-medium text-slate-500">Brand Studio</span>
             </a>
 
             <div
@@ -19,8 +18,8 @@
                 class="order-3 hidden w-full lg:order-none lg:!flex lg:w-auto lg:flex-1 lg:items-center"
                 :class="navigationOpen ? '!block' : 'hidden'"
             >
-                <nav class="grid gap-1 border-t border-white/10 pt-4 lg:ml-6 lg:flex lg:items-center lg:border-0 lg:pt-0" aria-label="Navigation de l’espace marque">
-                    <a href="{{ route('brand.dashboard') }}" class="rounded-xl px-3 py-2 text-sm font-bold transition {{ request()->routeIs('brand.dashboard') ? 'bg-white/20 text-white shadow-sm' : 'text-emerald-50 hover:bg-white/10 hover:text-white' }}">Pilotage</a>
+                <nav class="grid gap-1 border-t border-slate-100 pt-4 lg:ml-6 lg:flex lg:items-center lg:border-0 lg:pt-0" aria-label="Navigation de l’espace marque">
+                    <a href="{{ route('brand.dashboard') }}" class="rounded-xl px-3 py-2 text-sm font-bold transition {{ request()->routeIs('brand.dashboard') ? 'bg-emerald-50 text-emerald-800' : 'text-slate-700 hover:bg-slate-100' }}">Pilotage</a>
 
                     <x-brand-nav-dropdown label="Produits" :active="request()->routeIs('brand.products.*', 'brand.product-label-recommendations.*')">
                         <a role="menuitem" href="{{ route('brand.products.index') }}" class="rounded-xl px-3 py-2.5 hover:bg-slate-50"><span class="block text-sm font-bold">Catalogue</span><span class="block text-xs text-slate-500">Consulter et gérer les produits</span></a>
@@ -41,19 +40,19 @@
 
                     @include('modules.partials.brand-nav')
 
-                    <a href="{{ route('brand.profile.edit') }}" class="rounded-xl px-3 py-2 text-sm font-bold transition {{ request()->routeIs('brand.profile.*') ? 'bg-white/20 text-white shadow-sm' : 'text-emerald-50 hover:bg-white/10 hover:text-white' }}">Marque</a>
+                    <a href="{{ route('brand.profile.edit') }}" class="rounded-xl px-3 py-2 text-sm font-bold transition {{ request()->routeIs('brand.profile.*') ? 'bg-emerald-50 text-emerald-800' : 'text-slate-700 hover:bg-slate-100' }}">Marque</a>
                 </nav>
             </div>
 
             <div class="ml-auto flex items-center gap-2">
-                <x-module.notification-bell :dark="true" />
+                <x-module.notification-bell />
                 <form method="POST" action="{{ route('logout') }}" class="hidden sm:block">
                     @csrf
-                    <button class="rounded-xl border border-white/20 bg-white/10 px-4 py-2 text-sm font-bold text-white transition hover:bg-white/20">Déconnexion</button>
+                    <button class="rounded-xl bg-slate-900 px-4 py-2 text-sm font-bold text-white transition hover:bg-slate-700">Déconnexion</button>
                 </form>
                 <button
                     type="button"
-                    class="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-3 py-2 text-sm font-bold text-white lg:hidden"
+                    class="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-sm font-bold lg:hidden"
                     @click="navigationOpen = ! navigationOpen"
                     :aria-expanded="navigationOpen.toString()"
                     aria-controls="brand-navigation"
@@ -71,11 +70,7 @@
     </header>
 
     <main class="mx-auto max-w-7xl px-6 py-10">
-        @if (session('success'))
-            <div class="mb-6 rounded-xl bg-emerald-100 p-4 text-emerald-900">
-                {{ session('success') }}
-            </div>
-        @endif
+        @if(session('success'))<div data-flash-message data-flash-type="success" class="hidden">{{ session('success') }}</div>@endif
 
         @if ($errors->any())
             <div class="mb-6 rounded-xl bg-red-50 p-4 text-red-700">

@@ -14,6 +14,8 @@ use App\Models\TradeInRequest;
 use App\Models\User;
 use App\Services\RepairMarketplaceService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class ConsumerExperienceCompletionTest extends TestCase
@@ -144,5 +146,53 @@ class ConsumerExperienceCompletionTest extends TestCase
         $this->assertStringContainsString('Export Consumer', $content);
         $this->assertStringContainsString('Mon manteau', $content);
         $this->assertStringNotContainsString('Article privé tiers', $content);
+    }
+
+    public function test_consumer_can_buy_one_marketplace_item_with_points(): void
+    {
+        $buyer = User::factory()->create(['role' => 'consumer']);
+        $other = User::factory()->create(['role' => 'consumer']);
+        foreach ([$buyer, $other] as $consumer) {
+            RewardTransaction::create([
+                'user_id' => $consumer->id, 'type' => 'return_reward', 'points' => 100,
+                'status' => 'validated', 'description' => 'Retour validé', 'validated_at' => now(),
+            ]);
+        }
+        $listing = MarketplaceListing::factory()->create(['status' => 'published', 'points_price' => 60]);
+
+        $this->actingAs($buyer)->post(route('consumer.marketplace.buy-with-points', $listing), [
+            'fulfilment_method' => 'delivery',
+            'delivery_address' => '12 rue de la Circularité, Tunis',
+        ])->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('marketplace_orders', [
+            'marketplace_listing_id' => $listing->id, 'buyer_id' => $buyer->id,
+            'points_spent' => 60, 'payment_method' => 'points', 'status' => 'confirmed',
+        ]);
+        $this->assertDatabaseHas('reward_transactions', [
+            'user_id' => $buyer->id, 'type' => 'marketplace_purchase', 'points' => -60, 'status' => 'spent',
+        ]);
+        $this->assertSame('reserved', $listing->fresh()->status);
+
+        $this->actingAs($other)->post(route('consumer.marketplace.buy-with-points', $listing), [
+            'fulfilment_method' => 'delivery', 'delivery_address' => '20 rue de la Réutilisation, Tunis',
+        ])->assertSessionHasErrors('status');
+        $this->assertSame(1, $listing->order()->count());
+    }
+
+    public function test_user_can_upload_a_profile_photo(): void
+    {
+        Storage::fake('public');
+        $consumer = User::factory()->create(['role' => 'consumer']);
+
+        $this->actingAs($consumer)->patch(route('profile.update'), [
+            'name' => $consumer->name,
+            'email' => $consumer->email,
+            'profile_photo' => UploadedFile::fake()->image('avatar.jpg', 300, 300),
+        ])->assertSessionHasNoErrors();
+
+        $path = $consumer->fresh()->profile_photo_path;
+        $this->assertNotNull($path);
+        Storage::disk('public')->assertExists($path);
     }
 }

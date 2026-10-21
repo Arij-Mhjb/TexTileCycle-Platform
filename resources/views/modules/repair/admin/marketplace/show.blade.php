@@ -1,8 +1,8 @@
 <x-app-layout :title="$listing->title">
     <x-module.hero module="repair" :eyebrow="'Annonce · '.$listing->gradeLabel()" :title="$listing->title" :description="$listing->description">
         <x-slot:actions>
-            <div class="rounded-2xl bg-white/10 p-4 text-right backdrop-blur"><p class="text-3xl font-black">{{ number_format((float) $listing->price, 2, ',', ' ') }}</p><p class="text-xs text-amber-100">{{ $listing->currency }} · {{ $listing->statusLabel() }}</p></div>
-            @if(! in_array($listing->status, ['sold', 'archived'], true))<form method="POST" action="{{ route('admin.marketplace.archive', $listing) }}">@csrf<button class="rounded-xl border border-white/40 bg-white/10 px-4 py-2.5 text-sm font-bold text-white hover:bg-white/20">Archiver</button></form>@endif
+            <div class="rounded-2xl bg-white/10 p-4 text-right backdrop-blur"><p class="text-3xl font-black">{{ number_format((float) $listing->price, 2, ',', ' ') }}</p>@if($listing->points_price)<p class="font-black text-emerald-200">ou {{ $listing->points_price }} points</p>@endif<p class="text-xs text-amber-100">{{ $listing->currency }} · {{ $listing->statusLabel() }}</p></div>
+            @if($listing->status === 'published')<form method="POST" action="{{ route('admin.marketplace.archive', $listing) }}" data-confirm="Archiver cette annonce ?"><button class="rounded-xl border border-white/40 bg-white/10 px-4 py-2.5 text-sm font-bold text-white hover:bg-white/20">Archiver</button>@csrf</form>@endif
         </x-slot:actions>
     </x-module.hero>
     @include('modules.repair.admin._tabs')
