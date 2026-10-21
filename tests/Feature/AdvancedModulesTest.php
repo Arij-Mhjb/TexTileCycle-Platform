@@ -48,7 +48,8 @@ class AdvancedModulesTest extends TestCase
         $this->seed(DatabaseSeeder::class);
         Storage::fake('local');
         Cache::flush();
-        config(['services.gemini.key' => null]);
+        config(['services.gemini.key' => null, 'huggingface.token' => null]);
+        Http::preventStrayRequests();
         RecyclingLoop::query()->delete();
         $this->brandUser = User::where('email', 'brand@textilecycle.test')->firstOrFail();
         $this->supplierUser = User::where('email', 'fournisseur@textilecycle.test')->firstOrFail();

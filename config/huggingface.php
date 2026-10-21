@@ -14,7 +14,8 @@ $list = fn (string $value) => array_values(array_filter(array_map('trim', explod
 
 return [
     'enabled' => env('HF_AI_ENABLED', true),
-    'token' => env('HF_TOKEN'),
+    // Pendant les tests, jamais le vrai jeton : aucun appel réel, aucun crédit consommé (les tests le fixent eux-mêmes).
+    'token' => env('APP_ENV') === 'testing' ? null : env('HF_TOKEN'),
     'base_url' => env('HF_BASE_URL', 'https://router.huggingface.co/hf-inference/models'),
     'chat_url' => env('HF_CHAT_URL', 'https://router.huggingface.co/v1/chat/completions'),
     'timeout' => env('HF_TIMEOUT', 30),
