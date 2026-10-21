@@ -12,6 +12,10 @@ use App\Http\Controllers\AdminRoadmapController;
 use App\Http\Controllers\AdminRewardItemController;
 use App\Http\Controllers\AssessmentController;
 use App\Http\Controllers\BrandDashboardController;
+use App\Http\Controllers\BrandTeamController;
+use App\Http\Controllers\BrandMemberInvitationController;
+use App\Http\Controllers\BrandMemberTaskController;
+use App\Http\Controllers\BrandAssistantController;
 use App\Http\Controllers\BrandEvidenceCommentController;
 use App\Http\Controllers\BrandImportController;
 use App\Http\Controllers\BrandLabelController;
@@ -58,6 +62,8 @@ Route::view('/', 'welcome')->name('home');
 Route::view('/brand-application-pending', 'auth.brand-pending')->name('brand.application-pending');
 Route::get('/brands', [PublicBrandController::class, 'index'])->name('brands.index');
 Route::get('/brands/{brand:slug}', [PublicBrandController::class, 'show'])->name('brands.show');
+Route::get('/invitation-equipe/{token}', [BrandMemberInvitationController::class,'show'])->middleware('throttle:30,1')->name('brand-member.invitation.show');
+Route::post('/invitation-equipe/{token}', [BrandMemberInvitationController::class,'store'])->middleware('throttle:10,1')->name('brand-member.invitation.store');
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/dashboard', DashboardRedirectController::class)->name('dashboard');
@@ -99,11 +105,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
     });
 
     Route::middleware('role:brand')->prefix('brand')->name('brand.')->group(function () {
+        Route::post('/assistant', BrandAssistantController::class)->middleware('throttle:20,1')->name('assistant.ask');
         Route::resource('roadmaps', BrandRoadmapController::class)->parameters(['roadmaps' => 'roadmap']);
         Route::get('/product-label-recommendations', [ProductLabelRecommendationController::class, 'index'])->name('product-label-recommendations.index');
         Route::post('/product-label-recommendations/analyse', [ProductLabelRecommendationController::class, 'analyse'])->name('product-label-recommendations.analyse');
         Route::post('/product-label-recommendations/{recommendation}/assign', [ProductLabelRecommendationController::class, 'assign'])->name('product-label-recommendations.assign');
         Route::post('/roadmaps/{roadmap}/restore', [BrandRoadmapController::class, 'restore'])->name('roadmaps.restore');
+        Route::patch('/roadmaps/{roadmap}/assign', [BrandRoadmapController::class, 'assign'])->name('roadmaps.assign');
         Route::patch('/roadmap-steps/{step}', [BrandRoadmapController::class, 'step'])->name('roadmaps.steps.update');
         Route::post('/roadmap-steps/{step}/submissions', [BrandRoadmapController::class, 'submit'])->name('roadmaps.steps.submit');
         Route::get('/', BrandDashboardController::class)->name('dashboard');
@@ -120,6 +128,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/products/import', [BrandImportController::class, 'store'])->name('products.import.store');
         Route::get('/profile', [BrandProfileController::class, 'edit'])->name('profile.edit');
         Route::patch('/profile', [BrandProfileController::class, 'update'])->name('profile.update');
+        Route::get('/team', [BrandTeamController::class,'index'])->name('team.index');
+        Route::post('/team', [BrandTeamController::class,'store'])->name('team.store');
+        Route::post('/team/{member}/resend', [BrandTeamController::class,'resend'])->name('team.resend');
         Route::post('/notifications/read-all', [BrandNotificationController::class, 'readAll'])->name('notifications.read-all');
         Route::post('/notifications/{notification}/read', [BrandNotificationController::class, 'read'])->name('notifications.read');
         Route::get('/labels', [BrandLabelController::class, 'index'])->name('labels.index');
@@ -138,6 +149,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/material-matches/{materialMatch}/receive', [BrandMaterialMatchController::class, 'receive'])->name('material-matches.receive');
         Route::post('/material-matches/{materialMatch}/verify', [BrandMaterialMatchController::class, 'verify'])->name('material-matches.verify');
         Route::post('/material-matches/{materialMatch}/reject', [BrandMaterialMatchController::class, 'reject'])->name('material-matches.reject');
+    });
+    Route::middleware('role:brand_member,brand')->prefix('mes-taches')->name('member.tasks.')->group(function(){
+        Route::get('/',[BrandMemberTaskController::class,'index'])->name('index');
+        Route::get('/{step}',[BrandMemberTaskController::class,'show'])->name('show');
+        Route::post('/{step}/submit',[BrandMemberTaskController::class,'submit'])->name('submit');
     });
 
     Route::middleware('role:consumer')->prefix('discover')->name('consumer.')->group(function () {

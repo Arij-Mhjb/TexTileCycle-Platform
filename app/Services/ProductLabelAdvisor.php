@@ -24,7 +24,7 @@ class ProductLabelAdvisor
         $recommendations = collect();
         foreach ($products as $product) {
             foreach ($labels as $label) {
-                $recommendations->push($this->ruleAssessment($brand, $product, $label));
+                $recommendations->push($this->addEligibilityAndBudget($this->ruleAssessment($brand, $product, $label), $product, $label));
             }
         }
 
@@ -49,6 +49,53 @@ class ProductLabelAdvisor
 
             return ProductLabelRecommendation::whereIn('id', $kept)->with('product', 'label')->get();
         });
+    }
+
+    private function addEligibilityAndBudget(array $assessment, Product $product, Label $label): array
+    {
+        $materials = $product->materials;
+        $materialCount = max(1, $materials->count());
+        $certified = $materials->filter(fn ($material) => (bool) $material->pivot->certified)->count();
+        $documented = $materials->filter(fn ($material) => filled($material->pivot->evidence_path))->count();
+        $composition = (int) round(min(30, $assessment['readiness_score'] / 85 * 30));
+        $traceability = (int) round(min(20, max(0, (int) $product->traceability_score) * .2));
+        $suppliers = (int) round(20 * (($certified + $documented) / (2 * $materialCount)));
+        $passport = (int) round(min(15, max(0, (int) $product->completion_score) * .15));
+        $process = min(15, (($product->repairable ? 3 : 0) + ($product->reusable ? 3 : 0) + ($product->recyclable ? 3 : 0)
+            + (filled($product->origin) ? 3 : 0) + ((int) $product->environmental_score > 0 ? 3 : 0)));
+
+        $assessment['eligibility_breakdown'] = [
+            ['key' => 'composition', 'label' => 'Composition et seuil du label', 'score' => $composition, 'max' => 30, 'missing' => $assessment['gaps'][0] ?? null],
+            ['key' => 'traceability', 'label' => 'Traçabilité des lots', 'score' => $traceability, 'max' => 20, 'missing' => $traceability < 14 ? 'Relier les produits aux lots fournisseurs contrôlés.' : null],
+            ['key' => 'suppliers', 'label' => 'Certificats fournisseurs', 'score' => $suppliers, 'max' => 20, 'missing' => $suppliers < 14 ? 'Ajouter et faire vérifier les certificats et justificatifs matière.' : null],
+            ['key' => 'passport', 'label' => 'Dossier technique produit', 'score' => $passport, 'max' => 15, 'missing' => $passport < 12 ? 'Compléter le passeport produit et ses justificatifs.' : null],
+            ['key' => 'process', 'label' => 'Processus et circularité', 'score' => $process, 'max' => 15, 'missing' => $process < 10 ? 'Documenter origine, fin de vie et données environnementales.' : null],
+        ];
+        $assessment['readiness_score'] = collect($assessment['eligibility_breakdown'])->sum('score');
+
+        $name = mb_strtolower($label->name);
+        $complexity = str_contains($name, 'global recycled') || str_contains($name, 'gots') ? 3 : (str_contains($name, 'recycled claim') || str_contains($name, 'vegan') ? 2 : 2);
+        $gapFactor = min(4, count($assessment['gaps']));
+        $low = 1800 + ($complexity * 1400) + ($gapFactor * 450);
+        $high = $low + 2500 + ($complexity * 1800) + ($gapFactor * 650);
+        $monthsLow = 2 + $complexity + (int) floor($gapFactor / 2);
+        $monthsHigh = $monthsLow + 3 + $complexity;
+        $assessment['certification_estimate'] = [
+            'currency' => 'EUR', 'cost_low' => $low, 'cost_high' => $high,
+            'duration_months_low' => $monthsLow, 'duration_months_high' => $monthsHigh,
+            'internal_hours_low' => 40 + ($complexity * 25) + ($gapFactor * 8),
+            'internal_hours_high' => 90 + ($complexity * 45) + ($gapFactor * 15),
+            'effort_level' => $complexity === 3 || $gapFactor >= 4 ? 'Élevé' : 'Modéré',
+            'components' => [
+                ['label' => 'Diagnostic et préparation du dossier', 'share' => 20],
+                ['label' => 'Tests, analyses et preuves', 'share' => 25],
+                ['label' => 'Audit et organisme certificateur', 'share' => 35],
+                ['label' => 'Corrections et accompagnement', 'share' => 20],
+            ],
+            'notice' => 'Estimation indicative hors changement de matières, production pilote et transport. Demandez un devis à l’organisme certificateur.',
+        ];
+
+        return $assessment;
     }
 
     private function ruleAssessment(Brand $brand, Product $product, Label $label): array

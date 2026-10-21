@@ -12,7 +12,7 @@ class RoadmapStep extends Model
 
     protected function casts(): array
     {
-        return ['due_date' => 'date', 'completion_points' => 'array'];
+        return ['due_date' => 'date', 'completion_points' => 'array', 'assigned_at' => 'datetime'];
     }
 
     public function roadmap(): BelongsTo
@@ -23,5 +23,10 @@ class RoadmapStep extends Model
     public function submissions(): HasMany
     {
         return $this->hasMany(RoadmapSubmission::class)->orderByDesc('version');
+    }
+
+    public function assignee(): BelongsTo
+    {
+        return $this->belongsTo(BrandMember::class, 'brand_member_id');
     }
 }

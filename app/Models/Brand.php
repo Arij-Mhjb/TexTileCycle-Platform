@@ -12,11 +12,13 @@ class Brand extends Model
 {
     protected $attributes = ['onboarding_status' => 'approved'];
 
-    protected $fillable = ['user_id', 'name', 'slug', 'logo_path', 'description', 'website', 'country', 'commitments', 'contact_email', 'is_active', 'onboarding_status'];
+    protected $fillable = ['user_id', 'name', 'legal_name', 'slug', 'logo_path', 'description', 'sector', 'founded_year',
+        'employee_range', 'website', 'linkedin_url', 'country', 'city', 'address', 'commitments', 'target_markets',
+        'contact_email', 'phone', 'is_active', 'onboarding_status'];
 
     protected function casts(): array
     {
-        return ['is_active' => 'boolean'];
+        return ['is_active' => 'boolean', 'founded_year' => 'integer'];
     }
 
     public function user(): BelongsTo
@@ -62,6 +64,11 @@ class Brand extends Model
     public function passportProposals(): HasMany
     {
         return $this->hasMany(PassportProposal::class);
+    }
+
+    public function members(): HasMany
+    {
+        return $this->hasMany(BrandMember::class);
     }
 
     public function getRouteKeyName(): string

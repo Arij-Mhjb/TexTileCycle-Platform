@@ -13,7 +13,8 @@ class ProductLabelRecommendation extends Model
     protected function casts(): array
     {
         return [
-            'readiness_score' => 'integer', 'gaps' => 'array', 'target_composition' => 'array',
+            'readiness_score' => 'integer', 'eligibility_breakdown' => 'array', 'certification_estimate' => 'array',
+            'gaps' => 'array', 'target_composition' => 'array',
             'next_steps' => 'array', 'environmental_impacts' => 'array', 'reputation_impacts' => 'array',
             'source_snapshot' => 'array', 'analysed_at' => 'datetime',
         ];

@@ -34,10 +34,11 @@ class LabelRoadmapService
             }
             $roadmap = LabelRoadmap::create(collect($data)->except('products', 'recommendation_id')->all() + [
                 'brand_id' => $user->brand->id, 'label_snapshot' => $label->only('id', 'name', 'official_url', 'description'),
+                'certification_estimate' => $recommendation?->certification_estimate,
                 'product_label_recommendation_id' => $recommendation?->id,
                 'specification' => $this->specification($label, $recommendation),
                 'impact_summary' => $recommendation ? ['environmental' => $recommendation->environmental_impacts, 'reputation' => $recommendation->reputation_impacts] : null,
-                'ai_assessment_snapshot' => $recommendation?->only(['id', 'path', 'readiness_score', 'reason', 'gaps', 'target_composition', 'next_steps', 'analysis_mode', 'analysis_model', 'analysed_at']),
+                'ai_assessment_snapshot' => $recommendation?->only(['id', 'path', 'readiness_score', 'eligibility_breakdown', 'reason', 'gaps', 'target_composition', 'next_steps', 'analysis_mode', 'analysis_model', 'analysed_at']),
             ]);
             $this->setProducts($roadmap, $data['products']);
             $definitions = app(RoadmapTemplates::class)->steps($label);

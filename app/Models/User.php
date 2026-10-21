@@ -41,6 +41,11 @@ class User extends Authenticatable
         return $this->hasOne(Brand::class);
     }
 
+    public function brandMembership(): HasOne
+    {
+        return $this->hasOne(BrandMember::class);
+    }
+
     public function brandNotifications(): HasMany
     {
         return $this->hasMany(BrandNotification::class);
@@ -109,6 +114,11 @@ class User extends Authenticatable
     public function isBrand(): bool
     {
         return $this->role === 'brand';
+    }
+
+    public function isBrandMember(): bool
+    {
+        return $this->role === 'brand_member';
     }
 
     public function isCollector(): bool

@@ -3,6 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     <title>{{ config('app.name') }} · Marque</title>
 </head>
@@ -41,7 +42,7 @@
 
                     @include('modules.partials.brand-nav')
 
-                    <a href="{{ route('brand.profile.edit') }}" class="rounded-xl px-3 py-2 text-sm font-bold transition {{ request()->routeIs('brand.profile.*') ? 'bg-white/20 text-white shadow-sm' : 'text-emerald-50 hover:bg-white/10 hover:text-white' }}">Marque</a>
+                    <x-brand-nav-dropdown label="Marque" :active="request()->routeIs('brand.profile.*','brand.team.*')"><a role="menuitem" href="{{ route('brand.profile.edit') }}" class="rounded-xl px-3 py-2.5 hover:bg-slate-50"><span class="block text-sm font-bold">Profil</span><span class="block text-xs text-slate-500">Identité et engagements</span></a><a role="menuitem" href="{{ route('brand.team.index') }}" class="rounded-xl px-3 py-2.5 hover:bg-slate-50"><span class="block text-sm font-bold">Équipe et départements</span><span class="block text-xs text-slate-500">Inviter et affecter les collaborateurs</span></a></x-brand-nav-dropdown>
                 </nav>
             </div>
 
@@ -85,6 +86,7 @@
 
         {{ $slot }}
     </main>
+    <x-brand-assistant />
 </body>
 </html>
 

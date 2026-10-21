@@ -4,12 +4,15 @@ namespace App\Http\Controllers;
 
 use App\Models\Label;
 use App\Models\LabelRoadmap;
+use App\Models\BrandMember;
 use App\Models\MaterialMatch;
 use App\Models\ProductLabelRecommendation;
 use App\Models\RoadmapStep;
 use App\Services\ActivityService;
 use App\Services\LabelRoadmapService;
 use App\Services\MediaStorageService;
+use App\Notifications\RoadmapStepAssigned;
+use App\Notifications\LabelRoadmapAssigned;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -67,10 +70,11 @@ class BrandRoadmapController extends Controller
     public function show(Request $r, LabelRoadmap $roadmap)
     {
         $this->own($r, $roadmap);
-        $roadmap->load('label', 'products', 'steps.submissions.reviewer', 'materialUsages.match.productReturn', 'materialUsages.events');
+        $roadmap->load('label', 'assignee', 'products', 'steps.assignee', 'steps.submissions.reviewer', 'materialUsages.match.productReturn', 'materialUsages.events');
         $matches = MaterialMatch::with('productReturn.product', 'usage')->where(fn ($q) => $q->whereDoesntHave('usage', fn ($u) => $u->whereNotNull('label_roadmap_id'))->orWhereHas('usage', fn ($u) => $u->where('label_roadmap_id', $roadmap->id)))->where('status', 'verified')->whereHas('request', fn ($q) => $q->where('brand_id', $roadmap->brand_id))->get();
 
-        return view('brand.roadmaps.show', compact('roadmap', 'matches'));
+        $members=$r->user()->brand->members()->where('status','active')->orderBy('department')->orderBy('name')->get();
+        return view('brand.roadmaps.show', compact('roadmap', 'matches', 'members'));
     }
 
     public function edit(Request $r, LabelRoadmap $roadmap)
@@ -119,7 +123,10 @@ class BrandRoadmapController extends Controller
         $roadmap = $step->roadmap;
         $this->own($r, $roadmap);
         $data = $r->validate(['goal' => 'required|string|max:4000', 'owner_name' => 'required|string|max:255', 'due_date' => ['required', 'date', 'after_or_equal:'.$roadmap->starts_on->format('Y-m-d'), 'before_or_equal:'.$roadmap->target_date->format('Y-m-d')],
-            'status' => 'required|in:todo,in_progress']);
+            'status' => 'required|in:todo,in_progress', 'brand_member_id' => ['nullable','integer',Rule::exists('brand_members','id')->where('brand_id',$roadmap->brand_id)->where('status','active')], 'priority'=>'nullable|in:low,normal,high,urgent','assignment_comment'=>'nullable|string|max:2000']);
+        $data['priority']=$data['priority'] ?? $step->priority ?? 'normal';
+        $previousAssignee=$step->brand_member_id;
+        $data['assigned_at']=!empty($data['brand_member_id']) ? now() : null;
         DB::transaction(function () use ($r, $step, $data) {
             $roadmap = LabelRoadmap::whereKey($step->label_roadmap_id)->lockForUpdate()->firstOrFail();
             abort_unless($roadmap->status === 'active', 409);
@@ -128,8 +135,33 @@ class BrandRoadmapController extends Controller
             $step->update($data);
             app(ActivityService::class)->log($r->user()->id, $roadmap->brand_id, 'roadmap.step.updated', $step);
         });
+        if (!empty($data['brand_member_id']) && (int)$previousAssignee !== (int)$data['brand_member_id']) {
+            $member=BrandMember::with('user')->find($data['brand_member_id']);
+            $member?->user?->notify(new RoadmapStepAssigned($step->fresh()->load('roadmap')));
+        }
 
         return back()->with('success', 'Objectif et échéance mis à jour. Soumettez les preuves pour validation.');
+    }
+
+    public function assign(Request $r, LabelRoadmap $roadmap)
+    {
+        $this->own($r, $roadmap);
+        abort_unless($roadmap->status === 'active', 409);
+        $data=$r->validate([
+            'brand_member_id'=>['required','integer',Rule::exists('brand_members','id')->where('brand_id',$roadmap->brand_id)->where('status','active')],
+            'assignment_priority'=>'required|in:low,normal,high,urgent','assignment_comment'=>'nullable|string|max:2000',
+        ]);
+        $member=BrandMember::with('user')->findOrFail($data['brand_member_id']);
+        DB::transaction(function()use($r,$roadmap,$member,$data){
+            $roadmap->update($data+['assigned_at'=>now()]);
+            $roadmap->steps()->whereNotIn('status',['approved'])->update([
+                'brand_member_id'=>$member->id,'owner_name'=>$member->name,'priority'=>$data['assignment_priority'],
+                'assignment_comment'=>$data['assignment_comment'],'assigned_at'=>now(),
+            ]);
+            app(ActivityService::class)->log($r->user()->id,$roadmap->brand_id,'roadmap.label_assigned',$roadmap,['member_id'=>$member->id]);
+        });
+        $member->user?->notify(new LabelRoadmapAssigned($roadmap->fresh()->load('brand')));
+        return back()->with('success','La démarche complète du label a été affectée à '.$member->name.'.');
     }
 
     public function submit(Request $r, RoadmapStep $step, LabelRoadmapService $service, MediaStorageService $media)

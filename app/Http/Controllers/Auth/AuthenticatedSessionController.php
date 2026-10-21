@@ -30,7 +30,7 @@ class AuthenticatedSessionController extends Controller
 
         return redirect()->intended($request->user()->isAdmin()
             ? route('admin.dashboard', absolute: false)
-            : ($request->user()->isBrand() ? route('brand.dashboard', absolute: false) : route('dashboard', absolute: false)));
+            : ($request->user()->isBrand() ? route('brand.dashboard', absolute: false) : ($request->user()->isBrandMember() ? route('member.tasks.index', absolute: false) : route('dashboard', absolute: false))));
     }
 
     /**

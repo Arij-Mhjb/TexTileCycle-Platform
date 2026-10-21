@@ -49,6 +49,10 @@ class ProductLabelRecommendationTest extends TestCase
         $this->assertEquals(80.0, $cottonTarget['target_percentage']);
         $this->assertNotEmpty($grs->environmental_impacts);
         $this->assertNotEmpty($grs->reputation_impacts);
+        $this->assertCount(5, $grs->eligibility_breakdown);
+        $this->assertSame($grs->readiness_score, collect($grs->eligibility_breakdown)->sum('score'));
+        $this->assertGreaterThan(0, $grs->certification_estimate['cost_low']);
+        $this->assertGreaterThan($grs->certification_estimate['cost_low'], $grs->certification_estimate['cost_high']);
         $this->assertSame('candidate', $results->firstWhere('label.slug', 'vegan')->path);
     }
 
@@ -91,7 +95,8 @@ class ProductLabelRecommendationTest extends TestCase
         $this->assertSame('Coton recyclé', collect($roadmap->specification['target_composition'])->firstWhere('name', 'Coton conventionnel')['target_material']);
         $this->assertNotEmpty($roadmap->impact_summary['environmental']);
         $this->assertNotEmpty($roadmap->steps->first()->completion_points);
-        $this->get(route('brand.roadmaps.show', $roadmap))->assertOk()->assertSee('Cahier des charges')->assertSee('Réputation de la marque');
+        $this->assertSame($recommendation->certification_estimate, $roadmap->certification_estimate);
+        $this->get(route('brand.roadmaps.show', $roadmap))->assertOk()->assertSee('Cahier des charges')->assertSee('Réputation de la marque')->assertSee('Budget et effort de certification');
         $this->get(route('brand.dashboard'))->assertOk()
             ->assertSee('Labels poursuivis')
             ->assertSee('Global Recycled Standard (GRS)')

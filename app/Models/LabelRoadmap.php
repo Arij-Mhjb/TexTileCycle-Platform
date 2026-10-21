@@ -16,7 +16,7 @@ class LabelRoadmap extends Model
     protected function casts(): array
     {
         return ['scope_version' => 'integer', 'starts_on' => 'date', 'target_date' => 'date', 'label_snapshot' => 'array',
-            'specification' => 'array', 'impact_summary' => 'array', 'ai_assessment_snapshot' => 'array'];
+            'specification' => 'array', 'impact_summary' => 'array', 'ai_assessment_snapshot' => 'array', 'certification_estimate' => 'array', 'assigned_at' => 'datetime'];
     }
 
     public function brand(): BelongsTo
@@ -37,6 +37,11 @@ class LabelRoadmap extends Model
     public function products(): BelongsToMany
     {
         return $this->belongsToMany(Product::class)->withPivot('snapshot')->withTrashed();
+    }
+
+    public function assignee(): BelongsTo
+    {
+        return $this->belongsTo(BrandMember::class, 'brand_member_id');
     }
 
     public function steps(): HasMany

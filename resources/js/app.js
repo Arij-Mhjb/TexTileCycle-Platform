@@ -6,6 +6,26 @@ import QRCode from 'qrcode';
 
 window.Alpine = Alpine;
 Alpine.data('brandRegistration', brandRegistration);
+Alpine.data('brandAssistant', ({ endpoint, page }) => ({
+    open: false, question: '', loading: false, error: '',
+    messages: [{ role: 'assistant', content: 'Bonjour, je suis TexTileGuide. Dites-moi ce que vous souhaitez faire et je vous guiderai étape par étape.', links: [] }],
+    askSuggestion(question) { this.question = question; this.send(); },
+    async send() {
+        const question = this.question.trim();
+        if (question.length < 2 || this.loading) return;
+        const history = this.messages.slice(-6).map(({ role, content }) => ({ role, content }));
+        this.messages.push({ role: 'user', content: question, links: [] });
+        this.question = ''; this.loading = true; this.error = '';
+        this.$nextTick(() => { this.$refs.messages.scrollTop = this.$refs.messages.scrollHeight; });
+        try {
+            const response = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '' }, body: JSON.stringify({ question, page, history }) });
+            if (!response.ok) throw new Error(response.status === 429 ? 'Trop de demandes. Réessayez dans une minute.' : 'Assistant indisponible.');
+            const data = await response.json();
+            this.messages.push({ role: 'assistant', content: data.answer, links: data.links || [] });
+        } catch (error) { this.error = error.message; }
+        finally { this.loading = false; this.$nextTick(() => { this.$refs.messages.scrollTop = this.$refs.messages.scrollHeight; }); }
+    },
+}));
 
 window.locateCollectionPoints = function () {
     if (!navigator.geolocation) return;

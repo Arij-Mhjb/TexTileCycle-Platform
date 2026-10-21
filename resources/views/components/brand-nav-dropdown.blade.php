@@ -32,7 +32,7 @@
         x-transition:leave-start="opacity-100 translate-y-0"
         x-transition:leave-end="opacity-0 -translate-y-1"
         @click.outside="open = false"
-        class="mt-1 grid gap-1 rounded-2xl border border-slate-200 bg-white p-2 shadow-xl shadow-slate-900/10 lg:absolute lg:left-0 lg:top-full lg:z-50 lg:mt-2 lg:w-72"
+        class="mt-1 grid gap-1 rounded-2xl border border-slate-200 bg-white p-2 text-slate-900 shadow-xl shadow-slate-900/10 lg:absolute lg:left-0 lg:top-full lg:z-50 lg:mt-2 lg:w-72"
         role="menu"
     >
         {{ $slot }}
