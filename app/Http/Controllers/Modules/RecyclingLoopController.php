@@ -58,7 +58,7 @@ class RecyclingLoopController extends Controller
             'wished_pickup_at' => 'nullable|date|after_or_equal:today',
             'items' => 'required|array|min:1|max:10',
             'items.*.kind' => ['required', Rule::in(array_keys(RecyclingLoopItem::KINDS))],
-            'items.*.label' => 'required|string|max:150',
+            'items.*.label' => 'nullable|string|max:150',
             'items.*.product_id' => ['nullable', Rule::exists('products', 'id')->where('brand_id', $brand->id)],
             'items.*.material_id' => 'nullable|exists:materials,id',
             'items.*.pieces' => 'nullable|integer|min:1|max:100000',

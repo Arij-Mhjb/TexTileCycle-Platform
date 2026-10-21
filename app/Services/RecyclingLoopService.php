@@ -3,7 +3,10 @@
 namespace App\Services;
 
 use App\Models\Brand;
+use App\Models\Material;
+use App\Models\Product;
 use App\Models\RecyclingLoop;
+use App\Models\RecyclingLoopItem;
 use App\Models\Supplier;
 use App\Models\SupplierBatch;
 use App\Models\User;
@@ -54,7 +57,7 @@ class RecyclingLoopService
             foreach ($items as $item) {
                 $loop->items()->create([
                     'kind' => $item['kind'],
-                    'label' => $item['label'],
+                    'label' => filled($item['label'] ?? null) ? $item['label'] : $this->autoLabel($item),
                     'product_id' => $item['product_id'] ?? null,
                     'material_id' => $item['material_id'] ?? null,
                     'pieces' => $item['pieces'] ?? null,
@@ -194,6 +197,19 @@ class RecyclingLoopService
             $loop->reference.' : la marque a bien reçu '.$this->kg($loop->output_kg).' de matière recyclée. Merci !');
 
         return $loop;
+    }
+
+    /** Nom automatique d'un lot : nature + produit ou matière + nombre de pièces. Ex. « Défectueux · Winter Jacket 02 · 25 pièces ». */
+    public function autoLabel(array $item): string
+    {
+        $what = ! empty($item['product_id']) ? Product::whereKey($item['product_id'])->value('name') : null;
+        $what ??= ! empty($item['material_id']) ? Material::whereKey($item['material_id'])->value('name') : null;
+
+        return collect([
+            RecyclingLoopItem::SHORT_KINDS[$item['kind']] ?? 'Lot',
+            $what ?? 'matière à préciser',
+            ! empty($item['pieces']) ? $item['pieces'].' pièces' : null,
+        ])->filter()->join(' · ');
     }
 
     public function estimate(RecyclingLoop $loop): array
