@@ -11,7 +11,8 @@ use Symfony\Component\Process\Process;
 
 /**
  * IA du module Fournisseurs :
- *  1. lecture d'un certificat de provenance à partir d'une photo (Gemini Vision, sinon OCR Tesseract) ;
+ *  1. lecture d'un certificat de provenance à partir d'une photo
+ *     (modèle vision-langage Hugging Face Qwen2.5-VL, sinon Gemini Vision, sinon OCR Tesseract) ;
  *  2. analyse de risque d'un fournisseur (règles vérifiables + synthèse rédigée par Gemini).
  */
 class SupplierAiService
@@ -22,7 +23,7 @@ class SupplierAiService
         'lyocell' => ['FSC'], 'viscose' => ['FSC'], 'modal' => ['FSC'],
     ];
 
-    public function __construct(private GeminiJsonClient $gemini) {}
+    public function __construct(private GeminiJsonClient $gemini, private HuggingFaceClient $huggingFace) {}
 
     /**
      * @return array{fields: array<string, mixed>, confidence: int, warnings: array<int, string>, source: string}
@@ -34,11 +35,20 @@ class SupplierAiService
         $source = 'gemini';
 
         $description = null;
-        $answer = $this->gemini->ask($this->certificatePrompt($batch), $this->certificateSchema(), [$imagePath]);
+        $model = null;
+        // 1. Modèle vision-langage open source (Hugging Face), 2. Gemini, 3. OCR local.
+        $hf = $this->huggingFace->visionJson($this->certificatePrompt($batch)."\nClés JSON attendues : ".implode(', ', array_keys($this->certificateSchema()['properties'])).'.', $imagePath);
+        if ($hf) {
+            $answer = $hf['data'];
+            $source = 'huggingface';
+            $model = $hf['model'];
+        } else {
+            $answer = $this->gemini->ask($this->certificatePrompt($batch), $this->certificateSchema(), [$imagePath]);
+        }
         if ($answer) {
             $description = filled($answer['image_description'] ?? null) ? (string) $answer['image_description'] : null;
             if (($answer['is_certificate'] ?? true) === false) {
-                return ['fields' => [], 'confidence' => (int) ($answer['confidence'] ?? 0), 'warnings' => [], 'source' => 'gemini', 'is_certificate' => false,
+                return ['fields' => [], 'confidence' => (int) ($answer['confidence'] ?? 0), 'warnings' => [], 'source' => $source, 'model' => $model, 'is_certificate' => false,
                     'document_kind' => (string) ($answer['document_kind'] ?? 'document non identifié'),
                     'description' => $description ?? 'L’image montre : '.($answer['document_kind'] ?? 'un document non identifié').'.'];
             }
@@ -60,6 +70,7 @@ class SupplierAiService
             'confidence' => (int) ($fields['confidence'] ?? ($source === 'ocr' ? 55 : 70)),
             'warnings' => $this->certificateWarnings($fields, $batch),
             'source' => $source,
+            'model' => $model,
             'is_certificate' => true,
             'description' => $description,
         ];
