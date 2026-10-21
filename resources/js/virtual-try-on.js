@@ -1,6 +1,6 @@
 import { FilesetResolver, PoseLandmarker } from '@mediapipe/tasks-vision';
 
-const WASM_PATH = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.1.1/wasm';
+const WASM_PATH = '/vendor/mediapipe';
 const MODEL_PATH = 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/latest/pose_landmarker_lite.task';
 let sharedLandmarker;
 
@@ -8,11 +8,10 @@ async function landmarker() {
     if (sharedLandmarker) return sharedLandmarker;
     const vision = await FilesetResolver.forVisionTasks(WASM_PATH);
     const options = {
-        baseOptions: { modelAssetPath: MODEL_PATH, delegate: 'GPU' }, runningMode: 'VIDEO', numPoses: 1,
+        baseOptions: { modelAssetPath: MODEL_PATH }, runningMode: 'VIDEO', numPoses: 1,
         minPoseDetectionConfidence: 0.55, minPosePresenceConfidence: 0.55, minTrackingConfidence: 0.55,
     };
-    try { sharedLandmarker = await PoseLandmarker.createFromOptions(vision, options); }
-    catch (_) { sharedLandmarker = await PoseLandmarker.createFromOptions(vision, { ...options, baseOptions: { modelAssetPath: MODEL_PATH } }); }
+    sharedLandmarker = await PoseLandmarker.createFromOptions(vision, options);
     return sharedLandmarker;
 }
 
@@ -82,8 +81,10 @@ export default function virtualTryOn({ imageUrl, category }) {
             this.error = '';
             this.loading = true;
             await this.$nextTick();
+            let stage = 'model';
             try {
                 [this.detector, this.garment] = await Promise.all([landmarker(), loadImage(imageUrl).then(garmentCutout)]);
+                stage = 'camera';
                 this.stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 960 }, height: { ideal: 1280 } }, audio: false });
                 this.$refs.video.srcObject = this.stream;
                 await this.$refs.video.play();
@@ -91,7 +92,10 @@ export default function virtualTryOn({ imageUrl, category }) {
                 this.running = true;
                 this.render();
             } catch (error) {
-                this.error = navigator.mediaDevices ? 'Impossible de démarrer l’essayage. Autorisez la caméra et vérifiez votre connexion.' : 'La caméra n’est pas disponible sur cet appareil.';
+                console.error('Virtual try-on initialization failed:', error);
+                this.error = stage === 'model'
+                    ? 'Le modèle IA n’a pas pu être chargé. Rechargez la page puis réessayez.'
+                    : 'Impossible d’ouvrir la caméra. Vérifiez son autorisation dans le navigateur.';
             } finally {
                 this.loading = false;
             }
@@ -118,8 +122,15 @@ export default function virtualTryOn({ imageUrl, category }) {
             const now = performance.now();
             if (video.readyState >= 2 && now - this.lastInference > 65) {
                 this.lastInference = now;
-                const result = this.detector.detectForVideo(video, now);
-                if (result.landmarks?.[0]) this.updatePose(result.landmarks[0], canvas.width, canvas.height);
+                try {
+                    const result = this.detector.detectForVideo(video, now);
+                    if (result.landmarks?.[0]) this.updatePose(result.landmarks[0], canvas.width, canvas.height);
+                } catch (error) {
+                    console.error('Virtual try-on inference failed:', error);
+                    this.error = 'Le moteur IA a rencontré une erreur pendant l’analyse. Fermez puis relancez l’essayage.';
+                    this.running = false;
+                    return;
+                }
             }
             if (this.smoothed) this.drawGarment(context);
             this.animation = requestAnimationFrame(() => this.render());
