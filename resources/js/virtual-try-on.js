@@ -174,7 +174,19 @@ export default function virtualTryOn({ imageUrl, category }) {
             context.rotate(angle);
             context.globalAlpha = Number(this.opacity);
             context.filter = 'drop-shadow(0 8px 10px rgba(15,23,42,.16))';
-            context.drawImage(this.garment, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight);
+            const slices = 48;
+            for (let slice = 0; slice < slices; slice += 1) {
+                const progress = slice / (slices - 1);
+                let widthFactor = 1 - progress * 0.1;
+                if (category === 'dress') widthFactor = progress < 0.38 ? 0.78 - progress * 0.32 : 0.66 + (progress - 0.38) * 0.68;
+                if (category === 'bottom') widthFactor = 1 - progress * 0.2;
+                const sourceY = this.garment.height * progress;
+                const sourceHeight = this.garment.height / slices + 1;
+                const destinationY = -drawHeight / 2 + drawHeight * progress;
+                const destinationHeight = drawHeight / slices + 1.5;
+                const sliceWidth = drawWidth * widthFactor;
+                context.drawImage(this.garment, 0, sourceY, this.garment.width, sourceHeight, -sliceWidth / 2, destinationY, sliceWidth, destinationHeight);
+            }
             context.restore();
         },
 
