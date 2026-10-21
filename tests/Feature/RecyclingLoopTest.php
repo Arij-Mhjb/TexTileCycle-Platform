@@ -19,7 +19,8 @@ use Tests\TestCase;
 
 /**
  * Boucle de recyclage marque ↔ fournisseur : la marque confie pièces défectueuses et surplus,
- * le fournisseur propose, recycle et rend (ou revend) la matière, qui revient en lot traçable.
+ * le fournisseur recycle ; la marque récupère la matière (elle paie les frais, calculés automatiquement)
+ * ou le fournisseur la rachète (il verse un avoir).
  */
 class RecyclingLoopTest extends TestCase
 {
@@ -53,6 +54,7 @@ class RecyclingLoopTest extends TestCase
     {
         return $this->actingAs($this->brandUser)->post(route('brand.recycling.store'), array_replace_recursive([
             'supplier_id' => $this->supplier->id,
+            'mode' => 'recover',
             'brand_message' => 'Nous voulons récupérer du fil recyclé.',
             'items' => [
                 ['kind' => 'defective', 'material_id' => $this->material('Coton conventionnel'), 'pieces' => 20, 'quantity_kg' => 14, 'issue' => 'Couture décalée', 'photo' => UploadedFile::fake()->image('jean.jpg')],
@@ -82,13 +84,21 @@ class RecyclingLoopTest extends TestCase
         Http::assertSent(fn (HttpRequest $request) => $request->hasHeader('Authorization', 'Bearer hf_test'));
         $this->assertDatabaseHas('brand_notifications', ['user_id' => $this->supplierUser->id, 'type' => 'recycling_requested']);
 
-        // 2. Le fournisseur voit l'estimation (coton → coton recyclé) et propose une revente.
-        $this->actingAs($this->supplierUser)->get(route('supplier.recycling.show', $loop))->assertOk()->assertSee('Coton recyclé')->assertSee('Envoyer ma proposition');
-        $this->post(route('supplier.recycling.propose', $loop), ['output_material_id' => $this->material('Coton recyclé'), 'expected_output_kg' => 45, 'mode' => 'sale', 'unit_price' => 7])
+        // Le prix est estimé dès la demande : collecte 15 + 0,10 × 40 = 19 ; démontage 20 × 0,25 = 5 ; recyclage 40 × 1,20 = 48.
+        $this->assertSame('estimate', $loop->pricing['stage']);
+        $this->assertSame(72.0, $loop->amount());
+
+        // 2. Le fournisseur voit l'estimation (coton → coton recyclé) et confirme ce qu'il peut produire. Il ne saisit aucun prix.
+        $this->actingAs($this->supplierUser)->get(route('supplier.recycling.show', $loop))->assertOk()->assertSee('Coton recyclé')->assertSee('Confirmer ce que je peux produire');
+        $this->post(route('supplier.recycling.propose', $loop), ['output_material_id' => $this->material('Coton recyclé'), 'expected_output_kg' => 45])
             ->assertSessionHasErrors('expected_output_kg');
-        $this->post(route('supplier.recycling.propose', $loop), ['output_material_id' => $this->material('Coton recyclé'), 'expected_output_kg' => 32, 'mode' => 'sale', 'unit_price' => 7])
+        $this->post(route('supplier.recycling.propose', $loop), ['output_material_id' => $this->material('Coton recyclé'), 'expected_output_kg' => 32, 'unit_price' => 999])
             ->assertSessionHasNoErrors();
-        $this->assertSame(224.0, $loop->fresh()->amount());
+        $loop->refresh();
+        $this->assertSame('proposal', $loop->pricing['stage']);
+        $this->assertSame(72.0, $loop->amount());
+        $this->assertEquals(216, $loop->pricing['savings']); // 32 kg × 9 TND (coton neuf) − 72 TND de frais
+        $this->actingAs($this->brandUser)->get(route('brand.recycling.show', $loop))->assertOk()->assertSee('72,00 TND')->assertSee('Accepter la proposition');
 
         // 3. La marque accepte et expédie.
         $this->actingAs($this->brandUser)->post(route('brand.recycling.ship', $loop))->assertSessionHasErrors('status');
@@ -102,6 +112,9 @@ class RecyclingLoopTest extends TestCase
         $this->post(route('supplier.recycling.transform', $loop), ['output_kg' => 41, 'proof' => $proof])->assertSessionHasErrors('output_kg');
         $this->post(route('supplier.recycling.transform', $loop), ['output_kg' => 31.4, 'proof' => $proof])->assertSessionHasNoErrors();
         $this->assertSame(80, $loop->fresh()->yieldRate());
+        // Prix définitif sur le poids réellement pesé : 15 + 3,92 + 5 + 39,2 × 1,20 = 70,96 TND.
+        $this->assertTrue($loop->fresh()->priceIsFinal());
+        $this->assertSame(70.96, $loop->fresh()->amount());
         $this->post(route('supplier.recycling.deliver', $loop))->assertSessionHasNoErrors();
 
         $loop->refresh();
@@ -115,9 +128,35 @@ class RecyclingLoopTest extends TestCase
         $this->actingAs($this->brandUser)->post(route('brand.recycling.close', $loop))->assertSessionHasNoErrors();
         $this->assertSame('closed', $loop->fresh()->status);
         $this->assertNotNull($batch->fresh()->received_at);
-        $this->get(route('brand.recycling.show', $loop))->assertOk()->assertSee('Boucle fermée')->assertSee($batch->batch_code);
+        $this->get(route('brand.recycling.show', $loop))->assertOk()->assertSee('Terminé')->assertSee($batch->batch_code);
         $this->assertTrue(BrandNotification::where('user_id', $this->supplierUser->id)->where('type', 'recycling_closed')->exists());
         $this->assertSame(7, BrandNotification::whereIn('type', ['recycling_requested', 'recycling_proposed', 'recycling_accepted', 'recycling_shipped', 'recycling_received', 'recycling_transformed', 'recycling_delivered'])->count());
+    }
+
+    public function test_buyback_gives_the_brand_a_credit_and_creates_no_lot(): void
+    {
+        Http::fake();
+        $this->request(['mode' => 'buyback', 'items' => [0 => ['photo' => null]]])->assertSessionHasNoErrors();
+        $loop = RecyclingLoop::firstOrFail();
+        $this->assertSame('buyback', $loop->mode);
+
+        $this->actingAs($this->supplierUser)->post(route('supplier.recycling.propose', $loop), ['output_material_id' => $this->material('Coton recyclé'), 'expected_output_kg' => 32]);
+        // 32 kg × 6,50 TND × 60 % = 124,80 TND de rachat − 72 TND de frais = 52,80 TND d'avoir pour la marque.
+        $this->assertSame(-52.8, $loop->fresh()->amount());
+        $this->assertEquals(52.8, $loop->fresh()->pricing['credit']);
+
+        $this->actingAs($this->brandUser)->post(route('brand.recycling.accept', $loop));
+        $this->post(route('brand.recycling.ship', $loop));
+        $this->actingAs($this->supplierUser)->post(route('supplier.recycling.receive', $loop), ['received_kg' => 40]);
+        $this->post(route('supplier.recycling.transform', $loop), ['output_kg' => 32, 'proof' => UploadedFile::fake()->image('balles.jpg')]);
+        $this->get(route('supplier.recycling.show', $loop))->assertOk()->assertSee('Verser l’avoir');
+        $this->post(route('supplier.recycling.deliver', $loop))->assertSessionHasNoErrors();
+        $this->assertNull($loop->fresh()->output_batch_id);
+        $this->assertSame(0, SupplierBatch::where('quantity_kg', 32)->count());
+        $this->assertTrue(BrandNotification::where('user_id', $this->brandUser->id)->where('type', 'recycling_delivered')->where('title', 'like', '%avoir%')->exists());
+
+        $this->actingAs($this->brandUser)->post(route('brand.recycling.close', $loop))->assertSessionHasNoErrors();
+        $this->assertSame('closed', $loop->fresh()->status);
     }
 
     public function test_request_validation_and_supplier_can_decline(): void
@@ -128,6 +167,7 @@ class RecyclingLoopTest extends TestCase
         $this->request(['items' => [0 => ['quantity_kg' => 0]]])->assertSessionHasErrors('items.0.quantity_kg');
         $other = Supplier::factory()->create();
         $this->request(['supplier_id' => $other->id])->assertSessionHasErrors('supplier_id');
+        $this->request(['mode' => 'gratuit'])->assertSessionHasErrors('mode');
 
         $this->request(['items' => [0 => ['photo' => null]]])->assertSessionHasNoErrors();
         $loop = RecyclingLoop::firstOrFail();
@@ -139,17 +179,19 @@ class RecyclingLoopTest extends TestCase
     public function test_pages_and_isolation(): void
     {
         Http::fake();
-        $this->actingAs($this->brandUser)->get(route('brand.recycling.create'))->assertOk()->assertSee($this->supplier->name)->assertSee('Estimation');
+        $this->actingAs($this->brandUser)->get(route('brand.recycling.create'))->assertOk()->assertSee($this->supplier->name)->assertSee('Que voulez-vous en retour');
         $this->request(['items' => [0 => ['photo' => null]]]);
         $loop = RecyclingLoop::firstOrFail();
 
-        $this->get(route('brand.recycling.index'))->assertOk()->assertSee($this->supplier->name)->assertSee('En attente de l’autre partie');
-        $this->actingAs($this->supplierUser)->get(route('supplier.recycling.index'))->assertOk()->assertSee('À vous d’agir')->assertSee('Faire une proposition');
+        $this->get(route('brand.recycling.index'))->assertOk()->assertSee($this->supplier->name)->assertSee('Chez l’autre partie');
+        $this->actingAs($this->supplierUser)->get(route('supplier.recycling.index'))->assertOk()->assertSee('À faire maintenant')->assertSee('Confirmer ce que je peux produire');
+        $this->get(route('supplier.dashboard'))->assertOk()->assertSee('Recyclage')->assertSee('Confirmer ce que je peux produire');
         $this->actingAs(User::where('email', 'admin@textilecycle.test')->firstOrFail())->get(route('admin.recycling.show', $loop))->assertOk()->assertDontSee('Envoyer ma proposition');
+        $this->get(route('admin.recycling.index'))->assertOk()->assertSee('Flux de matière')->assertSee($this->supplier->name);
 
         $stranger = User::factory()->create(['role' => 'supplier', 'must_change_password' => false]);
         $this->actingAs($stranger)->get(route('supplier.recycling.show', $loop))->assertForbidden();
-        $this->post(route('supplier.recycling.propose', $loop), ['output_material_id' => 1, 'expected_output_kg' => 1, 'mode' => 'sale'])->assertForbidden();
+        $this->post(route('supplier.recycling.propose', $loop), ['output_material_id' => 1, 'expected_output_kg' => 1])->assertForbidden();
         $this->actingAs(User::where('email', 'consumer@textilecycle.test')->firstOrFail())->get(route('brand.recycling.index'))->assertForbidden();
     }
 }
