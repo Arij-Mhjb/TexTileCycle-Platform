@@ -14,6 +14,9 @@ class RecyclingLoopItem extends Model
         'offcuts' => 'Chutes de coupe',
     ];
 
+    /** Forme courte, utilisée dans le nom automatique du lot. */
+    public const SHORT_KINDS = ['defective' => 'Défectueux', 'surplus' => 'Surplus', 'offcuts' => 'Chutes'];
+
     protected $fillable = ['recycling_loop_id', 'kind', 'product_id', 'material_id', 'label', 'pieces', 'quantity_kg', 'issue', 'photo_path', 'ai_analysis'];
 
     protected function casts(): array

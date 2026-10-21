@@ -1,6 +1,6 @@
 @php
-$initialItems = collect(old('items', [['kind' => 'defective', 'label' => '', 'product_id' => '', 'material_id' => '', 'pieces' => '', 'quantity_kg' => '', 'issue' => '']]))
-    ->values()->map(fn ($item, $i) => ['uid' => $i + 1] + array_merge(['kind' => 'defective', 'label' => '', 'product_id' => '', 'material_id' => '', 'pieces' => '', 'quantity_kg' => '', 'issue' => ''], $item));
+$initialItems = collect(old('items', [['kind' => 'defective', 'product_id' => '', 'material_id' => '', 'pieces' => '', 'quantity_kg' => '', 'issue' => '']]))
+    ->values()->map(fn ($item, $i) => ['uid' => $i + 1] + array_merge(['kind' => 'defective', 'product_id' => '', 'material_id' => '', 'pieces' => '', 'quantity_kg' => '', 'issue' => ''], $item));
 $kinds = [
     'defective' => ['Pièces défectueuses', 'Couture ratée, tache, mauvaise taille…'],
     'surplus' => ['Surplus de matière', 'Rouleaux ou fils non utilisés'],
@@ -20,7 +20,7 @@ $kinds = [
         </div>
     @else
     <form method="POST" action="{{ route('brand.recycling.store') }}" enctype="multipart/form-data"
-          x-data="recyclingRequest(@js($initialItems), @js($routes), @js($productMaterial), @js($kindFactors), @js((string) old('supplier_id', $selectedSupplier)))"
+          x-data="recyclingRequest(@js($initialItems), @js($routes), @js($productMaterial), @js($kindFactors), @js((string) old('supplier_id', $selectedSupplier)), @js($products->pluck('name', 'id')), @js($materials->pluck('name', 'id')))"
           @submit="if (sending) { $event.preventDefault() } sending = true"
           class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
         @csrf
@@ -72,9 +72,13 @@ $kinds = [
                                 @endforeach
                             </div>
                             <div class="mt-3 grid gap-3 sm:grid-cols-2">
-                                <label class="block text-sm font-bold">Désignation <span class="text-rose-500">*</span>
-                                    <input :name="'items[' + index + '][label]'" x-model="item.label" required maxlength="150" class="field" placeholder="Ex. Jeans Hemp 2030 — couture ratée">
-                                </label>
+                                <div class="sm:col-span-2">
+                                    <p class="text-sm font-bold">Nom du lot <span class="font-normal text-slate-400">· généré automatiquement</span></p>
+                                    <p class="mt-1 flex items-center gap-2 rounded-xl bg-teal-50 px-4 py-2.5 text-sm font-semibold text-teal-900 dark:bg-teal-950/50 dark:text-teal-100">
+                                        <span class="rounded-md bg-teal-700 px-1.5 py-0.5 text-[11px] font-black text-white" x-text="'L' + (index + 1)"></span>
+                                        <span x-text="autoLabel(item)"></span>
+                                    </p>
+                                </div>
                                 <label class="block text-sm font-bold" x-show="item.kind === 'defective'">Produit concerné
                                     <select :name="'items[' + index + '][product_id]'" x-model="item.product_id" class="field">
                                         <option value="">— aucun —</option>
@@ -151,10 +155,15 @@ $kinds = [
     </form>
 
     <script>
-        function recyclingRequest(items, routes, productMaterial, kindFactors, supplier) {
+        function recyclingRequest(items, routes, productMaterial, kindFactors, supplier, productNames, materialNames) {
+            const shortKinds = { defective: 'Défectueux', surplus: 'Surplus', offcuts: 'Chutes' };
             return {
                 items, supplier, sending: false, next: items.length + 1,
-                add() { this.items.push({ uid: this.next++, kind: 'surplus', label: '', product_id: '', material_id: '', pieces: '', quantity_kg: '', issue: '' }); },
+                autoLabel(item) {
+                    const what = (item.kind === 'defective' && productNames[item.product_id]) || materialNames[item.material_id] || 'matière à préciser';
+                    return [shortKinds[item.kind], what, item.pieces ? item.pieces + ' pièces' : null].filter(Boolean).join(' · ');
+                },
+                add() { this.items.push({ uid: this.next++, kind: 'surplus', product_id: '', material_id: '', pieces: '', quantity_kg: '', issue: '' }); },
                 totalKg() { return this.items.reduce((sum, item) => sum + (Number(item.quantity_kg) || 0), 0); },
                 totalPieces() { return this.items.reduce((sum, item) => sum + (Number(item.pieces) || 0), 0); },
                 format(value) { return Number(value || 0).toLocaleString('fr-FR', { maximumFractionDigits: 1 }); },

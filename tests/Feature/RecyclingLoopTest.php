@@ -55,8 +55,8 @@ class RecyclingLoopTest extends TestCase
             'supplier_id' => $this->supplier->id,
             'brand_message' => 'Nous voulons récupérer du fil recyclé.',
             'items' => [
-                ['kind' => 'defective', 'label' => 'Jeans — couture ratée', 'material_id' => $this->material('Coton conventionnel'), 'pieces' => 20, 'quantity_kg' => 14, 'issue' => 'Couture décalée', 'photo' => UploadedFile::fake()->image('jean.jpg')],
-                ['kind' => 'surplus', 'label' => 'Rouleaux de coton', 'material_id' => $this->material('Coton conventionnel'), 'quantity_kg' => 26],
+                ['kind' => 'defective', 'material_id' => $this->material('Coton conventionnel'), 'pieces' => 20, 'quantity_kg' => 14, 'issue' => 'Couture décalée', 'photo' => UploadedFile::fake()->image('jean.jpg')],
+                ['kind' => 'surplus', 'material_id' => $this->material('Coton conventionnel'), 'quantity_kg' => 26],
             ],
         ], $overrides));
     }
@@ -73,6 +73,9 @@ class RecyclingLoopTest extends TestCase
         $loop = RecyclingLoop::with('items')->firstOrFail();
         $this->assertSame('requested', $loop->status);
         $this->assertSame(40.0, $loop->totalKg());
+        // Nom du lot généré automatiquement (nature · matière · pièces).
+        $this->assertSame('Défectueux · Coton conventionnel · 20 pièces', $loop->items[0]->label);
+        $this->assertSame('Surplus · Coton conventionnel', $loop->items[1]->label);
         $this->assertSame('huggingface', $loop->items[0]->ai_analysis['source']);
         $this->assertTrue($loop->items[0]->ai_analysis['consistent']);
         $this->assertNull($loop->items[1]->ai_analysis);
