@@ -68,7 +68,7 @@ export default function virtualTryOn({ imageUrl, category }) {
         loading: false,
         running: false,
         error: '',
-        status: 'Placez-vous face à la caméra, corps visible.',
+        status: 'Effet AR prêt · placez-vous face à la caméra.',
         scale: 1,
         vertical: 0,
         opacity: 0.9,
@@ -135,13 +135,23 @@ export default function virtualTryOn({ imageUrl, category }) {
                     return;
                 }
             }
-            if (this.smoothed) this.drawGarment(context);
+            if (this.smoothed) {
+                this.drawGarment(context);
+                this.drawForeground(context, video);
+            }
             this.animation = requestAnimationFrame(() => this.render());
         },
 
         updatePose(points, width, height) {
             const point = (index) => ({ x: (1 - points[index].x) * width, y: points[index].y * height, visibility: points[index].visibility ?? 1 });
-            const pose = { leftShoulder: point(11), rightShoulder: point(12), leftHip: point(23), rightHip: point(24), leftKnee: point(25), rightKnee: point(26) };
+            const pose = {
+                nose: point(0), leftEar: point(7), rightEar: point(8),
+                leftShoulder: point(11), rightShoulder: point(12),
+                leftElbow: point(13), rightElbow: point(14),
+                leftWrist: point(15), rightWrist: point(16),
+                leftHip: point(23), rightHip: point(24),
+                leftKnee: point(25), rightKnee: point(26),
+            };
             if ([pose.leftShoulder, pose.rightShoulder, pose.leftHip, pose.rightHip].some(item => item.visibility < 0.45)) {
                 this.status = 'Reculez légèrement pour rendre les épaules et les hanches visibles.';
                 return;
@@ -152,7 +162,7 @@ export default function virtualTryOn({ imageUrl, category }) {
                 this.smoothed[key].x += (pose[key].x - this.smoothed[key].x) * ease;
                 this.smoothed[key].y += (pose[key].y - this.smoothed[key].y) * ease;
             });
-            this.status = 'Silhouette détectée · le vêtement suit vos mouvements.';
+            this.status = 'Effet AR actif · le vêtement suit vos mouvements en direct.';
         },
 
         drawGarment(context) {
@@ -201,6 +211,44 @@ export default function virtualTryOn({ imageUrl, category }) {
                 const sliceWidth = drawWidth * widthFactor;
                 context.drawImage(this.garment, 0, sourceY, this.garment.width, sourceHeight, -sliceWidth / 2, destinationY, sliceWidth, destinationHeight);
             }
+            context.restore();
+        },
+
+        drawForeground(context, video) {
+            const pose = this.smoothed;
+            const shoulderWidth = Math.hypot(pose.leftShoulder.x - pose.rightShoulder.x, pose.leftShoulder.y - pose.rightShoulder.y);
+            const armRadius = Math.max(12, shoulderWidth * 0.13);
+            const addCapsule = (from, to, radius) => {
+                if (!from || !to || from.visibility < 0.35 || to.visibility < 0.35) return;
+                const angle = Math.atan2(to.y - from.y, to.x - from.x);
+                const px = Math.sin(angle) * radius;
+                const py = -Math.cos(angle) * radius;
+                context.moveTo(from.x + px, from.y + py);
+                context.lineTo(to.x + px, to.y + py);
+                context.lineTo(to.x - px, to.y - py);
+                context.lineTo(from.x - px, from.y - py);
+                context.closePath();
+                context.moveTo(from.x + radius, from.y);
+                context.arc(from.x, from.y, radius, 0, Math.PI * 2);
+                context.moveTo(to.x + radius, to.y);
+                context.arc(to.x, to.y, radius, 0, Math.PI * 2);
+            };
+
+            context.save();
+            context.beginPath();
+            addCapsule(pose.leftShoulder, pose.leftElbow, armRadius);
+            addCapsule(pose.leftElbow, pose.leftWrist, armRadius * 0.82);
+            addCapsule(pose.rightShoulder, pose.rightElbow, armRadius);
+            addCapsule(pose.rightElbow, pose.rightWrist, armRadius * 0.82);
+            if (pose.nose?.visibility > 0.35) {
+                const headWidth = Math.max(shoulderWidth * 0.42, Math.abs((pose.leftEar?.x ?? pose.nose.x) - (pose.rightEar?.x ?? pose.nose.x)) * 1.45);
+                context.moveTo(pose.nose.x + headWidth / 2, pose.nose.y);
+                context.ellipse(pose.nose.x, pose.nose.y, headWidth / 2, headWidth * 0.68, 0, 0, Math.PI * 2);
+            }
+            context.clip();
+            context.translate(context.canvas.width, 0);
+            context.scale(-1, 1);
+            context.drawImage(video, 0, 0, context.canvas.width, context.canvas.height);
             context.restore();
         },
 
