@@ -98,7 +98,7 @@
                     <span class="text-sm font-bold text-pink-900">Photo du certificat de provenance *</span>
                     <span class="text-xs text-slate-500">GRS, GOTS, RWS, OEKO-TEX… L’IA lit le type, le numéro, l’organisme et les dates.</span>
                     <span class="rounded-lg bg-white px-4 py-2 text-xs font-semibold text-pink-800 ring-1 ring-pink-200" x-text="name || 'Choisir la photo'"></span>
-                    <input type="file" name="certificate" accept="image/*,.heic,.heif" required class="sr-only" @change="name = $event.target.files[0]?.name || ''">
+                    <input type="file" name="certificate" accept="image/jpeg,image/png,image/webp,image/gif,image/bmp,image/heic,image/heif" required class="sr-only" @change="name = $event.target.files[0]?.name || ''">
                     @error('certificate')<span class="text-sm font-semibold text-rose-600">{{ $message }}</span>@enderror
                 </label>
                 <div class="md:col-span-2"><x-ui.textarea name="supplier_note" label="Message pour {{ $order->brand->name }} (facultatif)" rows="2"/></div>
