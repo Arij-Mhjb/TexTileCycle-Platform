@@ -6,6 +6,7 @@
             <x-module.button module="esg" variant="light" :href="route('brand.impact.index')">← Tableau de bord</x-module.button>
         </x-slot:actions>
     </x-module.hero>
+    @include('modules.esg.brand._tabs')
     @include('modules.esg._report')
     @include('modules.esg._simulator', ['endpoint' => route('brand.impact.simulate', $report)])
     @include('modules.esg._ai-recommendations', ['action' => route('brand.impact.ai-recommendations', $report)])

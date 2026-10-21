@@ -8,6 +8,7 @@
             <x-module.stat label="Rapports validés" :value="$dashboard['validated'].' / '.$dashboard['latest']->count()"/>
         </x-slot:stats>
     </x-module.hero>
+    @include('modules.esg.brand._tabs')
 
     <div class="mb-8 grid gap-6 lg:grid-cols-3">
         <form method="POST" action="{{ route('brand.impact.store') }}" class="shadow-[0_1px_2px_rgba(15,23,42,.05)] space-y-4 rounded-2xl border border-sky-100 bg-white p-6">
