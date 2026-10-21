@@ -8,7 +8,10 @@ async function landmarker() {
     if (sharedLandmarker) return sharedLandmarker;
     const vision = await FilesetResolver.forVisionTasks(WASM_PATH);
     const options = {
-        baseOptions: { modelAssetPath: MODEL_PATH }, runningMode: 'VIDEO', numPoses: 1,
+        // IMAGE mode is deliberately used with sampled camera frames. It avoids the
+        // timestamp/graph failures triggered by VIDEO mode on some browsers while
+        // still providing a fluid preview on the lightweight pose model.
+        baseOptions: { modelAssetPath: MODEL_PATH }, runningMode: 'IMAGE', numPoses: 1,
         minPoseDetectionConfidence: 0.55, minPosePresenceConfidence: 0.55, minTrackingConfidence: 0.55,
     };
     sharedLandmarker = await PoseLandmarker.createFromOptions(vision, options);
@@ -120,10 +123,10 @@ export default function virtualTryOn({ imageUrl, category }) {
             context.restore();
 
             const now = performance.now();
-            if (video.readyState >= 2 && now - this.lastInference > 65) {
+            if (video.readyState >= 2 && now - this.lastInference > 90) {
                 this.lastInference = now;
                 try {
-                    const result = this.detector.detectForVideo(video, now);
+                    const result = this.detector.detect(video);
                     if (result.landmarks?.[0]) this.updatePose(result.landmarks[0], canvas.width, canvas.height);
                 } catch (error) {
                     console.error('Virtual try-on inference failed:', error);
