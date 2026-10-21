@@ -1,4 +1,29 @@
+import moveNetManifestUrl from '../models/movenet-lightning.json?url';
+import moveNetWeightsUrl from '../models/movenet-lightning.bin?url';
+
 let sharedDetector;
+
+async function bundledMoveNetModel() {
+    const [manifestResponse, weightsResponse] = await Promise.all([
+        fetch(moveNetManifestUrl),
+        fetch(moveNetWeightsUrl),
+    ]);
+    if (!manifestResponse.ok || !weightsResponse.ok) {
+        throw new Error(`MoveNet assets unavailable (${manifestResponse.status}/${weightsResponse.status})`);
+    }
+    const manifest = await manifestResponse.json();
+    const weightData = await weightsResponse.arrayBuffer();
+    return {
+        load: async () => ({
+            modelTopology: manifest.modelTopology,
+            format: manifest.format,
+            generatedBy: manifest.generatedBy,
+            convertedBy: manifest.convertedBy,
+            weightSpecs: manifest.weightsManifest.flatMap(group => group.weights),
+            weightData,
+        }),
+    };
+}
 
 async function poseDetector() {
     if (sharedDetector) return sharedDetector;
@@ -6,15 +31,27 @@ async function poseDetector() {
         import('@tensorflow/tfjs-core'),
         import('@tensorflow-models/pose-detection'),
         import('@tensorflow/tfjs-backend-webgl'),
+        import('@tensorflow/tfjs-backend-cpu'),
     ]);
-    await tf.setBackend('webgl');
+    const webglReady = await tf.setBackend('webgl');
+    if (!webglReady) await tf.setBackend('cpu');
     await tf.ready();
-    sharedDetector = await poseDetection.createDetector(poseDetection.SupportedModels.MoveNet, {
+    const modelUrl = await bundledMoveNetModel();
+    const options = {
         modelType: poseDetection.movenet.modelType.SINGLEPOSE_LIGHTNING,
-        modelUrl: '/models/movenet/movenet-lightning.json',
+        modelUrl,
         enableSmoothing: true,
         minPoseScore: 0.2,
-    });
+    };
+    try {
+        sharedDetector = await poseDetection.createDetector(poseDetection.SupportedModels.MoveNet, options);
+    } catch (error) {
+        if (tf.getBackend() !== 'webgl') throw error;
+        console.warn('MoveNet WebGL initialization failed, retrying on CPU:', error);
+        await tf.setBackend('cpu');
+        await tf.ready();
+        sharedDetector = await poseDetection.createDetector(poseDetection.SupportedModels.MoveNet, options);
+    }
     return sharedDetector;
 }
 
