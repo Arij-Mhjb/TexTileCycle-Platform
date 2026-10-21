@@ -11,7 +11,9 @@ async function poseDetector() {
     await tf.ready();
     sharedDetector = await poseDetection.createDetector(poseDetection.SupportedModels.MoveNet, {
         modelType: poseDetection.movenet.modelType.SINGLEPOSE_LIGHTNING,
+        modelUrl: '/models/movenet/movenet-lightning.json',
         enableSmoothing: true,
+        minPoseScore: 0.2,
     });
     return sharedDetector;
 }
