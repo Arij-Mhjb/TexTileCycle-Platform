@@ -14,6 +14,8 @@
             @else
                 <x-ui.select name="product_return_id" label="Article retourné" :options="$returns->mapWithKeys(fn ($return) => [$return->id => ($return->product?->name ?? 'Article').' · '.$return->reference])" required/>
                 <x-ui.textarea name="issue_description" label="Problème constaté" rows="4" required/>
+                <x-ui.select name="repair_center_id" label="Centre souhaité (facultatif)" :options="$centers->mapWithKeys(fn($c)=>[$c->id=>$c->name.' · '.$c->city])"/>
+                <x-ui.input name="preferred_appointment_at" type="datetime-local" label="Créneau souhaité (facultatif)"/>
                 <label class="block rounded-2xl border border-dashed border-violet-300 bg-violet-50/60 p-4">
                     <span class="text-sm font-bold text-violet-800">✦ Photo pour le pré-diagnostic IA (facultatif)</span>
                     <input type="file" name="photo" accept="image/jpeg,image/png,image/webp" class="mt-2 block w-full text-xs file:mr-2 file:rounded-lg file:border-0 file:bg-white file:px-2 file:py-1.5 file:text-xs file:font-bold file:text-violet-700">
@@ -31,6 +33,9 @@
                     </div>
                     <div class="mt-5">@include('modules.repair._timeline', ['order' => $order])</div>
                     @if($order->ai_diagnosis)<div class="mt-4">@include('modules.repair._ai-diagnosis', ['order' => $order])</div>@endif
+                    @if($order->status === 'diagnosed' && $order->consumer_decision === 'pending')
+                        <div class="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4"><p class="font-black">Votre accord est requis</p><p class="mt-1 text-sm">{{ $order->decisionLabel() }} · estimation {{ number_format((float)$order->estimated_cost,2,',',' ') }} TND</p><div class="mt-3 flex gap-2"><form method="POST" action="{{ route('consumer.repairs.respond',$order) }}">@csrf<input type="hidden" name="decision" value="accept"><button class="btn-primary">Accepter</button></form><form method="POST" action="{{ route('consumer.repairs.respond',$order) }}">@csrf<input type="hidden" name="decision" value="decline"><button class="btn-danger">Refuser</button></form></div></div>
+                    @elseif($order->consumer_decision === 'accepted')<p class="mt-4 rounded-xl bg-emerald-50 p-3 text-sm font-bold text-emerald-800">Proposition acceptée par vous le {{ optional($order->consumer_decided_at)->format('d/m/Y H:i') }}.</p>@endif
                     @if($order->reward_points)<p class="mt-4 rounded-xl bg-amber-50 p-3 text-sm font-bold text-amber-800">+{{ $order->reward_points }} points gagnés</p>@endif
                     @if($order->listing)<a href="{{ route('consumer.marketplace.show', $order->listing) }}" class="mt-3 inline-block text-sm font-bold text-amber-700 underline">Voir l’annonce sur le marketplace</a>@endif
                 </article>

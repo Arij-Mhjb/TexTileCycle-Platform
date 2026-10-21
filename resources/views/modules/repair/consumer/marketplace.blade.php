@@ -31,6 +31,7 @@
                     <p class="text-sm text-slate-500">Aucune offre envoyée.</p>
                 @endforelse
             </div>
+            <h2 class="mt-6 border-t pt-5 font-black">Mes commandes</h2><div class="mt-3 space-y-3">@forelse($myOrders as $order)<a href="{{ route('consumer.marketplace.show',$order->listing) }}" class="block rounded-xl bg-sky-50 p-3 text-sm"><strong>{{ $order->reference }}</strong><span class="block text-xs">{{ $order->listing->title }} · {{ $order->statusLabel() }}</span></a>@empty<p class="text-sm text-slate-500">Aucune commande.</p>@endforelse</div>
         </aside>
     </div>
     <div class="mt-8">{{ $listings->links() }}</div>

@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class MarketplaceListing extends Model
 {
@@ -47,6 +48,11 @@ class MarketplaceListing extends Model
     public function offers(): HasMany
     {
         return $this->hasMany(ResaleOffer::class)->latest();
+    }
+
+    public function order(): HasOne
+    {
+        return $this->hasOne(MarketplaceOrder::class);
     }
 
     public function statusLabel(): string

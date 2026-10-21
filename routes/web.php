@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AdminBrandApplicationController;
+use App\Http\Controllers\AdminConsumerClaimController;
 use App\Http\Controllers\AdminCollectorController;
 use App\Http\Controllers\AdminEvidenceReviewController;
 use App\Http\Controllers\AdminLabelController;
@@ -8,6 +9,7 @@ use App\Http\Controllers\AdminMaterialReviewController;
 use App\Http\Controllers\AdminPassportProposalController;
 use App\Http\Controllers\AdminProductReviewController;
 use App\Http\Controllers\AdminRoadmapController;
+use App\Http\Controllers\AdminRewardItemController;
 use App\Http\Controllers\AssessmentController;
 use App\Http\Controllers\BrandDashboardController;
 use App\Http\Controllers\BrandEvidenceCommentController;
@@ -24,10 +26,14 @@ use App\Http\Controllers\BrandRoadmapController;
 use App\Http\Controllers\CollectionPointController;
 use App\Http\Controllers\CollectorReturnController;
 use App\Http\Controllers\ConsumerExploreController;
+use App\Http\Controllers\ConsumerClaimController;
+use App\Http\Controllers\ConsumerDataExportController;
 use App\Http\Controllers\ConsumerHomeController;
 use App\Http\Controllers\ConsumerMaterialTransferController;
 use App\Http\Controllers\ConsumerNotificationController;
+use App\Http\Controllers\ConsumerRewardController;
 use App\Http\Controllers\ConsumerWalletController;
+use App\Http\Controllers\ConsumerWardrobeController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DashboardRedirectController;
 use App\Http\Controllers\DetectionController;
@@ -57,6 +63,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/dashboard', DashboardRedirectController::class)->name('dashboard');
 
     Route::middleware('role:admin')->group(function () {
+        Route::get('/admin/consumer-claims', [AdminConsumerClaimController::class, 'index'])->name('admin.consumer-claims.index');
+        Route::patch('/admin/consumer-claims/{consumerClaim}', [AdminConsumerClaimController::class, 'update'])->name('admin.consumer-claims.update');
+        Route::get('/admin/reward-items', [AdminRewardItemController::class, 'index'])->name('admin.reward-items.index');
+        Route::post('/admin/reward-items', [AdminRewardItemController::class, 'store'])->name('admin.reward-items.store');
+        Route::patch('/admin/reward-items/{rewardItem}', [AdminRewardItemController::class, 'update'])->name('admin.reward-items.update');
+        Route::delete('/admin/reward-items/{rewardItem}', [AdminRewardItemController::class, 'destroy'])->name('admin.reward-items.destroy');
+        Route::post('/admin/reward-redemptions/use', [AdminRewardItemController::class, 'consume'])->name('admin.reward-redemptions.consume');
         Route::get('/admin/roadmaps', [AdminRoadmapController::class, 'index'])->name('admin.roadmaps.index');
         Route::get('/admin/roadmaps/{roadmap}', [AdminRoadmapController::class, 'show'])->name('admin.roadmaps.show');
         Route::patch('/admin/roadmap-submissions/{submission}', [AdminRoadmapController::class, 'review'])->name('admin.roadmaps.review');
@@ -134,8 +147,15 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/programs', [ConsumerExploreController::class, 'programs'])->name('programs');
         Route::get('/points', [ConsumerExploreController::class, 'points'])->name('points');
         Route::get('/wallet', ConsumerWalletController::class)->name('wallet');
+        Route::get('/rewards', [ConsumerRewardController::class, 'index'])->name('rewards.index');
+        Route::post('/rewards/{rewardItem}', [ConsumerRewardController::class, 'redeem'])->name('rewards.redeem');
+        Route::get('/wardrobe', ConsumerWardrobeController::class)->name('wardrobe');
+        Route::get('/claims', [ConsumerClaimController::class, 'index'])->name('claims.index');
+        Route::post('/claims', [ConsumerClaimController::class, 'store'])->name('claims.store');
+        Route::get('/notifications', [ConsumerNotificationController::class, 'index'])->name('notifications.index');
         Route::post('/notifications/read-all', [ConsumerNotificationController::class, 'readAll'])->name('notifications.read-all');
         Route::post('/notifications/{notification}/read', [ConsumerNotificationController::class, 'read'])->name('notifications.read');
+        Route::get('/my-data', ConsumerDataExportController::class)->middleware('throttle:3,1')->name('data.export');
     });
 
     Route::middleware('role:consumer,admin')->group(function () {
@@ -154,6 +174,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/material-matches/{materialMatch}/transfer', [CollectorReturnController::class, 'transfer'])->name('material-transfers.store');
         Route::get('/returns', [CollectorReturnController::class, 'index'])->name('returns.index');
         Route::patch('/returns/{productReturn}', [CollectorReturnController::class, 'update'])->name('returns.update');
+        Route::post('/trade-ins/{tradeIn}/receive', [CollectorReturnController::class, 'receiveTradeIn'])->name('trade-ins.receive');
     });
     Route::middleware('role:admin,brand')->get('/material-usage-proofs/{event}/{index}', [BrandMaterialUsageController::class, 'proof'])->whereNumber('index')->name('material-usage.proof');
     Route::middleware('role:admin,brand')->get('/evidences/{evidence}/download', EvidenceDownloadController::class)->name('evidences.download');

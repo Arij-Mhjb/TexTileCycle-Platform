@@ -185,6 +185,8 @@ class CircularModulesTest extends TestCase
         $this->actingAs($admin)->post(route('admin.repair-orders.store', $return), ['decision' => 'resale'])->assertRedirect();
         $order = RepairOrder::firstOrFail();
         $this->patch(route('admin.repair-orders.diagnose', $order), ['decision' => 'resale', 'repair_center_id' => $center->id])->assertSessionHasNoErrors();
+        $this->actingAs($consumer)->post(route('consumer.repairs.respond', $order), ['decision' => 'accept'])->assertSessionHasNoErrors();
+        $this->actingAs($admin);
         $this->post(route('admin.repair-orders.start', $order))->assertSessionHasNoErrors();
         $this->post(route('admin.repair-orders.refurbish', $order), ['actions' => 'Nettoyage', 'grade' => 'A'])->assertSessionHasNoErrors();
         $this->post(route('admin.repair-orders.publish', $order), ['title' => 'Chemise reconditionnée', 'price' => 50])->assertRedirect();
@@ -204,6 +206,11 @@ class CircularModulesTest extends TestCase
         $offer = $listing->offers()->firstOrFail();
         $this->actingAs($brandOwner = User::find($listing->brand->user_id))->patch(route('brand.marketplace.offers.respond', $offer), ['decision' => 'accept'])->assertSessionHasNoErrors();
         $this->assertSame('reserved', $listing->fresh()->status);
+        $marketplaceOrder = $listing->fresh()->order;
+        $this->actingAs($buyer)->post(route('consumer.marketplace.checkout', $marketplaceOrder), [
+            'fulfilment_method' => 'pickup', 'collection_point_id' => $point->id, 'payment_method' => 'pay_on_pickup',
+        ])->assertSessionHasNoErrors();
+        $this->actingAs($brandOwner);
         $this->post(route('brand.marketplace.sold', $listing))->assertSessionHasNoErrors();
         $this->assertSame('sold', $listing->fresh()->status);
         $this->assertSame('closed', $order->fresh()->status);
@@ -213,12 +220,19 @@ class CircularModulesTest extends TestCase
     {
         $admin = User::factory()->create(['role' => 'admin']);
         $consumer = User::factory()->create(['role' => 'consumer']);
+        $program = RecoveryProgram::create(['name' => 'Reprise', 'organization_name' => 'Org', 'type' => 'take_back', 'city' => 'Tunis', 'is_active' => true]);
+        $point = CollectionPoint::create(['recovery_program_id' => $program->id, 'name' => 'Point reprise', 'address' => 'Rue', 'city' => 'Tunis', 'is_active' => true]);
 
         $this->actingAs($consumer)->post(route('consumer.trade-ins.store'), ['product_name' => 'Veste', 'condition' => 'good'])->assertSessionHasNoErrors();
         $tradeIn = TradeInRequest::firstOrFail();
         $this->actingAs($admin)->patch(route('admin.trade-ins.evaluate', $tradeIn), ['proposed_points' => 30])->assertSessionHasNoErrors();
-        $this->actingAs($consumer)->post(route('consumer.trade-ins.accept', $tradeIn))->assertSessionHasNoErrors();
+        $this->actingAs($consumer)->post(route('consumer.trade-ins.accept', $tradeIn), ['collection_point_id' => $point->id])->assertSessionHasNoErrors();
         $this->assertDatabaseHas('reward_transactions', ['user_id' => $consumer->id, 'points' => 30, 'status' => 'pending']);
+        $tradeIn->update([
+            'status' => 'deposited',
+            'received_at' => now(),
+            'deposit_evidence' => ['collector' => ['path' => 'textilecycle/returns/test/received.jpg', 'storage_disk' => 'local']],
+        ]);
         $this->actingAs($admin)->post(route('admin.trade-ins.complete', $tradeIn))->assertSessionHasNoErrors();
 
         $this->assertDatabaseHas('reward_transactions', ['user_id' => $consumer->id, 'points' => 30, 'status' => 'validated']);

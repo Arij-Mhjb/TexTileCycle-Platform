@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\MaterialMatch;
 use App\Models\ProductReturn;
+use App\Models\TradeInRequest;
+use App\Services\RepairMarketplaceService;
 use App\Services\MaterialExchangeService;
 use App\Services\MediaStorageService;
 use App\Services\ProductReturnWorkflowService;
@@ -24,7 +26,12 @@ class CollectorReturnController extends Controller
             $query->whereHas('collectionPoint', fn ($point) => $point->where('operator_user_id', $request->user()->id));
         }
 
-        return view('collector.returns', ['items' => $query->paginate(20)]);
+        $tradeIns = TradeInRequest::with(['consumer', 'product', 'collectionPoint'])
+            ->whereIn('status', ['accepted', 'deposited'])
+            ->when(! $request->user()->isAdmin(), fn ($q) => $q->whereHas('collectionPoint', fn ($p) => $p->where('operator_user_id', $request->user()->id)))
+            ->latest()->get();
+
+        return view('collector.returns', ['items' => $query->paginate(20), 'tradeIns' => $tradeIns]);
     }
 
     public function update(
@@ -93,6 +100,28 @@ class CollectorReturnController extends Controller
         }
 
         return back()->with('success', 'Remise à la marque confirmée avec preuve. La marque doit encore confirmer sa réception.');
+    }
+
+    public function receiveTradeIn(Request $request, TradeInRequest $tradeIn, MediaStorageService $media, RepairMarketplaceService $service): RedirectResponse
+    {
+        if (! $request->user()->isAdmin()) {
+            abort_unless($tradeIn->collectionPoint?->operator_user_id === $request->user()->id, 403);
+        }
+        abort_unless(in_array($tradeIn->status, ['accepted', 'deposited'], true), 409);
+        $data = $request->validate([
+            'qr_token' => 'required|string|max:100',
+            'evidence' => 'required|image|mimes:jpg,jpeg,png,webp|max:8192',
+        ]);
+        if (! hash_equals((string) $tradeIn->qr_token, $data['qr_token'])) {
+            return back()->withErrors(['qr_token' => 'Le QR ne correspond pas à cette reprise.']);
+        }
+        $stored = $media->storeReturnEvidence($request->file('evidence'), $tradeIn->id, 'trade-in-received');
+        $evidence = $tradeIn->deposit_evidence ?? [];
+        $evidence['collector'] = $stored;
+        $tradeIn->update(['deposit_evidence' => $evidence, 'received_at' => now()]);
+        $service->completeTradeIn($tradeIn->fresh());
+
+        return back()->with('success', 'Reprise reçue : les points du consommateur sont validés.');
     }
 
     private function guard(Request $request, ProductReturn $return): void

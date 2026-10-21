@@ -16,6 +16,7 @@
                 <div class="mt-5 rounded-2xl bg-slate-950 p-6 text-center text-white">
                     <p class="text-xs font-bold uppercase tracking-[.25em] text-emerald-300">À présenter au partenaire</p>
                     <p class="mt-4 break-all font-mono text-lg font-black">{{ $item->qr_token }}</p>
+                    <canvas data-qr-value="{{ $item->qr_token }}" class="mx-auto mt-4 rounded-xl bg-white p-2" aria-label="QR du retour {{ $item->reference }}"></canvas>
                     <p class="mt-3 text-sm text-slate-400">{{ $item->reference }}</p>
                 </div>
                 <dl class="mt-5 space-y-3 text-sm">

@@ -16,9 +16,10 @@ class ConsumerWalletController extends Controller
 
         return view('consumer.wallet', [
             'transactions' => $transactions,
-            'balance' => (int) $request->user()->rewardTransactions()->where('status', 'validated')->sum('points'),
+            'balance' => (int) $request->user()->rewardTransactions()->whereIn('status', ['validated', 'spent'])->sum('points'),
             'pending' => (int) $request->user()->rewardTransactions()->where('status', 'pending')->sum('points'),
             'earned' => (int) $request->user()->rewardTransactions()->where('status', 'validated')->where('points', '>', 0)->sum('points'),
+            'redemptions' => $request->user()->rewardRedemptions()->with('item')->latest()->limit(5)->get(),
         ]);
     }
 }

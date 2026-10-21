@@ -3,7 +3,7 @@
         <x-slot:stats>
             <x-module.stat label="À évaluer" :value="$counts['submitted'] ?? 0"/>
             <x-module.stat label="Offres envoyées" :value="$counts['evaluated'] ?? 0"/>
-            <x-module.stat label="À réceptionner" :value="$counts['accepted'] ?? 0"/>
+            <x-module.stat label="À réceptionner" :value="($counts['accepted'] ?? 0) + ($counts['deposited'] ?? 0)"/>
             <x-module.stat label="Terminées" :value="$counts['completed'] ?? 0"/>
         </x-slot:stats>
     </x-module.hero>
@@ -26,8 +26,8 @@
                             <input name="evaluation_note" placeholder="Note" class="field !mt-0 w-40 !py-1.5">
                             <x-module.button module="repair" class="!py-1.5">{{ $tradeIn->status === 'evaluated' ? 'Modifier l’offre' : 'Proposer' }}</x-module.button>
                         </form>
-                    @elseif($tradeIn->status === 'accepted')
-                        <form method="POST" action="{{ route('admin.trade-ins.complete', $tradeIn) }}">@csrf<x-module.button module="repair" class="!py-1.5">Article reçu → créditer</x-module.button></form>
+                    @elseif(in_array($tradeIn->status, ['accepted', 'deposited'], true))
+                        <a href="{{ route('collector.returns.index') }}" class="btn-secondary">Scanner et réceptionner</a>
                     @endif
                 </div>
             </article>

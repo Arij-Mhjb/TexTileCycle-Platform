@@ -251,5 +251,6 @@ class DatabaseSeeder extends Seeder
         $this->call(ConsumerJourneySeeder::class);
         $this->call(MaterialExchangeSeeder::class);
         $this->call(CircularModulesSeeder::class);
+        $this->call(ConsumerExperienceSeeder::class);
     }
 }

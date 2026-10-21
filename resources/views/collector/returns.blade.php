@@ -5,6 +5,9 @@
         <p class="mt-2 text-slate-500">Contrôlez le QR, le poids et l’état. Chaque action et chaque preuve sont historisées.</p>
 
         @if($errors->any())<div role="alert" class="mt-4 rounded-xl bg-red-50 p-4 text-sm text-red-700">@foreach($errors->all() as $error)<p>{{ $error }}</p>@endforeach</div>@endif
+        @if($tradeIns->isNotEmpty())
+            <section class="mt-8"><h2 class="text-2xl font-black">Reprises à réceptionner</h2><div class="mt-4 space-y-4">@foreach($tradeIns as $tradeIn)<article class="panel p-6"><div class="flex justify-between"><div><p class="font-mono text-xs text-slate-400">{{ $tradeIn->reference }}</p><h3 class="font-black">{{ $tradeIn->itemName() }}</h3><p class="text-sm text-slate-500">{{ $tradeIn->consumer->name }} · {{ $tradeIn->collectionPoint->name }}</p></div><x-module.badge>{{ $tradeIn->statusLabel() }}</x-module.badge></div><form method="POST" enctype="multipart/form-data" action="{{ route('collector.trade-ins.receive',$tradeIn) }}" class="mt-4 grid gap-4 md:grid-cols-3" x-data="qrScanner()" @submit="stop()">@csrf<div><label class="text-sm font-black">QR de reprise</label><input x-ref="token" name="qr_token" class="field" required><button type="button" @click="start()" class="mt-2 text-sm font-black text-sky-700">Scanner avec la caméra</button><p x-text="error" class="mt-1 text-xs text-rose-600"></p></div><div x-show="scanning" x-cloak><video x-ref="video" class="h-36 w-full rounded-xl bg-black object-cover"></video><button type="button" @click="stop()" class="text-xs text-rose-600">Arrêter</button></div><div><label class="text-sm font-black">Photo de réception</label><input type="file" name="evidence" accept="image/jpeg,image/png,image/webp" required class="mt-2 block w-full"></div><div class="md:col-span-3"><button class="btn-primary">Confirmer la reprise et valider les points</button></div></form></article>@endforeach</div></section>
+        @endif
         <div class="mt-8 space-y-5">
             @forelse($items as $item)
                 <article class="panel p-6">
@@ -27,12 +30,12 @@
                         </form></div>
                     @elseif(in_array($item->status,['marketplace','in_transit']))<p class="mt-5 text-sm text-slate-500">{{ $item->status === 'marketplace' ? 'Matière vérifiée : en attente d’une réservation par une marque.' : 'Remise enregistrée : en attente de la réception par la marque.' }}</p>@endif
                     @if(in_array($item->status,['dropoff_expected','deposit_declared','received','inspected','routed']))
-                    <form method="POST" action="{{ route('collector.returns.update',$item) }}" enctype="multipart/form-data" class="mt-6 grid gap-4 md:grid-cols-3">
+                    <form method="POST" action="{{ route('collector.returns.update',$item) }}" enctype="multipart/form-data" class="mt-6 grid gap-4 md:grid-cols-3" x-data="qrScanner()" @submit="stop()">
                         @csrf @method('PATCH')
                         <x-ui.select name="status" label="Nouvelle étape" :options="collect([
                             'received'=>'Reçu au point','inspected'=>'Contrôlé','routed'=>'Orienté','completed'=>'Terminé','rejected'=>'Refusé'
                         ])" required/>
-                        <x-ui.input name="qr_token" label="Code QR (réception)"/>
+                        <div><label class="text-sm font-black">Code QR (réception)</label><input x-ref="token" name="qr_token" class="field"><button type="button" @click="start()" class="mt-2 text-sm font-black text-sky-700">Scanner avec la caméra</button><p x-text="error" class="mt-1 text-xs text-rose-600"></p></div><div x-show="scanning" x-cloak><video x-ref="video" class="h-36 w-full rounded-xl bg-black object-cover"></video><button type="button" @click="stop()" class="text-xs text-rose-600">Arrêter</button></div>
                         <x-ui.input name="confirmed_weight_kg" label="Poids confirmé (kg)" type="number" step="0.01" :value="$item->confirmed_weight_kg"/>
                         <x-ui.select name="condition" label="État constaté" :value="$item->condition" :options="collect(['good'=>'Bon','wearable'=>'Portable','minor_damage'=>'Petits défauts','damaged'=>'Endommagé','unusable'=>'Inutilisable','unknown'=>'Inconnu'])"/>
                         <div><label class="text-sm font-black">Preuve photo</label><input type="file" name="evidence" accept="image/jpeg,image/png,image/webp" class="mt-2 block w-full rounded-xl border border-slate-200 p-3 text-sm"></div>

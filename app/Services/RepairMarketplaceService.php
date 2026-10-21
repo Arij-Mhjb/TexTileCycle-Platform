@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\ConsumerNotification;
 use App\Models\MarketplaceListing;
+use App\Models\MarketplaceOrder;
 use App\Models\ProductReturn;
 use App\Models\RepairOrder;
 use App\Models\ResaleOffer;
@@ -44,6 +45,8 @@ class RepairMarketplaceService
                 'product_return_id' => $return?->id,
                 'product_id' => $return?->product_id ?? ($data['product_id'] ?? null),
                 'issue_description' => $data['issue_description'],
+                'repair_center_id' => $data['repair_center_id'] ?? null,
+                'preferred_appointment_at' => $data['preferred_appointment_at'] ?? null,
                 'status' => 'requested',
             ]);
         });
@@ -80,6 +83,7 @@ class RepairMarketplaceService
             'status' => $data['decision'] === 'recycle' ? 'closed' : 'diagnosed',
             'diagnosed_at' => now(),
             'completed_at' => $data['decision'] === 'recycle' ? now() : null,
+            'consumer_decision' => $data['decision'] === 'recycle' ? 'not_required' : 'pending',
         ]);
 
         $this->notify($order->user_id, 'repair_diagnosed', 'Diagnostic de votre article',
@@ -88,9 +92,24 @@ class RepairMarketplaceService
         return $order;
     }
 
+    public function consumerDecision(RepairOrder $order, bool $accept): RepairOrder
+    {
+        $this->guard($order->status === 'diagnosed' && $order->consumer_decision === 'pending', 'Cette proposition ne peut plus être modifiée.');
+        $order->update([
+            'consumer_decision' => $accept ? 'accepted' : 'declined',
+            'consumer_decided_at' => now(),
+            'status' => $accept ? 'diagnosed' : 'cancelled',
+            'completed_at' => $accept ? null : now(),
+        ]);
+        $this->center->toAdmins('repair_consumer_decision', $accept ? 'Réparation acceptée' : 'Réparation refusée',
+            $order->reference.' · décision du consommateur.', route('admin.repair-orders.show', $order));
+
+        return $order->fresh();
+    }
+
     public function startRepair(RepairOrder $order): RepairOrder
     {
-        $this->guard($order->status === 'diagnosed' && $order->repair_center_id, 'Le diagnostic et le centre de réparation sont requis.');
+        $this->guard($order->status === 'diagnosed' && $order->repair_center_id && $order->consumer_decision === 'accepted', 'Le centre et l’accord du consommateur sont requis.');
         $order->update(['status' => 'in_repair']);
 
         return $order;
@@ -178,6 +197,14 @@ class RepairMarketplaceService
                 $offer->listing->update(['status' => 'reserved']);
                 $offer->listing->offers()->where('id', '!=', $offer->id)->where('status', 'pending')
                     ->update(['status' => 'declined', 'responded_at' => now()]);
+                MarketplaceOrder::firstOrCreate(
+                    ['marketplace_listing_id' => $offer->marketplace_listing_id],
+                    [
+                        'reference' => $this->reference('ORD'), 'resale_offer_id' => $offer->id,
+                        'buyer_id' => $offer->user_id, 'total_amount' => $offer->offered_price,
+                        'currency' => $offer->listing->currency, 'status' => 'awaiting_checkout',
+                    ]
+                );
             }
         });
 
@@ -192,8 +219,14 @@ class RepairMarketplaceService
     public function markSold(MarketplaceListing $listing): MarketplaceListing
     {
         $this->guard($listing->status === 'reserved', 'Seule une annonce réservée peut être vendue.');
+        $listing->loadMissing('order');
+        $this->guard(! $listing->order || $listing->order->status === 'confirmed', 'L’acheteur doit finaliser sa commande avant la remise ou l’expédition.');
         $listing->update(['status' => 'sold', 'sold_at' => now()]);
         $listing->repairOrder?->update(['status' => 'closed']);
+
+        if ($listing->order && $listing->order->status === 'confirmed') {
+            $listing->order->update(['status' => $listing->order->fulfilment_method === 'delivery' ? 'shipped' : 'ready']);
+        }
 
         if ($buyerId = $listing->offers()->where('status', 'accepted')->value('user_id')) {
             $this->notify($buyerId, 'resale_sold', 'Achat confirmé', $listing->title.' est à vous. Merci de donner une seconde vie à ce vêtement !', route('consumer.marketplace.index'));
@@ -234,10 +267,14 @@ class RepairMarketplaceService
         return $tradeIn;
     }
 
-    public function answerTradeIn(TradeInRequest $tradeIn, bool $accept): TradeInRequest
+    public function answerTradeIn(TradeInRequest $tradeIn, bool $accept, ?int $collectionPointId = null): TradeInRequest
     {
         $this->guard($tradeIn->status === 'evaluated', 'Aucune offre à accepter.');
-        $tradeIn->update(['status' => $accept ? 'accepted' : 'declined']);
+        $tradeIn->update([
+            'status' => $accept ? 'accepted' : 'declined',
+            'collection_point_id' => $accept ? $collectionPointId : null,
+            'qr_token' => $accept ? (string) Str::uuid() : null,
+        ]);
 
         if ($accept) {
             $this->reward($tradeIn->user_id, 'trade_in', (int) $tradeIn->proposed_points,
@@ -254,7 +291,14 @@ class RepairMarketplaceService
 
     public function completeTradeIn(TradeInRequest $tradeIn): TradeInRequest
     {
-        $this->guard($tradeIn->status === 'accepted', 'La reprise doit être acceptée par le consommateur.');
+        $collectorEvidence = data_get($tradeIn->deposit_evidence, 'collector');
+        $this->guard(
+            in_array($tradeIn->status, ['accepted', 'deposited'], true)
+                && $tradeIn->received_at !== null
+                && is_array($collectorEvidence)
+                && filled($collectorEvidence['path'] ?? null),
+            'Le scan du QR et une preuve de réception du collecteur sont requis.'
+        );
 
         DB::transaction(function () use ($tradeIn) {
             $tradeIn->update(['status' => 'completed', 'completed_at' => now()]);
