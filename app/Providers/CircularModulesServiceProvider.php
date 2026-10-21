@@ -15,6 +15,7 @@ use App\Models\ResaleOffer;
 use App\Models\Supplier;
 use App\Models\TradeInRequest;
 use App\Models\User;
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 
@@ -50,5 +51,11 @@ class CircularModulesServiceProvider extends ServiceProvider
         User::resolveRelationUsing('repairOrders', fn (User $user) => $user->hasMany(RepairOrder::class));
         User::resolveRelationUsing('tradeInRequests', fn (User $user) => $user->hasMany(TradeInRequest::class));
         User::resolveRelationUsing('resaleOffers', fn (User $user) => $user->hasMany(ResaleOffer::class));
+
+        // Tâches planifiées (php artisan schedule:work) : alertes certificats et collectes programmées, chaque matin.
+        $this->callAfterResolving(Schedule::class, function (Schedule $schedule) {
+            $schedule->command('suppliers:certificate-alerts')->dailyAt('08:00');
+            $schedule->command('recycling:run-schedules')->dailyAt('07:30');
+        });
     }
 }
