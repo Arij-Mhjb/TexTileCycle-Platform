@@ -47,7 +47,7 @@ class RecyclingLoop extends Model
     protected $fillable = [
         'reference', 'brand_id', 'supplier_id', 'requested_by', 'status', 'brand_message', 'wished_pickup_at',
         'mode', 'output_material_id', 'expected_output_kg', 'pricing', 'amount', 'ready_by', 'supplier_message', 'decline_reason',
-        'received_kg', 'output_kg', 'proof_path', 'output_batch_id',
+        'received_kg', 'output_kg', 'proof_path', 'output_batch_id', 'invoice_number', 'invoiced_at', 'recycling_schedule_id',
         'proposed_at', 'accepted_at', 'shipped_at', 'received_at', 'transformed_at', 'delivered_at', 'closed_at', 'declined_at',
     ];
 
@@ -57,7 +57,7 @@ class RecyclingLoop extends Model
             'wished_pickup_at' => 'date', 'ready_by' => 'date',
             'expected_output_kg' => 'decimal:2', 'pricing' => 'array', 'amount' => 'decimal:2', 'received_kg' => 'decimal:2', 'output_kg' => 'decimal:2',
             'proposed_at' => 'datetime', 'accepted_at' => 'datetime', 'shipped_at' => 'datetime', 'received_at' => 'datetime',
-            'transformed_at' => 'datetime', 'delivered_at' => 'datetime', 'closed_at' => 'datetime', 'declined_at' => 'datetime',
+            'transformed_at' => 'datetime', 'delivered_at' => 'datetime', 'closed_at' => 'datetime', 'declined_at' => 'datetime', 'invoiced_at' => 'datetime',
         ];
     }
 
@@ -89,6 +89,22 @@ class RecyclingLoop extends Model
     public function outputBatch(): BelongsTo
     {
         return $this->belongsTo(SupplierBatch::class, 'output_batch_id');
+    }
+
+    public function schedule(): BelongsTo
+    {
+        return $this->belongsTo(RecyclingSchedule::class, 'recycling_schedule_id');
+    }
+
+    /** Facture (récupération) ou avoir (rachat) disponible une fois le prix définitif. */
+    public function hasInvoice(): bool
+    {
+        return in_array($this->status, ['transformed', 'delivered', 'closed'], true) && ($this->pricing['stage'] ?? null) === 'final';
+    }
+
+    public function invoiceLabel(): string
+    {
+        return $this->isBuyback() ? 'Avoir' : 'Facture';
     }
 
     public function totalKg(): float

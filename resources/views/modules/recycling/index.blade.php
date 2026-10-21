@@ -7,7 +7,8 @@ $subtitle = [
     'admin' => 'Toutes les demandes de recyclage entre marques et fournisseurs.',
 ][$space];
 $actions = $space === 'brand'
-    ? '<a href="'.route('brand.recycling.create').'" class="inline-flex items-center gap-2 rounded-2xl bg-teal-700 px-6 py-4 text-base font-black text-white shadow-sm hover:bg-teal-800"><span class="text-2xl leading-none">+</span> Recycler des articles</a>'
+    ? '<a href="'.route('brand.recycling.create').'" class="inline-flex items-center gap-2 rounded-2xl bg-teal-400 px-6 py-3.5 text-base font-black text-slate-950 shadow-sm hover:bg-teal-300"><span class="text-2xl leading-none">+</span> Recycler des articles</a>'
+      .'<a href="'.route('brand.recycling-schedules.index').'" class="inline-flex items-center gap-2 rounded-2xl px-5 py-3.5 text-sm font-bold text-teal-100 ring-1 ring-white/20 hover:bg-white/10"><svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/></svg> Collectes programmées</a>'
     : '';
 @endphp
 <x-dynamic-component :component="$layout" title="Recyclage">
@@ -34,7 +35,7 @@ $actions = $space === 'brand'
             <p class="mx-auto mt-1 max-w-md text-sm text-slate-500">
                 {{ $space === 'brand' ? 'Envoyez vos pièces défectueuses ou vos surplus à un fournisseur : il les transformera en nouvelle matière.' : 'Les demandes des marques apparaîtront ici.' }}
             </p>
-            @if($space === 'brand')<div class="mt-6">{!! $actions !!}</div>@endif
+            @if($space === 'brand')<a href="{{ route('brand.recycling.create') }}" class="mt-6 inline-flex items-center gap-2 rounded-2xl bg-teal-700 px-6 py-3.5 font-black text-white hover:bg-teal-800"><span class="text-2xl leading-none">+</span> Recycler des articles</a>@endif
         </div>
     @endif
 

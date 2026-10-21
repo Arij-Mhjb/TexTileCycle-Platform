@@ -5,6 +5,7 @@ $initialItems = collect(old('items', [$blank]))->values()->map(function ($item, 
     $item['what'] = $item['product_id'] ? 'p:'.$item['product_id'] : ($item['material_id'] ? 'm:'.$item['material_id'] : '');
     $item['issue'] = (string) $item['issue'];
     $item['photoName'] = '';
+    $item['ai'] = null;
 
     return ['uid' => $i + 1] + $item;
 });
@@ -33,6 +34,7 @@ $steps = ['Fournisseur', 'Articles', 'Retour', 'Envoi'];
     @else
     <form method="POST" action="{{ route('brand.recycling.store') }}" enctype="multipart/form-data" novalidate
           x-data="recyclingWizard({
+              identifyUrl: @js(route('brand.recycling.identify-fiber')),
               items: @js($initialItems), routes: @js($routes), productMaterial: @js($productMaterial), kindFactors: @js($kindFactors),
               tariff: @js($tariff), supplier: @js((string) old('supplier_id', $selectedSupplier)), mode: @js(old('mode', '')),
               productNames: @js($products->pluck('name', 'id')), materialNames: @js($materials->pluck('name', 'id')),
@@ -182,8 +184,30 @@ $steps = ['Fournisseur', 'Articles', 'Retour', 'Envoi'];
                                         <span class="block font-bold" x-text="item.photoName || 'Ajouter une photo (conseillé)'"></span>
                                         <span class="block text-sm text-slate-500" x-text="item.photoName ? 'Photo prête. Cliquez pour la changer.' : 'L’IA repère les défauts visibles et les montre au fournisseur.'"></span>
                                     </span>
-                                    <input type="file" :name="'items[' + index + '][photo]'" accept="image/jpeg,image/png,image/webp" class="sr-only" @change="item.photoName = $event.target.files[0]?.name || ''">
+                                    <input type="file" :name="'items[' + index + '][photo]'" accept="image/jpeg,image/png,image/webp" class="sr-only" @change="item.photoName = $event.target.files[0]?.name || ''; identify(item, $event.target.files[0])">
                                 </label>
+
+                                {{-- IA : la fibre reconnue sur la photo (CLIP, Hugging Face) --}}
+                                <div class="sm:col-span-2" x-show="item.ai" x-cloak>
+                                    <div class="rounded-2xl border border-amber-200 bg-amber-50/60 p-4 dark:border-amber-900 dark:bg-amber-950/20">
+                                        <p class="flex items-center gap-2 text-sm font-bold text-amber-900 dark:text-amber-200">
+                                            <span class="rounded-full bg-gradient-to-r from-amber-400 to-yellow-300 px-2 py-0.5 text-[11px] font-black text-slate-900">🤗 Hugging Face · CLIP</span>
+                                            <span x-show="item.ai?.loading">L’IA regarde la photo…</span>
+                                            <span x-show="item.ai && ! item.ai.loading && item.ai.matches?.length">Matière reconnue sur la photo</span>
+                                            <span x-show="item.ai && ! item.ai.loading && ! item.ai.matches?.length" class="font-semibold">IA indisponible : choisissez la matière vous-même.</span>
+                                        </p>
+                                        <div class="mt-3 flex flex-wrap gap-2" x-show="item.ai?.matches?.length">
+                                            <template x-for="match in (item.ai?.matches || [])" :key="match.material">
+                                                <button type="button" @click="if (match.material_id) item.what = 'm:' + match.material_id"
+                                                        class="rounded-xl border px-3 py-2 text-left text-sm transition"
+                                                        :class="item.what === 'm:' + match.material_id ? 'border-teal-600 bg-white ring-1 ring-teal-600 dark:bg-slate-900' : 'border-amber-200 bg-white hover:border-teal-400 dark:border-amber-900 dark:bg-slate-900'">
+                                                    <span class="block font-black"><span x-text="match.fiber"></span> · <span x-text="match.confidence + ' %'"></span></span>
+                                                    <span class="block text-xs text-slate-500" x-text="'→ ' + match.route + ' (rendement ' + match.yield + ' %)'"></span>
+                                                </button>
+                                            </template>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </template>
@@ -335,13 +359,29 @@ $steps = ['Fournisseur', 'Articles', 'Retour', 'Envoi'];
                     const what = (type === 'p' ? this.productNames[id] : this.materialNames[id]) || 'matière à préciser';
                     return [shortKinds[item.kind], what, item.kind === 'defective' && item.pieces ? item.pieces + ' pièces' : null].filter(Boolean).join(' · ');
                 },
-                add() { this.items.push({ uid: this.next_uid++, kind: 'surplus', what: '', pieces: '', quantity_kg: '', issue: '', photoName: '' }); },
+                add() { this.items.push({ uid: this.next_uid++, kind: 'surplus', what: '', pieces: '', quantity_kg: '', issue: '', photoName: '', ai: null }); },
                 bump(item, field, delta) { item[field] = Math.max(0, (Number(item[field]) || 0) + delta) || ''; },
                 toggleProblem(item, problem) {
                     const parts = item.issue.split(',').map((part) => part.trim()).filter(Boolean);
                     const at = parts.indexOf(problem);
                     at >= 0 ? parts.splice(at, 1) : parts.push(problem);
                     item.issue = parts.join(', ');
+                },
+                // Photo → fibre reconnue par l'IA ; si aucune matière n'est choisie, on prend la plus probable.
+                async identify(item, file) {
+                    if (! file) return;
+                    item.ai = { loading: true, matches: [] };
+                    const body = new FormData();
+                    body.append('photo', file);
+                    try {
+                        const response = await fetch(this.identifyUrl, { method: 'POST', body, headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content } });
+                        const data = response.ok ? await response.json() : { matches: [] };
+                        item.ai = { loading: false, matches: data.matches || [] };
+                        const best = item.ai.matches[0];
+                        if (best && best.material_id && ! item.what) item.what = 'm:' + best.material_id;
+                    } catch (error) {
+                        item.ai = { loading: false, matches: [] };
+                    }
                 },
                 pickSupplier(id) { this.supplier = id; setTimeout(() => this.next(), 180); },
                 pickMode(mode) { this.mode = mode; this.hint = ''; },

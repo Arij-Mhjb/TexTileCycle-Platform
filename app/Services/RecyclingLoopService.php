@@ -32,6 +32,7 @@ class RecyclingLoopService
         private RecyclingEstimator $estimator,
         private SupplierTraceabilityService $traceability,
         private RecyclingPricing $pricing,
+        private RecyclingInvoiceService $invoices,
     ) {}
 
     /**
@@ -168,6 +169,7 @@ class RecyclingLoopService
         // Prix définitif : calculé sur le poids réellement pesé et la matière réellement produite.
         $loop->load(['items', 'outputMaterial']);
         $this->reprice($loop, $loop->outputMaterial->name, $outputKg, 'final');
+        $this->invoices->assignNumber($loop);
         $this->notifyBrand($loop, 'recycling_transformed', 'Votre matière recyclée est prête',
             $loop->reference.' : '.$this->kg($outputKg).' de '.$loop->outputMaterial->name.' (rendement '.$loop->yieldRate().' %) · prix définitif : '.$this->priceSentence($loop).'.');
 

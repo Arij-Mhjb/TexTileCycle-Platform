@@ -21,7 +21,7 @@ $bottomAmount = $cycle->isBuyback() ? ($pricing['credit'] ?? 0) : ($pricing['fee
         'eyebrow' => 'Demande '.$cycle->reference,
         'title' => $space === 'supplier' ? $cycle->brand->name.' vous confie '.$kg($cycle->totalKg()) : $kg($cycle->totalKg()).' confiés à '.$cycle->supplier->name,
         'subtitle' => 'Envoyée le '.$cycle->created_at->format('d/m/Y').($cycle->requester ? ' par '.$cycle->requester->name : '').' · '.$cycle->modeLabel(),
-        'actionsHtml' => '<a href="'.route($prefix.'.index').'" class="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-teal-800 ring-1 ring-teal-200 hover:bg-teal-50 dark:text-teal-200 dark:ring-teal-800">← Toutes mes demandes</a>',
+        'actionsHtml' => '<a href="'.route($prefix.'.index').'" class="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-teal-100 ring-1 ring-white/20 hover:bg-white/10">← Toutes mes demandes</a>'.($cycle->hasInvoice() ? '<a href="'.route($prefix.'.invoice', $cycle).'" target="_blank" class="inline-flex items-center gap-2 rounded-xl bg-teal-400 px-4 py-2.5 text-sm font-black text-slate-950 hover:bg-teal-300"><svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9zM14 3v6h6M12 12v6m-3-3 3 3 3-3"/></svg>'.$cycle->invoiceLabel().' PDF · '.$cycle->invoice_number.'</a>' : ''),
     ])
 
     @include('modules.recycling._loop', ['cycle' => $cycle, 'estimate' => $estimate])

@@ -6,13 +6,17 @@ use App\Http\Controllers\Controller;
 use App\Models\Material;
 use App\Models\RecyclingLoop;
 use App\Models\RecyclingLoopItem;
+use App\Services\Ai\FiberVisionService;
 use App\Services\RecyclingEstimator;
 use App\Services\RecyclingFlowService;
+use App\Services\RecyclingInvoiceService;
 use App\Services\RecyclingLoopService;
 use App\Services\RecyclingPricing;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
@@ -219,6 +223,27 @@ class RecyclingLoopController extends Controller
         abort_unless($path && Storage::disk('local')->exists($path), 404);
 
         return Storage::disk('local')->response($path);
+    }
+
+    /** Facture (récupération) ou avoir (rachat), en PDF, une fois le prix définitif. */
+    public function invoice(Request $request, RecyclingLoop $recyclingLoop, RecyclingInvoiceService $invoices): Response
+    {
+        $this->authorizeFor($request, $recyclingLoop);
+        abort_unless($recyclingLoop->hasInvoice(), 404, 'Le document sera disponible quand la matière recyclée aura été produite.');
+        $pdf = $invoices->pdf($recyclingLoop);
+
+        return response($pdf, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="'.$recyclingLoop->invoice_number.'.pdf"',
+        ]);
+    }
+
+    /** Photo d'un lot → fibre reconnue par CLIP (Hugging Face) et matière proposée. */
+    public function identifyFiber(Request $request, FiberVisionService $fibers): JsonResponse
+    {
+        $request->validate(['photo' => 'required|image|mimes:jpg,jpeg,png,webp|max:8192']);
+
+        return response()->json($fibers->identify($request->file('photo')->getRealPath()));
     }
 
     private function listing(string $space, Builder $query): View
