@@ -78,7 +78,7 @@ class RecyclingLoop extends Model
 
     public function items(): HasMany
     {
-        return $this->hasMany(RecyclingLoopItem::class);
+        return $this->hasMany(RecyclingLoopItem::class)->orderBy('id');
     }
 
     public function outputMaterial(): BelongsTo
