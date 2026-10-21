@@ -1,7 +1,10 @@
 @php $kg = fn ($value) => number_format((float) $value, 2, ',', ' ').' kg'; @endphp
 <x-brand-layout title="Renvoyer de la matière">
-    <x-module.hero module="repair" eyebrow="Seconde vie de la matière" :title="'Renvoyer le lot '.$batch->batch_code"
-        :description="$kg($batch->quantity_kg).' de '.($batch->material?->name ?? 'matière').' reçus de '.$batch->supplier->name.($batch->received_at ? ' le '.$batch->received_at->format('d/m/Y') : '').'. Le fournisseur reprendra la matière et lui donnera une seconde vie.'"/>
+    @include('modules.supplier-returns._header', [
+        'eyebrow' => 'Nouveau retour fournisseur',
+        'title' => 'Renvoyer le lot '.$batch->batch_code,
+        'subtitle' => $kg($batch->quantity_kg).' de '.($batch->material?->name ?? 'matière').' reçus de '.$batch->supplier->name.($batch->received_at ? ' le '.$batch->received_at->format('d/m/Y') : '').'. Le fournisseur reprendra la matière et lui donnera une seconde vie.',
+    ])
 
     <div class="grid gap-6 lg:grid-cols-3">
         <form method="POST" action="{{ route('brand.supplier-returns.store') }}" enctype="multipart/form-data" class="shadow-[0_1px_2px_rgba(15,23,42,.05)] space-y-5 rounded-2xl border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900 lg:col-span-2"
@@ -20,7 +23,7 @@
                             'defect' => ['Défaut qualité', 'Tache, trou, décoloration…'],
                             'wrong_item' => ['Erreur de livraison', 'Mauvaise matière ou coloris'],
                         ] as $value => [$title, $hint])
-                            <label class="cursor-pointer rounded-xl border p-4 transition" :class="reason === '{{ $value }}' ? 'border-amber-500 bg-amber-50 ring-1 ring-amber-500 dark:bg-amber-950/30' : 'border-slate-200 hover:border-amber-300 dark:border-slate-700'">
+                            <label class="cursor-pointer rounded-xl border p-4 transition" :class="reason === '{{ $value }}' ? 'border-teal-600 bg-teal-50 ring-1 ring-teal-600 dark:bg-teal-950/30' : 'border-slate-200 hover:border-teal-300 dark:border-slate-700'">
                                 <input type="radio" name="reason" value="{{ $value }}" x-model="reason" class="sr-only">
                                 <span class="block font-bold">{{ $title }}</span>
                                 <span class="mt-1 block text-xs text-slate-500">{{ $hint }}</span>
@@ -39,23 +42,23 @@
                     @error('description')<span class="mt-1 block text-sm font-semibold text-rose-600">{{ $message }}</span>@enderror
                 </label>
 
-                <label class="block rounded-2xl border border-dashed border-amber-300 bg-amber-50/60 p-4 dark:border-amber-800 dark:bg-amber-950/20">
-                    <span class="text-sm font-bold text-amber-900 dark:text-amber-200">Photo de la matière <span x-show="reason === 'defect'" class="text-rose-500">* obligatoire pour un défaut</span></span>
+                <label class="block rounded-2xl border border-dashed border-teal-300 bg-teal-50/60 p-4 dark:border-teal-800 dark:bg-teal-950/20">
+                    <span class="text-sm font-bold text-teal-900 dark:text-teal-200">Photo de la matière <span x-show="reason === 'defect'" class="text-rose-500">* obligatoire pour un défaut</span></span>
                     <span class="mt-1 block text-xs text-slate-500">L’IA (CLIP · Hugging Face) repère les défauts visibles et indique au fournisseur si la photo confirme le motif.</span>
-                    <input type="file" name="photo" accept="image/jpeg,image/png,image/webp" class="mt-3 block w-full text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-white file:px-3 file:py-1.5 file:text-sm file:font-bold file:text-amber-700">
+                    <input type="file" name="photo" accept="image/jpeg,image/png,image/webp" class="mt-3 block w-full text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-white file:px-3 file:py-1.5 file:text-sm file:font-bold file:text-teal-700">
                     @error('photo')<span class="mt-1 block text-sm font-semibold text-rose-600">{{ $message }}</span>@enderror
                 </label>
 
                 <div class="flex flex-wrap justify-end gap-3">
-                    <x-module.button module="repair" variant="soft" :href="url()->previous()">Annuler</x-module.button>
-                    <x-module.button module="repair" x-bind:disabled="sending"><span x-text="sending ? 'Envoi et analyse IA…' : 'Envoyer la demande de retour'">Envoyer la demande de retour</span></x-module.button>
+                    <x-module.button module="loop" variant="soft" :href="url()->previous()">Annuler</x-module.button>
+                    <x-module.button module="loop" x-bind:disabled="sending"><span x-text="sending ? 'Envoi et analyse IA…' : 'Envoyer la demande de retour'">Envoyer la demande de retour</span></x-module.button>
                 </div>
             @endif
         </form>
 
         <aside class="space-y-4">
-            <div class="rounded-2xl border border-amber-200 bg-amber-50/60 p-5 text-sm dark:border-amber-900 dark:bg-amber-950/20">
-                <p class="font-black text-amber-900 dark:text-amber-200">Comment ça se passe ?</p>
+            <div class="rounded-2xl border border-teal-200 bg-teal-50/60 p-5 text-sm dark:border-teal-900 dark:bg-teal-950/20">
+                <p class="font-black text-teal-900 dark:text-teal-200">Comment ça se passe ?</p>
                 <ol class="mt-3 list-decimal space-y-2 pl-5 text-slate-600 dark:text-slate-300">
                     <li>Le fournisseur accepte la reprise et choisit la seconde vie : revente à une autre marque, recyclage ou surcyclage.</li>
                     <li>Vous renvoyez la matière, il confirme la réception.</li>

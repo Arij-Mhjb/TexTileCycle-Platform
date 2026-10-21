@@ -8,14 +8,14 @@ use Illuminate\Database\Seeder;
 
 /**
  * Retours de démonstration (seconde vie de la matière), un par étape du parcours.
- * Idempotent : ne fait rien si des retours existent déjà.
+ * Idempotent : ne fait rien si les retours de démo existent déjà.
  * Lancer : php artisan db:seed --class=SupplierReturnSeeder
  */
 class SupplierReturnSeeder extends Seeder
 {
     public function run(): void
     {
-        if (SupplierReturn::exists()) {
+        if (SupplierReturn::where('reference', 'like', 'RTV-DEMO-%')->exists()) {
             return;
         }
 
@@ -44,7 +44,7 @@ class SupplierReturnSeeder extends Seeder
                 $parts[2] = round($quantity - $parts[0] - $parts[1] - $parts[3], 2); // le reste : total exact
             }
 
-            SupplierReturn::create([
+            SupplierReturn::forceCreate([
                 'reference' => 'RTV-DEMO-'.($index + 1),
                 'brand_id' => $batch->supplier->brand_id,
                 'supplier_id' => $batch->supplier_id,

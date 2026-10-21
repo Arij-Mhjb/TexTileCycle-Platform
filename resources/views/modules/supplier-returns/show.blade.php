@@ -6,22 +6,20 @@ $ai = $return->ai_analysis;
 $card = 'shadow-[0_1px_2px_rgba(15,23,42,.05)] rounded-2xl border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900';
 @endphp
 <x-dynamic-component :component="$layout" :title="$return->reference">
-    <x-module.hero module="repair" :eyebrow="'Retour fournisseur · '.$return->reasonLabel()" :title="$kg($return->quantity_kg).' de '.($return->material?->name ?? 'matière')"
-        :description="$return->reference.' · '.$return->brand->name.' → '.$return->supplier->name.' · déclaré le '.$return->created_at->format('d/m/Y')">
-        <x-slot:actions>
-            <x-module.badge :tone="$return->statusTone()" class="!bg-white/95">{{ $return->statusLabel() }}</x-module.badge>
-            <x-module.button module="repair" variant="light" :href="route($prefix.'.index')">← Tous les retours</x-module.button>
-        </x-slot:actions>
-    </x-module.hero>
-
-    <div class="{{ $card }} mb-6">@include('modules.supplier-returns._timeline', ['return' => $return])</div>
+    @include('modules.supplier-returns._header', [
+        'eyebrow' => 'Retour '.$return->reference.' · '.$return->reasonLabel(),
+        'title' => $kg($return->quantity_kg).' de '.($return->material?->name ?? 'matière'),
+        'subtitle' => $return->brand->name.' → '.$return->supplier->name.' · déclaré le '.$return->created_at->format('d/m/Y'),
+        'actionsHtml' => '<a href="'.route($prefix.'.index').'" class="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-teal-800 ring-1 ring-teal-200 hover:bg-teal-50 dark:text-teal-200 dark:ring-teal-800">← Flux des retours</a>',
+    ])
 
     @if($errors->any())
         <div class="mb-6 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm font-semibold text-rose-700">{{ $errors->first() }}</div>
     @endif
 
-    <div class="grid gap-6 lg:grid-cols-3">
-        <div class="space-y-6 lg:col-span-2">
+    <div class="grid gap-6 lg:grid-cols-[210px_minmax(0,1fr)_330px]">
+        @include('modules.supplier-returns._rail', ['return' => $return])
+        <div class="space-y-6">
             <section class="{{ $card }}">
                 <h2 class="text-lg font-black">Déclaration de la marque</h2>
                 <dl class="mt-4 grid gap-4 text-sm sm:grid-cols-2">
@@ -47,7 +45,7 @@ $card = 'shadow-[0_1px_2px_rgba(15,23,42,.05)] rounded-2xl border border-slate-2
                             <p class="mt-3 text-sm font-semibold">{{ $ai['summary'] ?? 'Analyse IA indisponible.' }}</p>
                             <div class="mt-3 space-y-2">
                                 @foreach($ai['findings'] ?? [] as $finding)
-                                    <x-module.bar module="repair" :label="$finding['label']" :value="$finding['confidence']" :display="$finding['confidence'].' %'"/>
+                                    <x-module.bar module="loop" :label="$finding['label']" :value="$finding['confidence']" :display="$finding['confidence'].' %'"/>
                                 @endforeach
                             </div>
                             @if(! empty($ai['model']))<p class="mt-3 text-xs text-slate-400">Modèle : {{ $ai['model'] }}</p>@endif
@@ -71,11 +69,11 @@ $card = 'shadow-[0_1px_2px_rgba(15,23,42,.05)] rounded-2xl border border-slate-2
                             <h2 class="text-lg font-black">Seconde vie de la matière</h2>
                             <p class="text-sm text-slate-500">{{ $kg($return->savedKg()) }} sauvés du déchet sur {{ $kg($return->quantity_kg) }} ({{ $return->quantity_kg > 0 ? (int) round($return->savedKg() / $return->quantity_kg * 100) : 0 }} %)</p>
                         </div>
-                        @if($return->proof_path)<x-module.button module="repair" variant="soft" :href="route($prefix.'.document', [$return, 'proof'])" target="_blank">Voir la preuve</x-module.button>@endif
+                        @if($return->proof_path)<x-module.button module="loop" variant="soft" :href="route($prefix.'.document', [$return, 'proof'])" target="_blank">Voir la preuve</x-module.button>@endif
                     </div>
                     <div class="mt-5 grid gap-4 sm:grid-cols-2">
                         @foreach(['resold_kg' => 'Revendu à une autre marque', 'recycled_kg' => 'Recyclé en nouvelle fibre', 'upcycled_kg' => 'Surcyclé', 'waste_kg' => 'Non valorisé'] as $field => $label)
-                            <x-module.bar module="repair" :label="$label" :value="(float) $return->{$field}" :max="(float) $return->quantity_kg" :display="$kg($return->{$field})"/>
+                            <x-module.bar module="loop" :label="$label" :value="(float) $return->{$field}" :max="(float) $return->quantity_kg" :display="$kg($return->{$field})"/>
                         @endforeach
                     </div>
                     @if($return->admin_note)
@@ -92,7 +90,7 @@ $card = 'shadow-[0_1px_2px_rgba(15,23,42,.05)] rounded-2xl border border-slate-2
                 <section class="{{ $card }}">
                     <h2 class="font-black">À vous : renvoyer la matière</h2>
                     <p class="mt-2 text-sm text-slate-500">Le fournisseur a accepté la reprise. Confirmez quand la matière est partie.</p>
-                    <form method="POST" action="{{ route('brand.supplier-returns.ship', $return) }}" class="mt-4">@csrf<x-module.button module="repair" class="w-full">J’ai renvoyé la matière</x-module.button></form>
+                    <form method="POST" action="{{ route('brand.supplier-returns.ship', $return) }}" class="mt-4">@csrf<x-module.button module="loop" class="w-full">J’ai renvoyé la matière</x-module.button></form>
                 </section>
             @endif
 
@@ -104,15 +102,15 @@ $card = 'shadow-[0_1px_2px_rgba(15,23,42,.05)] rounded-2xl border border-slate-2
                     <fieldset class="space-y-2">
                         <legend class="text-sm font-bold">Seconde vie prévue <span class="text-rose-500">*</span></legend>
                         @foreach(\App\Models\SupplierReturn::DESTINATIONS as $value => $label)
-                            <label class="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 p-3 text-sm has-[:checked]:border-amber-500 has-[:checked]:bg-amber-50 dark:border-slate-700">
-                                <input type="radio" name="destination" value="{{ $value }}" @checked(old('destination', $return->reason === 'defect' ? 'recycling' : 'resale') === $value) class="mt-0.5 text-amber-600">
+                            <label class="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 p-3 text-sm has-[:checked]:border-teal-600 has-[:checked]:bg-teal-50 dark:border-slate-700">
+                                <input type="radio" name="destination" value="{{ $value }}" @checked(old('destination', $return->reason === 'defect' ? 'recycling' : 'resale') === $value) class="mt-0.5 text-teal-600">
                                 <span class="font-semibold">{{ $label }}</span>
                             </label>
                         @endforeach
                     </fieldset>
                     <x-module.field name="pickup_at" type="date" label="Date d’enlèvement (facultatif)" :min="now()->toDateString()"/>
                     <label class="block"><span class="text-sm font-bold">Message à la marque</span><textarea name="supplier_note" rows="2" class="field" placeholder="Ex. notre transporteur passe mardi matin.">{{ old('supplier_note') }}</textarea></label>
-                    <x-module.button module="repair" class="w-full">Accepter la reprise</x-module.button>
+                    <x-module.button module="loop" class="w-full">Accepter la reprise</x-module.button>
                 </form>
             @endif
 
@@ -120,7 +118,7 @@ $card = 'shadow-[0_1px_2px_rgba(15,23,42,.05)] rounded-2xl border border-slate-2
                 <section class="{{ $card }}">
                     <h2 class="font-black">Matière en route</h2>
                     <p class="mt-2 text-sm text-slate-500">La marque a renvoyé {{ $kg($return->quantity_kg) }}. Confirmez à l’arrivée.</p>
-                    <form method="POST" action="{{ route('supplier.returns.receive', $return) }}" class="mt-4">@csrf<x-module.button module="repair" class="w-full">Confirmer la réception</x-module.button></form>
+                    <form method="POST" action="{{ route('supplier.returns.receive', $return) }}" class="mt-4">@csrf<x-module.button module="loop" class="w-full">Confirmer la réception</x-module.button></form>
                 </section>
             @endif
 
@@ -141,7 +139,7 @@ $card = 'shadow-[0_1px_2px_rgba(15,23,42,.05)] rounded-2xl border border-slate-2
                         <input type="file" name="proof" accept="image/jpeg,image/png,image/webp,application/pdf" required class="mt-2 block w-full text-sm">
                     </label>
                     <label class="block text-sm font-bold">Commentaire<textarea name="supplier_note" rows="2" class="field">{{ old('supplier_note') }}</textarea></label>
-                    <x-module.button module="repair" class="w-full">Envoyer la déclaration</x-module.button>
+                    <x-module.button module="loop" class="w-full">Envoyer la déclaration</x-module.button>
                 </form>
             @endif
 
@@ -154,22 +152,11 @@ $card = 'shadow-[0_1px_2px_rgba(15,23,42,.05)] rounded-2xl border border-slate-2
                     <label class="block text-sm font-bold">Note (obligatoire pour une correction)<textarea name="admin_note" rows="3" class="field">{{ old('admin_note') }}</textarea></label>
                     <div class="grid grid-cols-2 gap-2">
                         <button name="decision" value="correction" class="rounded-xl border border-rose-200 px-3 py-2.5 text-sm font-bold text-rose-700 hover:bg-rose-50">Demander une correction</button>
-                        <x-module.button module="repair" name="decision" value="approve">Valider</x-module.button>
+                        <x-module.button module="loop" name="decision" value="approve">Valider</x-module.button>
                     </div>
                 </form>
             @endif
 
-            <section class="rounded-2xl border border-amber-200 bg-amber-50/60 p-5 text-sm dark:border-amber-900 dark:bg-amber-950/20">
-                <p class="font-black text-amber-900 dark:text-amber-200">Historique</p>
-                <ul class="mt-3 space-y-2 text-slate-600 dark:text-slate-300">
-                    <li>Déclaré le {{ $return->created_at->format('d/m/Y H:i') }}@if($return->requester) par {{ $return->requester->name }}@endif</li>
-                    @if($return->accepted_at)<li>Reprise acceptée le {{ $return->accepted_at->format('d/m/Y H:i') }}</li>@endif
-                    @if($return->shipped_at)<li>Renvoyé le {{ $return->shipped_at->format('d/m/Y H:i') }}</li>@endif
-                    @if($return->received_at)<li>Reçu le {{ $return->received_at->format('d/m/Y H:i') }}</li>@endif
-                    @if($return->completed_at)<li>Seconde vie déclarée le {{ $return->completed_at->format('d/m/Y H:i') }}</li>@endif
-                    @if($return->verified_at)<li>Vérifié le {{ $return->verified_at->format('d/m/Y H:i') }}@if($return->verifier) par {{ $return->verifier->name }}@endif</li>@endif
-                </ul>
-            </section>
         </aside>
     </div>
 </x-dynamic-component>

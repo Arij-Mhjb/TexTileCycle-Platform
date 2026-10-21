@@ -153,10 +153,10 @@ class SupplierReturnController extends Controller
 
         return view('modules.supplier-returns.index', [
             'space' => $space,
+            // Tableau de flux : une colonne par étape, les plus récents en haut.
             'returns' => $query->with(['brand', 'supplier', 'material'])
-                ->when($request->filled('status'), fn ($q) => $q->where('status', $request->status))
-                ->orderByRaw("case status when 'requested' then 0 when 'correction' then 0 when 'completed' then 1 when 'accepted' then 2 when 'in_transit' then 2 when 'received' then 2 else 3 end")
-                ->latest()->paginate(15)->withQueryString(),
+                ->when($request->filled('reason'), fn ($q) => $q->where('reason', $request->reason))
+                ->latest()->take(200)->get(),
             'stats' => [
                 'count' => $all->count(),
                 'open' => $all->whereNotIn('status', ['verified'])->count(),

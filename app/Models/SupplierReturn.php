@@ -106,13 +106,31 @@ class SupplierReturn extends Model
 
     public function statusTone(): string
     {
-        return ['verified' => 'good', 'completed' => 'suppliers', 'correction' => 'bad', 'requested' => 'warn'][$this->status] ?? 'neutral';
+        return ['verified' => 'good', 'completed' => 'loop', 'correction' => 'bad', 'requested' => 'warn'][$this->status] ?? 'neutral';
     }
 
     /** Kg qui ont réellement échappé au déchet (revendus + recyclés + surcyclés). */
     public function savedKg(): float
     {
         return (float) $this->resold_kg + (float) $this->recycled_kg + (float) $this->upcycled_kg;
+    }
+
+    /** Qui doit agir maintenant : brand, supplier, admin, ou null quand le parcours est terminé. */
+    public function nextActor(): ?string
+    {
+        return [
+            'requested' => 'supplier', 'accepted' => 'brand', 'in_transit' => 'supplier', 'received' => 'supplier',
+            'completed' => 'admin', 'correction' => 'supplier',
+        ][$this->status] ?? null;
+    }
+
+    /** Ce que l'acteur suivant doit faire, en une phrase courte. */
+    public function nextAction(): ?string
+    {
+        return [
+            'requested' => 'Accepter la reprise', 'accepted' => 'Renvoyer la matière', 'in_transit' => 'Confirmer la réception',
+            'received' => 'Déclarer la seconde vie', 'completed' => 'Vérifier la preuve', 'correction' => 'Corriger la déclaration',
+        ][$this->status] ?? null;
     }
 
     public function stepIndex(): int

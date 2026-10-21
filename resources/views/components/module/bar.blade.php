@@ -1,6 +1,6 @@
 @props(['module' => 'esg', 'value' => 0, 'max' => 100, 'label' => null, 'display' => null])
 @php
-$fill = ['suppliers' => 'from-purple-600 to-pink-500', 'esg' => 'from-sky-500 to-cyan-400', 'repair' => 'from-amber-500 to-orange-400'][$module];
+$fill = ['suppliers' => 'from-purple-600 to-pink-500', 'esg' => 'from-sky-500 to-cyan-400', 'repair' => 'from-amber-500 to-orange-400', 'loop' => 'from-teal-600 to-lime-400'][$module];
 $percent = $max > 0 ? max(0, min(100, $value / $max * 100)) : 0;
 @endphp
 <div {{ $attributes->merge(['class' => 'space-y-1.5']) }}>

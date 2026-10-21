@@ -3,11 +3,13 @@
 $solid = [
     'suppliers' => 'bg-purple-700 text-white ring-1 ring-inset ring-purple-900/40 hover:bg-purple-800 focus-visible:ring-purple-500',
     'esg' => 'bg-sky-700 text-white ring-1 ring-inset ring-sky-900/40 hover:bg-sky-800 focus-visible:ring-sky-500',
+    'loop' => 'bg-teal-700 text-white ring-1 ring-inset ring-teal-900/40 hover:bg-teal-800 focus-visible:ring-teal-500',
     'repair' => 'bg-amber-600 text-white ring-1 ring-inset ring-amber-800/40 hover:bg-amber-700 focus-visible:ring-amber-500',
 ][$module];
 $soft = [
     'suppliers' => 'bg-white text-purple-800 ring-1 ring-inset ring-purple-200 hover:bg-purple-50',
     'esg' => 'bg-white text-sky-800 ring-1 ring-inset ring-sky-200 hover:bg-sky-50',
+    'loop' => 'bg-white text-teal-800 ring-1 ring-inset ring-teal-200 hover:bg-teal-50',
     'repair' => 'bg-white text-amber-800 ring-1 ring-inset ring-amber-200 hover:bg-amber-50',
 ][$module];
 $light = 'bg-white text-slate-900 hover:bg-white/90 focus-visible:ring-white';
