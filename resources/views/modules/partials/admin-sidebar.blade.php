@@ -11,6 +11,7 @@ $moduleGroups = [
         ['admin.impact-metrics.index', 'admin.impact-metrics.*', 'Facteurs matières', 'M4 6h16M4 12h16M4 18h10'],
     ]],
     ['label' => 'Seconde vie', 'dot' => 'bg-amber-400', 'items' => [
+        ['admin.supplier-returns.index', 'admin.supplier-returns.*', 'Retours fournisseurs', 'M9 14 4 9l5-5M4 9h10.5a5.5 5.5 0 0 1 0 11H11'],
         ['admin.repair-orders.index', 'admin.repair-orders.*', 'Réparations', 'M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.6 2.6-2.4-.6-.6-2.4 2.6-2.6Z'],
         ['admin.marketplace.index', 'admin.marketplace.*', 'Marketplace', 'M3 9l1.5-5h15L21 9M3 9h18M3 9v11h18V9M9 20v-6h6v6'],
         ['admin.trade-ins.index', 'admin.trade-ins.*', 'Reprises', 'M7 16V4m0 0L3 8m4-4 4 4m6 0v12m0 0 4-4m-4 4-4-4'],
