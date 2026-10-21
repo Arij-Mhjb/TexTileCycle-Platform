@@ -59,6 +59,10 @@ class ConsumerExploreController extends Controller
 
     public function points(Request $request): View
     {
+        $coordinates = $request->validate([
+            'latitude' => 'nullable|numeric|between:-90,90',
+            'longitude' => 'nullable|numeric|between:-180,180',
+        ]);
         $query = CollectionPoint::where('is_active', true)->with('recoveryProgram');
 
         if ($request->filled('city')) $query->where('city', 'like', '%'.$request->string('city').'%');
@@ -66,6 +70,27 @@ class ConsumerExploreController extends Controller
             $query->whereHas('recoveryProgram', fn ($program) => $program->where('type', $request->string('type')));
         }
 
-        return view('consumer.points', ['points' => $query->latest()->paginate(9)->withQueryString()]);
+        $points = $query->latest()->paginate(50)->withQueryString();
+        $latitude = isset($coordinates['latitude']) ? (float) $coordinates['latitude'] : null;
+        $longitude = isset($coordinates['longitude']) ? (float) $coordinates['longitude'] : null;
+        if ($latitude !== null && $longitude !== null) {
+            $points->setCollection($points->getCollection()->map(function ($point) use ($latitude, $longitude) {
+                $point->distance_km = ($point->latitude !== null && $point->longitude !== null)
+                    ? $this->distance($latitude, $longitude, (float) $point->latitude, (float) $point->longitude)
+                    : null;
+                return $point;
+            })->sortBy(fn ($point) => $point->distance_km ?? PHP_FLOAT_MAX)->values());
+        }
+
+        return view('consumer.points', compact('points', 'latitude', 'longitude'));
+    }
+
+    private function distance(float $lat1, float $lon1, float $lat2, float $lon2): float
+    {
+        $earth = 6371;
+        $dLat = deg2rad($lat2 - $lat1);
+        $dLon = deg2rad($lon2 - $lon1);
+        $a = sin($dLat / 2) ** 2 + cos(deg2rad($lat1)) * cos(deg2rad($lat2)) * sin($dLon / 2) ** 2;
+        return round($earth * 2 * atan2(sqrt($a), sqrt(1 - $a)), 1);
     }
 }

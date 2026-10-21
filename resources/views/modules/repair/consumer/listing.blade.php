@@ -28,6 +28,11 @@
             @if($myOffer)
                 <div class="mt-6 rounded-2xl bg-slate-100 p-4 text-sm dark:bg-slate-800">Votre offre : <strong>{{ number_format((float) $myOffer->offered_price, 2, ',', ' ') }} {{ $listing->currency }}</strong> — {{ $myOffer->statusLabel() }}</div>
             @endif
+            @if($myOrder && $myOrder->status === 'awaiting_checkout')
+                <form method="POST" action="{{ route('consumer.marketplace.checkout',$myOrder) }}" class="mt-6 space-y-3 rounded-2xl border border-amber-200 bg-amber-50 p-5">@csrf<h2 class="font-black">Finaliser la commande {{ $myOrder->reference }}</h2><x-ui.select name="fulfilment_method" label="Remise" :options="collect(['pickup'=>'Retrait en point partenaire','delivery'=>'Livraison'])" required/><x-ui.select name="collection_point_id" label="Point de retrait" :options="$pickupPoints->mapWithKeys(fn($p)=>[$p->id=>$p->name.' · '.$p->city])"/><x-ui.textarea name="delivery_address" label="Adresse si livraison"/><x-ui.select name="payment_method" label="Paiement" :options="collect(['pay_on_pickup'=>'Paiement au retrait','cash_on_delivery'=>'Paiement à la livraison'])" required/><button class="btn-primary w-full">Confirmer la commande</button></form>
+            @elseif($myOrder)
+                <div class="mt-6 rounded-2xl bg-sky-50 p-5"><p class="font-black">Commande {{ $myOrder->reference }} · {{ $myOrder->statusLabel() }}</p>@if(in_array($myOrder->status,['ready','shipped']))<form method="POST" action="{{ route('consumer.marketplace.received',$myOrder) }}" class="mt-3">@csrf<button class="btn-primary">Confirmer la réception</button></form>@endif</div>
+            @endif
             @if($listing->status === 'published' && (! $myOffer || $myOffer->status !== 'pending'))
                 <form method="POST" action="{{ route('consumer.marketplace.offer', $listing) }}" class="mt-6 grid gap-3 sm:grid-cols-3">
                     @csrf

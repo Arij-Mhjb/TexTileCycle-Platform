@@ -56,6 +56,36 @@ class User extends Authenticatable
         return $this->hasMany(ConsumerNotification::class);
     }
 
+    public function rewardRedemptions(): HasMany
+    {
+        return $this->hasMany(RewardRedemption::class);
+    }
+
+    public function consumerClaims(): HasMany
+    {
+        return $this->hasMany(ConsumerClaim::class);
+    }
+
+    public function marketplaceOrders(): HasMany
+    {
+        return $this->hasMany(MarketplaceOrder::class, 'buyer_id');
+    }
+
+    public function repairOrders(): HasMany
+    {
+        return $this->hasMany(RepairOrder::class);
+    }
+
+    public function tradeInRequests(): HasMany
+    {
+        return $this->hasMany(TradeInRequest::class);
+    }
+
+    public function resaleOffers(): HasMany
+    {
+        return $this->hasMany(ResaleOffer::class);
+    }
+
     public function passportProposals(): HasMany
     {
         return $this->hasMany(PassportProposal::class, 'consumer_id');

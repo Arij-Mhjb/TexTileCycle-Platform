@@ -17,6 +17,8 @@ $groups = [
   ['route'=>'product-returns.index','active'=>'product-returns.*','label'=>'Retours','icon'=>'M9 14 4 9l5-5M4 9h11a5 5 0 0 1 0 10h-3'],
   ['route'=>'admin.material-reviews.index','active'=>'admin.material-reviews.*','label'=>'Contrôle matières','icon'=>'M9 12l2 2 4-4M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Z'],
   ['route'=>'treatment-results.index','active'=>'treatment-results.*','label'=>'Traitements','icon'=>'m4 14 6 6L20 10M14 4l6 6-6 6'],
+  ['route'=>'admin.consumer-claims.index','active'=>'admin.consumer-claims.*','label'=>'Réclamations Consumer','icon'=>'M12 9v4m0 4h.01M10.3 3.6 2.6 17h18.8l-7.7-17a1.9 1.9 0 0 0-3.4 0Z'],
+  ['route'=>'admin.reward-items.index','active'=>'admin.reward-items.*','label'=>'Catalogue récompenses','icon'=>'M20 12v8H4v-8m16 0H4m16 0V8H4v4m8 8V8m-5 0c-2-2-1-5 1-5 2 0 4 3 4 5m5 0c2-2 1-5-1-5-2 0-4 3-4 5'],
  ]],
  ['label'=>'Conformité','items'=>[
   ['route'=>'admin.brand-applications.index','active'=>'admin.brand-applications.*','label'=>'Inscriptions marques','icon'=>'M9 12l2 2 4-4M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Z'],

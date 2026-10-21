@@ -134,12 +134,16 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/marketplace', [ConsumerMarketplaceController::class, 'index'])->name('marketplace.index');
         Route::get('/marketplace/{listing}', [ConsumerMarketplaceController::class, 'show'])->name('marketplace.show');
         Route::post('/marketplace/{listing}/offers', [ConsumerMarketplaceController::class, 'offer'])->name('marketplace.offer');
+        Route::post('/marketplace-orders/{marketplaceOrder}/checkout', [ConsumerMarketplaceController::class, 'checkout'])->name('marketplace.checkout');
+        Route::post('/marketplace-orders/{marketplaceOrder}/received', [ConsumerMarketplaceController::class, 'confirmReceipt'])->name('marketplace.received');
         Route::get('/repairs', [ConsumerRepairController::class, 'index'])->name('repairs.index');
         Route::post('/repairs', [ConsumerRepairController::class, 'store'])->name('repairs.store');
+        Route::post('/repairs/{repairOrder}/decision', [ConsumerRepairController::class, 'respond'])->name('repairs.respond');
         Route::get('/trade-ins', [ConsumerTradeInController::class, 'index'])->name('trade-ins.index');
         Route::post('/trade-ins', [ConsumerTradeInController::class, 'store'])->name('trade-ins.store');
         Route::post('/trade-ins/{tradeIn}/accept', [ConsumerTradeInController::class, 'accept'])->name('trade-ins.accept');
         Route::post('/trade-ins/{tradeIn}/decline', [ConsumerTradeInController::class, 'decline'])->name('trade-ins.decline');
+        Route::post('/trade-ins/{tradeIn}/deposit', [ConsumerTradeInController::class, 'deposit'])->name('trade-ins.deposit');
     });
 });
 

@@ -5,7 +5,7 @@
             <h1 class="mt-2 text-3xl font-black tracking-tight">Mon wallet circulaire</h1>
             <p class="mt-2 text-slate-500">Les points deviennent disponibles uniquement après validation du dépôt et du traitement.</p>
         </div>
-        <a href="{{ route('product-returns.create') }}" class="rounded-2xl bg-emerald-600 px-5 py-3 text-sm font-black text-white">Déclarer un retour</a>
+        <div class="flex gap-2"><a href="{{ route('consumer.rewards.index') }}" class="btn-secondary">Utiliser mes points</a><a href="{{ route('product-returns.create') }}" class="rounded-2xl bg-emerald-600 px-5 py-3 text-sm font-black text-white">Déclarer un retour</a></div>
     </div>
 
     <section class="mt-8 grid gap-4 md:grid-cols-3">

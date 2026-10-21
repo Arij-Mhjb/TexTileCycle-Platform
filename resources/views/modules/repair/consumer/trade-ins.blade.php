@@ -14,16 +14,21 @@
         </form>
         <div class="space-y-4 lg:col-span-2">
             @forelse($tradeIns as $tradeIn)
-                <article class="consumer-card flex flex-wrap items-center justify-between gap-4 p-5">
+                <article class="consumer-card p-5">
+                    <div class="flex flex-wrap items-center justify-between gap-4">
                     <div><p class="text-[13px] font-semibold text-amber-600">{{ $tradeIn->reference }}</p><h2 class="mt-1 font-black">{{ $tradeIn->itemName() }}</h2><p class="text-sm text-slate-500">{{ \App\Models\TradeInRequest::CONDITIONS[$tradeIn->condition] ?? $tradeIn->condition }}@if($tradeIn->evaluation_note) · {{ $tradeIn->evaluation_note }}@endif</p></div>
                     <div class="flex flex-wrap items-center gap-2">
                         @if($tradeIn->proposed_points)<span class="rounded-xl bg-amber-50 px-3 py-2 text-sm font-black text-amber-800">{{ $tradeIn->proposed_points }} pts</span>@endif
                         <x-module.badge :tone="['completed' => 'good', 'declined' => 'bad'][$tradeIn->status] ?? 'repair'">{{ $tradeIn->statusLabel() }}</x-module.badge>
                         @if($tradeIn->status === 'evaluated')
-                            <form method="POST" action="{{ route('consumer.trade-ins.accept', $tradeIn) }}">@csrf<x-module.button module="repair" class="!py-1.5">Accepter</x-module.button></form>
+                            <form method="POST" action="{{ route('consumer.trade-ins.accept', $tradeIn) }}" class="flex gap-2">@csrf<select name="collection_point_id" class="field !mt-0" required><option value="">Point de reprise</option>@foreach($points as $point)<option value="{{ $point->id }}">{{ $point->name }} · {{ $point->city }}</option>@endforeach</select><x-module.button module="repair" class="!py-1.5">Accepter</x-module.button></form>
                             <form method="POST" action="{{ route('consumer.trade-ins.decline', $tradeIn) }}">@csrf<button class="rounded-xl px-3 py-1.5 text-sm font-bold text-rose-600 hover:bg-rose-50">Refuser</button></form>
                         @endif
                     </div>
+                    </div>
+                    @if(in_array($tradeIn->status,['accepted','deposited','completed']) && $tradeIn->qr_token)
+                        <div class="mt-4 grid gap-4 rounded-2xl bg-slate-950 p-5 text-white sm:grid-cols-[auto_1fr]"><canvas data-qr-value="{{ $tradeIn->qr_token }}" class="rounded-xl bg-white p-2"></canvas><div><p class="text-xs uppercase tracking-wider text-amber-300">QR de reprise</p><p class="mt-2 font-black">{{ $tradeIn->collectionPoint?->name }}</p><p class="text-sm text-slate-300">{{ $tradeIn->collectionPoint?->address }}, {{ $tradeIn->collectionPoint?->city }}</p><p class="mt-2 break-all font-mono text-xs">{{ $tradeIn->qr_token }}</p>@if($tradeIn->status==='accepted')<form method="POST" enctype="multipart/form-data" action="{{ route('consumer.trade-ins.deposit',$tradeIn) }}" class="mt-3">@csrf<input type="file" name="evidence" accept="image/jpeg,image/png,image/webp" required class="text-xs"><button class="mt-2 rounded-xl bg-amber-500 px-4 py-2 font-bold text-slate-950">Déclarer mon dépôt</button></form>@elseif($tradeIn->status==='deposited')<p class="mt-3 text-sm font-bold text-amber-300">Dépôt déclaré · confirmation du collecteur attendue.</p>@else<p class="mt-3 text-sm font-bold text-emerald-300">Reprise terminée · points validés.</p>@endif</div></div>
+                    @endif
                 </article>
             @empty
                 <div class="consumer-card"><x-ui.empty message="Aucune demande de reprise."/></div>

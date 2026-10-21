@@ -22,7 +22,7 @@ class ConsumerHomeController extends Controller
             ->get();
 
         $completed = $returns->whereIn('status', ['completed', 'processed']);
-        $validatedPoints = (int) $user->rewardTransactions()->where('status', 'validated')->sum('points');
+        $validatedPoints = (int) $user->rewardTransactions()->whereIn('status', ['validated', 'spent'])->sum('points');
         $pendingPoints = (int) $user->rewardTransactions()->where('status', 'pending')->sum('points');
 
         return view('consumer.home', [

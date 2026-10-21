@@ -24,11 +24,16 @@ class RepairOrder extends Model
     protected $fillable = [
         'reference', 'user_id', 'product_return_id', 'product_id', 'repair_center_id', 'issue_description', 'decision',
         'status', 'estimated_cost', 'final_cost', 'reward_points', 'admin_note', 'ai_diagnosis', 'diagnosed_at', 'completed_at',
+        'consumer_decision', 'consumer_decided_at', 'preferred_appointment_at',
     ];
 
     protected function casts(): array
     {
-        return ['ai_diagnosis' => 'array', 'diagnosed_at' => 'datetime', 'completed_at' => 'datetime', 'estimated_cost' => 'decimal:2', 'final_cost' => 'decimal:2'];
+        return [
+            'ai_diagnosis' => 'array', 'diagnosed_at' => 'datetime', 'completed_at' => 'datetime',
+            'consumer_decided_at' => 'datetime', 'preferred_appointment_at' => 'datetime',
+            'estimated_cost' => 'decimal:2', 'final_cost' => 'decimal:2',
+        ];
     }
 
     public function consumer(): BelongsTo
