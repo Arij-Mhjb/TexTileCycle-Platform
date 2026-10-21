@@ -31,14 +31,14 @@ $console = [
     <div class="pointer-events-none absolute -right-28 -top-36 -z-10 h-96 w-96 rounded-full {{ $console['glow'] }} blur-3xl"></div>
     <div class="pointer-events-none absolute bottom-0 left-1/3 -z-10 h-40 w-72 rounded-full {{ $console['glow2'] }} blur-3xl"></div>
     <div class="relative flex flex-col gap-7 xl:flex-row xl:items-end xl:justify-between">
-        <div class="max-w-2xl">
+        <div class="min-w-0 max-w-2xl xl:flex-1">
             <p class="flex items-center gap-2 text-xs font-black uppercase tracking-[.2em] {{ $console['accent'] }}"><span class="h-2 w-2 animate-pulse rounded-full {{ $console['dot'] }}"></span>{{ $eyebrow ?? $theme['label'] }}</p>
             <h1 class="mt-4 text-3xl font-black tracking-tight sm:text-4xl">{{ $title }}</h1>
             @if($description)<p class="mt-3 max-w-2xl leading-7 text-slate-300">{{ $description }}</p>@endif
             @isset($actions)<div class="mt-6 flex flex-wrap gap-3">{{ $actions }}</div>@endisset
         </div>
         @isset($stats)
-            <div class="grid shrink-0 grid-cols-2 gap-3 sm:grid-cols-4 xl:grid-cols-2 2xl:grid-cols-4">{{ $stats }}</div>
+            <div class="grid shrink-0 grid-cols-2 gap-3 sm:grid-cols-4 xl:w-[30rem] xl:grid-cols-2">{{ $stats }}</div>
         @endisset
     </div>
 </section>
