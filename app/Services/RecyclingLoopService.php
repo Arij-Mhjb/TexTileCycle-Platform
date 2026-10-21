@@ -31,6 +31,7 @@ class RecyclingLoopService
         private MaterialDefectVisionService $vision,
         private RecyclingEstimator $estimator,
         private SupplierTraceabilityService $traceability,
+        private RecyclingPricing $pricing,
     ) {}
 
     /**
@@ -51,6 +52,7 @@ class RecyclingLoopService
                 'supplier_id' => $supplier->id,
                 'requested_by' => $by->id,
                 'status' => 'requested',
+                'mode' => $data['mode'] ?? 'recover',
                 'brand_message' => $data['brand_message'] ?? null,
                 'wished_pickup_at' => $data['wished_pickup_at'] ?? null,
             ]);
@@ -81,26 +83,31 @@ class RecyclingLoopService
             }
         }
 
+        // Prix estimé tout de suite (matière et rendement probables), pour que chacun sache à quoi s'attendre.
         $loop->load('items');
+        $estimate = $this->estimator->estimate($loop);
+        $this->reprice($loop, $estimate['material_name'], $estimate['expected_kg'], 'estimate');
+
         $this->notifySupplier($loop, 'recycling_requested', $brand->name.' veut vous confier des articles à recycler',
             $this->kg($loop->totalKg()).' ('.$loop->items->count().' lot(s) : '.$loop->items->pluck('label')->join(', ').'). Faites votre proposition.');
 
         return $loop;
     }
 
+    /** Le fournisseur confirme ce qu'il peut produire ; le prix est recalculé automatiquement. */
     public function propose(RecyclingLoop $loop, array $data): RecyclingLoop
     {
         $this->guard($loop, ['requested'], 'Une proposition a déjà été faite.');
         $loop->update([
             'status' => 'proposed', 'proposed_at' => now(),
             'output_material_id' => $data['output_material_id'], 'expected_output_kg' => $data['expected_output_kg'],
-            'mode' => $data['mode'], 'unit_price' => $data['unit_price'] ?? 0, 'ready_by' => $data['ready_by'] ?? null,
-            'supplier_message' => $data['supplier_message'] ?? null,
+            'ready_by' => $data['ready_by'] ?? null, 'supplier_message' => $data['supplier_message'] ?? null,
         ]);
-        $loop->load('outputMaterial');
+        $loop->load(['items', 'outputMaterial']);
+        $this->reprice($loop, $loop->outputMaterial->name, (float) $data['expected_output_kg'], 'proposal');
+
         $this->notifyBrand($loop, 'recycling_proposed', $loop->supplier->name.' vous fait une proposition',
-            $loop->reference.' : '.$this->kg($loop->expected_output_kg).' de '.$loop->outputMaterial?->name.' · '.mb_strtolower($loop->modeLabel())
-            .($loop->amount() ? ' · '.number_format($loop->amount(), 2, ',', ' ').' TND' : ' · sans frais').'.');
+            $loop->reference.' : '.$this->kg($loop->expected_output_kg).' de '.$loop->outputMaterial->name.' · '.$this->priceSentence($loop).'.');
 
         return $loop;
     }
@@ -158,16 +165,30 @@ class RecyclingLoopService
             throw ValidationException::withMessages(['output_kg' => 'La matière produite ne peut pas dépasser les '.$this->kg($loop->received_kg).' reçus.']);
         }
         $loop->update(['status' => 'transformed', 'transformed_at' => now(), 'output_kg' => round($outputKg, 2), 'proof_path' => $proof->store('recycling-loops/proofs', 'local')]);
+        // Prix définitif : calculé sur le poids réellement pesé et la matière réellement produite.
+        $loop->load(['items', 'outputMaterial']);
+        $this->reprice($loop, $loop->outputMaterial->name, $outputKg, 'final');
         $this->notifyBrand($loop, 'recycling_transformed', 'Votre matière recyclée est prête',
-            $loop->reference.' : '.$this->kg($outputKg).' de '.$loop->outputMaterial?->name.' (rendement '.$loop->yieldRate().' %).');
+            $loop->reference.' : '.$this->kg($outputKg).' de '.$loop->outputMaterial->name.' (rendement '.$loop->yieldRate().' %) · prix définitif : '.$this->priceSentence($loop).'.');
 
         return $loop;
     }
 
-    /** Le fournisseur livre la matière recyclée : elle devient un lot traçable chez la marque. */
+    /**
+     * Récupération : la matière recyclée part chez la marque et devient un lot traçable.
+     * Rachat : le fournisseur garde la matière et verse l'avoir calculé.
+     */
     public function deliver(RecyclingLoop $loop): RecyclingLoop
     {
         $this->guard($loop, ['transformed'], 'La matière doit être produite avant d’être livrée.');
+        if ($loop->isBuyback()) {
+            $loop->update(['status' => 'delivered', 'delivered_at' => now()]);
+            $this->notifyBrand($loop, 'recycling_delivered', $loop->supplier->name.' vous a versé un avoir',
+                $loop->reference.' : '.$this->money(abs((float) $loop->amount)).' pour la matière rachetée. Confirmez pour clôturer.');
+
+            return $loop;
+        }
+
         DB::transaction(function () use ($loop) {
             $batch = SupplierBatch::create([
                 'supplier_id' => $loop->supplier_id,
@@ -193,8 +214,9 @@ class RecyclingLoopService
             $loop->outputBatch?->update(['received_at' => now()->toDateString(), 'status' => 'received']);
             $loop->update(['status' => 'closed', 'closed_at' => now()]);
         });
-        $this->notifySupplier($loop, 'recycling_closed', 'Boucle fermée avec '.$loop->brand->name,
-            $loop->reference.' : la marque a bien reçu '.$this->kg($loop->output_kg).' de matière recyclée. Merci !');
+        $this->notifySupplier($loop, 'recycling_closed', 'Recyclage terminé avec '.$loop->brand->name, $loop->isBuyback()
+            ? $loop->reference.' : la marque a confirmé l’avoir de '.$this->money(abs((float) $loop->amount)).'. Merci !'
+            : $loop->reference.' : la marque a bien reçu '.$this->kg($loop->output_kg).' de matière recyclée. Merci !');
 
         return $loop;
     }
@@ -215,6 +237,34 @@ class RecyclingLoopService
     public function estimate(RecyclingLoop $loop): array
     {
         return $this->estimator->estimate($loop);
+    }
+
+    /** Devis automatique d'une boucle (même calcul pour la marque, le fournisseur et l'admin). */
+    public function quote(RecyclingLoop $loop, string $material, float $outputKg): array
+    {
+        $loop->loadMissing('items');
+        $pieces = (int) $loop->items->where('kind', 'defective')->sum('pieces');
+        $inputKg = (float) ($loop->received_kg ?: $loop->totalKg());
+
+        return $this->pricing->quote($loop->mode ?: 'recover', $inputKg, $pieces, $material, $outputKg);
+    }
+
+    private function reprice(RecyclingLoop $loop, string $material, float $outputKg, string $stage): void
+    {
+        $quote = $this->quote($loop, $material, $outputKg) + ['stage' => $stage];
+        $loop->update(['pricing' => $quote, 'amount' => $quote['amount']]);
+    }
+
+    private function priceSentence(RecyclingLoop $loop): string
+    {
+        return $loop->isBuyback()
+            ? 'avoir pour vous : '.$this->money(abs((float) $loop->amount))
+            : 'frais de recyclage : '.$this->money((float) $loop->amount);
+    }
+
+    private function money(float $value): string
+    {
+        return number_format($value, 2, ',', ' ').' TND';
     }
 
     private function guard(RecyclingLoop $loop, array $statuses, string $message): void

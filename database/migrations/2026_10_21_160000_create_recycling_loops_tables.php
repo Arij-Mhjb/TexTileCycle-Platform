@@ -7,7 +7,8 @@ use Illuminate\Support\Facades\Schema;
 /**
  * Boucle de recyclage marque ↔ fournisseur : la marque envoie à son fournisseur des pièces
  * défectueuses, des surplus ou des chutes ; le fournisseur les transforme en nouvelle matière
- * recyclée et la lui rend (restitution) ou la lui revend. La matière revient sous forme de lot traçable.
+ * recyclée : la marque la récupère (en payant les frais de recyclage) ou le fournisseur la rachète
+ * (la marque reçoit un avoir). Le prix est calculé automatiquement selon un barème.
  */
 return new class extends Migration
 {
@@ -22,13 +23,15 @@ return new class extends Migration
             $table->foreignId('supplier_id')->constrained()->cascadeOnDelete();
             $table->foreignId('requested_by')->nullable()->constrained('users')->nullOnDelete();
             $table->string('status', 20)->default('requested')->index();
+            $table->string('mode', 20)->default('recover'); // recover : la marque récupère la matière · buyback : le fournisseur la rachète
             $table->text('brand_message')->nullable();
             $table->date('wished_pickup_at')->nullable();
             // Proposition du fournisseur
             $table->foreignId('output_material_id')->nullable()->constrained('materials')->nullOnDelete();
             $table->decimal('expected_output_kg', 10, 2)->nullable();
-            $table->string('mode', 20)->nullable(); // restitution | sale
-            $table->decimal('unit_price', 10, 2)->nullable(); // TND / kg (frais de transformation ou prix de vente)
+            // Prix calculé automatiquement (barème) : détail et montant net (+ la marque paie, − la marque reçoit)
+            $table->json('pricing')->nullable();
+            $table->decimal('amount', 10, 2)->nullable();
             $table->date('ready_by')->nullable();
             $table->text('supplier_message')->nullable();
             $table->text('decline_reason')->nullable();

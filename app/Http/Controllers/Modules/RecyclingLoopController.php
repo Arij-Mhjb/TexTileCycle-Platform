@@ -7,7 +7,9 @@ use App\Models\Material;
 use App\Models\RecyclingLoop;
 use App\Models\RecyclingLoopItem;
 use App\Services\RecyclingEstimator;
+use App\Services\RecyclingFlowService;
 use App\Services\RecyclingLoopService;
+use App\Services\RecyclingPricing;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -45,6 +47,7 @@ class RecyclingLoopController extends Controller
             'routes' => $materials->mapWithKeys(fn (Material $material) => [$material->id => $estimator->route($material->name)]),
             'productMaterial' => $products->mapWithKeys(fn ($product) => [$product->id => $product->materials->sortByDesc(fn ($m) => (float) ($m->pivot->percentage ?? 0))->first()?->id]),
             'kindFactors' => $estimator->kindFactors(),
+            'tariff' => RecyclingPricing::tariff(),
             'selectedSupplier' => $request->integer('supplier') ?: null,
         ]);
     }
@@ -54,6 +57,7 @@ class RecyclingLoopController extends Controller
         $brand = $request->user()->brand()->firstOrFail();
         $data = $request->validate([
             'supplier_id' => ['required', Rule::exists('suppliers', 'id')->where('brand_id', $brand->id)],
+            'mode' => ['required', Rule::in(array_keys(RecyclingLoop::MODES))],
             'brand_message' => 'nullable|string|max:1000',
             'wished_pickup_at' => 'nullable|date|after_or_equal:today',
             'items' => 'required|array|min:1|max:10',
@@ -68,8 +72,9 @@ class RecyclingLoopController extends Controller
         ], [
             'items.*.issue.required_if' => 'Décrivez le défaut des pièces.',
             'items.required' => 'Ajoutez au moins un lot d’articles.',
+            'mode.required' => 'Choisissez ce que vous voulez en retour.',
         ], [
-            'supplier_id' => 'fournisseur', 'items.*.label' => 'désignation', 'items.*.quantity_kg' => 'poids', 'items.*.photo' => 'photo',
+            'supplier_id' => 'fournisseur', 'mode' => 'retour souhaité', 'items.*.label' => 'désignation', 'items.*.quantity_kg' => 'poids', 'items.*.photo' => 'photo',
         ]);
 
         $photos = collect($request->file('items', []))->map(fn ($item) => $item['photo'] ?? null)->all();
@@ -99,7 +104,7 @@ class RecyclingLoopController extends Controller
         $this->authorizeFor($request, $recyclingLoop);
         $loops->close($recyclingLoop);
 
-        return back()->with('success', 'Boucle fermée : la matière recyclée est dans vos lots.');
+        return back()->with('success', $recyclingLoop->isBuyback() ? 'C’est terminé : l’avoir est confirmé.' : 'C’est terminé : la matière recyclée est dans vos lots.');
     }
 
     // ───────── Fournisseur ─────────
@@ -115,18 +120,16 @@ class RecyclingLoopController extends Controller
         $data = $request->validate([
             'output_material_id' => 'required|exists:materials,id',
             'expected_output_kg' => 'required|numeric|min:0.1',
-            'mode' => ['required', Rule::in(array_keys(RecyclingLoop::MODES))],
-            'unit_price' => 'nullable|numeric|min:0|max:10000',
             'ready_by' => 'nullable|date|after_or_equal:today',
             'supplier_message' => 'nullable|string|max:1000',
-        ], [], ['output_material_id' => 'matière produite', 'expected_output_kg' => 'quantité prévue', 'unit_price' => 'prix', 'ready_by' => 'date']);
+        ], [], ['output_material_id' => 'matière produite', 'expected_output_kg' => 'quantité prévue', 'ready_by' => 'date']);
         $recyclingLoop->load('items');
         if ((float) $data['expected_output_kg'] > $recyclingLoop->totalKg()) {
             return back()->withErrors(['expected_output_kg' => 'On ne peut pas produire plus que les '.number_format($recyclingLoop->totalKg(), 2, ',', ' ').' kg envoyés.'])->withInput();
         }
         $loops->propose($recyclingLoop, $data);
 
-        return back()->with('success', 'Proposition envoyée à la marque.');
+        return back()->with('success', 'Proposition envoyée à la marque, avec le prix calculé automatiquement.');
     }
 
     public function receive(Request $request, RecyclingLoop $recyclingLoop, RecyclingLoopService $loops): RedirectResponse
@@ -155,7 +158,7 @@ class RecyclingLoopController extends Controller
         $this->authorizeFor($request, $recyclingLoop);
         $loops->deliver($recyclingLoop);
 
-        return back()->with('success', 'Matière recyclée livrée : un nouveau lot traçable a été créé.');
+        return back()->with('success', $recyclingLoop->isBuyback() ? 'Avoir versé à la marque.' : 'Matière recyclée livrée : un nouveau lot traçable a été créé.');
     }
 
     // ───────── Commun ─────────
@@ -169,9 +172,30 @@ class RecyclingLoopController extends Controller
         return back()->with('success', 'Refus enregistré.');
     }
 
-    public function adminIndex(): View
+    /** L'admin voit les flux : qui envoie quoi à qui, ce que ça devient, et où les demandes bloquent. */
+    public function adminIndex(RecyclingFlowService $flows): View
     {
-        return $this->listing('admin', RecyclingLoop::query());
+        $loops = RecyclingLoop::with(['brand', 'supplier', 'items', 'outputMaterial'])->latest()->take(500)->get();
+        $closed = $loops->where('status', 'closed');
+        $active = $loops->where('status', '!=', 'declined');
+
+        return view('modules.recycling.admin', [
+            'loops' => $loops,
+            'sankey' => $flows->sankey($loops),
+            'funnel' => $flows->funnel($loops),
+            'stalled' => $loops->filter(fn (RecyclingLoop $loop) => $loop->isOpen() && $loop->updated_at->lt(now()->subDays(5)))->sortBy('updated_at')->take(6),
+            'stats' => [
+                'loops' => $loops->count(),
+                'open' => $loops->filter->isOpen()->count(),
+                'brands' => $active->pluck('brand_id')->unique()->count(),
+                'suppliers' => $active->pluck('supplier_id')->unique()->count(),
+                'sent_kg' => $loops->whereNotIn('status', ['requested', 'proposed', 'accepted', 'declined'])->sum(fn ($loop) => (float) ($loop->received_kg ?: $loop->totalKg())),
+                'recycled_kg' => (float) $loops->whereIn('status', ['transformed', 'delivered', 'closed'])->sum('output_kg'),
+                'yield' => $closed->sum('received_kg') > 0 ? (int) round($closed->sum('output_kg') / $closed->sum('received_kg') * 100) : null,
+                'fees' => (float) $closed->where('mode', 'recover')->sum('amount'),
+                'credits' => abs((float) $closed->where('mode', 'buyback')->sum('amount')),
+            ],
+        ]);
     }
 
     public function show(Request $request, RecyclingLoop $recyclingLoop, RecyclingLoopService $loops): View
@@ -184,6 +208,7 @@ class RecyclingLoopController extends Controller
             'space' => $this->space($request),
             'estimate' => $loops->estimate($recyclingLoop),
             'materials' => Material::orderBy('name')->get(['id', 'name']),
+            'tariff' => RecyclingPricing::tariff(),
         ]);
     }
 

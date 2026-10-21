@@ -13,9 +13,15 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  */
 class RecyclingLoop extends Model
 {
+    /** Ce que la marque veut en retour (choisi dans la demande). Le prix est toujours calculé automatiquement. */
     public const MODES = [
-        'restitution' => 'Restitution à la marque',
-        'sale' => 'Revente à la marque',
+        'recover' => 'Récupérer la matière recyclée',
+        'buyback' => 'Le fournisseur la rachète',
+    ];
+
+    public const MODE_HINTS = [
+        'recover' => 'Vous payez les frais de recyclage et recevez la matière, moins chère que du neuf.',
+        'buyback' => 'Le fournisseur garde la matière et vous verse un avoir, frais déjà déduits.',
     ];
 
     public const STATUSES = [
@@ -26,7 +32,7 @@ class RecyclingLoop extends Model
         'received' => 'Reçu par le fournisseur',
         'transformed' => 'Matière recyclée produite',
         'delivered' => 'Matière recyclée livrée',
-        'closed' => 'Boucle fermée',
+        'closed' => 'Terminée',
         'declined' => 'Refusée',
     ];
 
@@ -40,7 +46,7 @@ class RecyclingLoop extends Model
 
     protected $fillable = [
         'reference', 'brand_id', 'supplier_id', 'requested_by', 'status', 'brand_message', 'wished_pickup_at',
-        'output_material_id', 'expected_output_kg', 'mode', 'unit_price', 'ready_by', 'supplier_message', 'decline_reason',
+        'mode', 'output_material_id', 'expected_output_kg', 'pricing', 'amount', 'ready_by', 'supplier_message', 'decline_reason',
         'received_kg', 'output_kg', 'proof_path', 'output_batch_id',
         'proposed_at', 'accepted_at', 'shipped_at', 'received_at', 'transformed_at', 'delivered_at', 'closed_at', 'declined_at',
     ];
@@ -49,7 +55,7 @@ class RecyclingLoop extends Model
     {
         return [
             'wished_pickup_at' => 'date', 'ready_by' => 'date',
-            'expected_output_kg' => 'decimal:2', 'unit_price' => 'decimal:2', 'received_kg' => 'decimal:2', 'output_kg' => 'decimal:2',
+            'expected_output_kg' => 'decimal:2', 'pricing' => 'array', 'amount' => 'decimal:2', 'received_kg' => 'decimal:2', 'output_kg' => 'decimal:2',
             'proposed_at' => 'datetime', 'accepted_at' => 'datetime', 'shipped_at' => 'datetime', 'received_at' => 'datetime',
             'transformed_at' => 'datetime', 'delivered_at' => 'datetime', 'closed_at' => 'datetime', 'declined_at' => 'datetime',
         ];
@@ -104,15 +110,29 @@ class RecyclingLoop extends Model
         return $input > 0 && $output > 0 ? (int) round($output / $input * 100) : null;
     }
 
+    /** Montant calculé : positif = la marque paie les frais, négatif = la marque reçoit un avoir. */
     public function amount(): ?float
     {
-        $kg = (float) ($this->output_kg ?: $this->expected_output_kg);
+        return $this->amount !== null ? (float) $this->amount : null;
+    }
 
-        return $this->unit_price !== null && $kg > 0 ? round($kg * (float) $this->unit_price, 2) : null;
+    public function isBuyback(): bool
+    {
+        return $this->mode === 'buyback';
+    }
+
+    /** Le prix affiché est-il définitif (matière pesée et produite) ? */
+    public function priceIsFinal(): bool
+    {
+        return ($this->pricing['stage'] ?? null) === 'final';
     }
 
     public function statusLabel(): string
     {
+        if ($this->isBuyback() && $this->status === 'delivered') {
+            return 'Avoir versé';
+        }
+
         return self::STATUSES[$this->status] ?? $this->status;
     }
 
@@ -141,13 +161,55 @@ class RecyclingLoop extends Model
         ][$this->status] ?? null;
     }
 
+    /** Le bouton unique à montrer à celui qui doit agir, en mots simples. */
     public function nextAction(): ?string
     {
         return [
-            'requested' => 'Faire une proposition', 'proposed' => 'Répondre à la proposition', 'accepted' => 'Envoyer les articles',
-            'in_transit' => 'Confirmer la réception', 'received' => 'Déclarer la matière produite', 'transformed' => 'Livrer la matière recyclée',
-            'delivered' => 'Confirmer la réception',
+            'requested' => 'Confirmer ce que je peux produire',
+            'proposed' => 'Accepter la proposition',
+            'accepted' => 'Confirmer l’envoi du colis',
+            'in_transit' => 'Peser et confirmer la réception',
+            'received' => 'Déclarer la matière produite',
+            'transformed' => $this->isBuyback() ? 'Verser l’avoir' : 'Livrer la matière',
+            'delivered' => $this->isBuyback() ? 'Confirmer l’avoir reçu' : 'Confirmer la réception',
         ][$this->status] ?? null;
+    }
+
+    /** Une phrase qui dit où on en est, du point de vue de celui qui regarde (brand, supplier, admin). */
+    public function situation(string $space): string
+    {
+        $brand = $this->brand?->name ?? 'La marque';
+        $supplier = $this->supplier?->name ?? 'Le fournisseur';
+        $output = $this->outputMaterial?->name ?? 'matière recyclée';
+        $kg = fn ($value) => number_format((float) $value, ((float) $value == (int) $value) ? 0 : 1, ',', ' ').' kg';
+        $mine = fn (string $actor) => $space === $actor;
+
+        return match ($this->status) {
+            'requested' => $mine('supplier')
+                ? $brand.' veut vous confier '.$kg($this->totalKg()).'. Vérifiez et confirmez ce que vous pouvez produire : le prix se calcule tout seul.'
+                : 'Demande envoyée à '.$supplier.'. Il vérifie ce qu’il peut produire.',
+            'proposed' => $mine('brand')
+                ? $supplier.' peut produire '.$kg($this->expected_output_kg).' de '.mb_strtolower($output).'. Acceptez pour lancer le recyclage.'
+                : 'Proposition envoyée. On attend la réponse de '.$brand.'.',
+            'accepted' => $mine('brand')
+                ? 'C’est d’accord ! Préparez le colis pour '.$supplier.' puis confirmez l’envoi.'
+                : $brand.' a accepté. Le colis va bientôt partir.',
+            'in_transit' => $mine('supplier')
+                ? 'Le colis de '.$brand.' arrive. Pesez-le à l’arrivée et confirmez.'
+                : 'Le colis est en route vers '.$supplier.'.',
+            'received' => $mine('supplier')
+                ? 'Colis reçu ('.$kg($this->received_kg).'). Recyclez-le puis déclarez la matière obtenue.'
+                : $supplier.' a reçu '.$kg($this->received_kg).'. Le recyclage est en cours.',
+            'transformed' => $mine('supplier')
+                ? ($this->isBuyback() ? 'Matière produite. Versez maintenant l’avoir à '.$brand.'.' : 'Matière produite. Livrez-la maintenant à '.$brand.'.')
+                : $kg($this->output_kg).' de '.mb_strtolower($output).' sont prêts chez '.$supplier.'.',
+            'delivered' => $mine('brand')
+                ? ($this->isBuyback() ? $supplier.' a versé votre avoir. Confirmez pour clôturer.' : 'La matière recyclée est livrée. Confirmez que vous l’avez reçue.')
+                : 'Livré. On attend la confirmation de '.$brand.'.',
+            'closed' => 'Terminé : '.$kg($this->received_kg ?: $this->totalKg()).' de rebuts sont redevenus '.$kg($this->output_kg).' de '.mb_strtolower($output).'.',
+            'declined' => 'Refusée'.($this->decline_reason ? ' : « '.$this->decline_reason.' »' : '.'),
+            default => $this->statusLabel(),
+        };
     }
 
     public function isOpen(): bool
