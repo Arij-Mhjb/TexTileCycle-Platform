@@ -44,7 +44,7 @@ class SupplierInvitationTest extends TestCase
         [$supplier, $url] = $this->inviteNewSupplier();
         $this->assertNull(session('supplier_invitation.password'));
         $this->get(route('brand.suppliers.show', $supplier))->assertOk()
-            ->assertSee('Envoyez ce lien d’activation', false)->assertSee('wa.me/21622123456', false)->assertSee('Invitation envoyée');
+            ->assertSee('Lien d’activation envoyé', false)->assertSee('E-mail d’invitation envoyé', false)->assertSee('wa.me/21622123456', false)->assertSee('Invitation envoyée');
 
         // Avant activation, personne ne peut se connecter : le mot de passe initial est aléatoire et inconnu.
         $account = $supplier->user;

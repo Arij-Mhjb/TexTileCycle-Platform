@@ -13,7 +13,9 @@ use App\Models\RecyclingSchedule;
 use App\Models\Supplier;
 use App\Models\SupplierBatch;
 use App\Models\User;
+use App\Notifications\SupplierInvitationMail;
 use App\Services\Ai\GreenClaimsService;
+use App\Services\Ai\HuggingFaceClient;
 use App\Services\CarbonTargetService;
 use App\Services\RecyclingLoopService;
 use Database\Seeders\DatabaseSeeder;
@@ -22,6 +24,7 @@ use Illuminate\Http\Client\Request as HttpRequest;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
@@ -280,10 +283,71 @@ class AdvancedModulesTest extends TestCase
         $this->actingAs($this->supplierUser)->patch(route('brand.recycling-schedules.toggle', $schedule))->assertForbidden();
     }
 
+    public function test_no_credits_or_unsupported_model_stop_the_calls_and_keep_pages_fast(): void
+    {
+        config(['huggingface.token' => 'hf_test']);
+        Http::fake([
+            'router.huggingface.co/v1/chat/completions' => Http::response(['error' => 'You have no remaining credits.'], 402),
+            'router.huggingface.co/hf-inference/models/openai/*' => Http::response(['error' => 'Model not supported by provider hf-inference'], 400),
+        ]);
+
+        // 402 : un seul appel, puis plus aucun (les autres modèles ne sont pas essayés).
+        $this->actingAs($this->brandUser)->postJson(route('brand.copilot.ask'), ['question' => 'Quels fournisseurs sont à risque ?'])->assertOk()->assertJson(['source' => 'local']);
+        $this->postJson(route('brand.copilot.ask'), ['question' => 'Et le recyclage ?'])->assertOk()->assertJson(['source' => 'local']);
+        Http::assertSentCount(1);
+        $this->assertSame('no_credits', app(HuggingFaceClient::class)->status()['state']);
+        $this->get(route('brand.copilot'))->assertOk()->assertSee('Crédits Hugging Face épuisés');
+
+        // Modèle non servi : mémorisé, plus appelé.
+        app(HuggingFaceClient::class)->reset();
+        $this->postJson(route('brand.recycling.identify-fiber'), ['photo' => UploadedFile::fake()->image('a.jpg')])->assertJson(['available' => false]);
+        $this->postJson(route('brand.recycling.identify-fiber'), ['photo' => UploadedFile::fake()->image('b.jpg')])->assertJson(['available' => false]);
+        Http::assertSentCount(2);
+    }
+
+    public function test_clip_scores_computed_in_the_browser_are_checked_and_stored(): void
+    {
+        Http::fake();
+        $this->actingAs($this->brandUser)->post(route('brand.recycling.store'), [
+            'supplier_id' => $this->supplier->id, 'mode' => 'recover',
+            'items' => [[
+                'kind' => 'defective', 'material_id' => Material::where('name', 'Coton conventionnel')->value('id'), 'pieces' => 10, 'quantity_kg' => 8,
+                'issue' => 'Tache', 'photo' => UploadedFile::fake()->image('veste.jpg'),
+                'clip_scores' => json_encode(['a photo of fabric with a stain' => 0.61, 'a photo of clean fabric rolls in perfect condition' => 0.2, 'ignore me' => 0.99]),
+            ]],
+        ])->assertSessionHasNoErrors();
+
+        $analysis = RecyclingLoop::firstOrFail()->items()->firstOrFail()->ai_analysis;
+        $this->assertSame('huggingface', $analysis['source']);
+        $this->assertSame('Xenova/clip-vit-base-patch32 (navigateur)', $analysis['model']);
+        $this->assertSame('Tache', $analysis['findings'][0]['label']);
+        $this->assertTrue($analysis['consistent']);
+        $this->assertNotContains('ignore me', array_column($analysis['findings'], 'label'));
+        Http::assertNothingSent();
+        $this->get(route('brand.recycling.create'))->assertOk()->assertSee('Xenova/clip-vit-base-patch32')->assertSee('@huggingface/transformers@3.7.6', false);
+    }
+
+    public function test_new_supplier_receives_the_activation_link_by_email(): void
+    {
+        Notification::fake();
+        $this->actingAs($this->brandUser)->post(route('brand.suppliers.store'), [
+            'name' => 'Yakine Mhamdi', 'email' => 'yakine@filature.test', 'country' => 'Tunisie', 'city' => 'Tunis', 'create_access' => '1',
+        ])->assertSessionHasNoErrors()->assertSessionHas('supplier_invitation', fn ($invitation) => $invitation['mail']['sent'] === true);
+
+        Notification::assertSentOnDemand(SupplierInvitationMail::class, function ($notification, $channels, $notifiable) {
+            $mail = $notification->toMail($notifiable);
+
+            return $notifiable->routes['mail'] === 'yakine@filature.test' && str_contains($notification->url, '/invitation-fournisseur/')
+                && $mail->actionText === 'Activer mon espace fournisseur' && str_contains($mail->subject, $this->brandUser->brand->name);
+        });
+        $supplier = Supplier::where('email', 'yakine@filature.test')->firstOrFail();
+        $this->get(route('brand.suppliers.show', $supplier))->assertSee('Lien d’activation envoyé', false)->assertSee('yakine@filature.test');
+    }
+
     public function test_supplier_space_uses_the_console_layout_with_counters(): void
     {
         $this->actingAs($this->supplierUser)->get(route('supplier.dashboard'))->assertOk()
             ->assertSee('Mon activité')->assertSee('Lots &amp; certificats', false)->assertSee('À faire maintenant')->assertSee('Vous travaillez pour');
-        $this->get(route('supplier.batches.index'))->assertOk()->assertSee('Fournisseur');
+        $this->get(route('supplier.batches.index'))->assertOk()->assertSee('Fournisseur')->assertSee('image/jpeg,image/png', false)->assertDontSee('accept="image/*', false);
     }
 }
