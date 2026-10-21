@@ -21,10 +21,16 @@
             </a>
             @if(auth()->user()?->role === 'supplier')
                 <nav class="flex flex-wrap items-center gap-1 text-sm font-semibold" aria-label="Espace fournisseur">
-                    <a href="{{ route('supplier.dashboard') }}" class="rounded-md px-3 py-2 transition-colors {{ request()->routeIs('supplier.dashboard', 'supplier.orders.*') ? 'bg-white/10 text-white' : 'text-white/70 hover:text-white' }}">Mes commandes</a>
-                    <a href="{{ route('supplier.batches.index') }}" class="rounded-md px-3 py-2 transition-colors {{ request()->routeIs('supplier.batches.*') ? 'bg-white/10 text-white' : 'text-white/70 hover:text-white' }}">Mes lots & certificats</a>
-                    <a href="{{ route('supplier.recycling.index') }}" class="rounded-md px-3 py-2 transition-colors {{ request()->routeIs('supplier.recycling.*') ? 'bg-white/10 text-white' : 'text-white/70 hover:text-white' }}">Recyclage</a>
-                    <a href="{{ route('supplier.account.edit') }}" class="rounded-md px-3 py-2 transition-colors {{ request()->routeIs('supplier.account.*') ? 'bg-white/10 text-white' : 'text-white/70 hover:text-white' }}">Mon compte</a>
+                    @foreach([
+                        ['supplier.dashboard', ['supplier.dashboard', 'supplier.orders.*'], 'Accueil', 'M4 10l8-6 8 6v9a1 1 0 0 1-1 1h-5v-6h-4v6H5a1 1 0 0 1-1-1z'],
+                        ['supplier.batches.index', ['supplier.batches.*'], 'Lots & certificats', 'M12 3 4 6v6c0 4.4 3.4 8.3 8 9 4.6-.7 8-4.6 8-9V6zM9 12l2 2 4-4'],
+                        ['supplier.recycling.index', ['supplier.recycling.*'], 'Recyclage', 'M20 12a8 8 0 0 1-13.7 5.6M4 12a8 8 0 0 1 13.7-5.6M18 3v4h-4M6 21v-4h4'],
+                        ['supplier.account.edit', ['supplier.account.*'], 'Mon compte', 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM4 21a8 8 0 0 1 16 0'],
+                    ] as [$route, $patterns, $label, $icon])
+                        <a href="{{ route($route) }}" class="inline-flex items-center gap-2 rounded-lg px-3 py-2 transition-colors {{ request()->routeIs(...$patterns) ? 'bg-white/10 text-white' : 'text-white/70 hover:text-white' }}">
+                            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{ $icon }}"/></svg>{{ $label }}
+                        </a>
+                    @endforeach
                     <span class="mx-2 hidden h-5 w-px bg-white/15 md:block"></span>
                     <x-module.notification-bell dark />
                     <span class="hidden pr-2 text-xs text-white/50 md:inline">{{ auth()->user()->email }}</span>

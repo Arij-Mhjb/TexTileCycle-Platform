@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Modules;
 use App\Http\Controllers\Controller;
 use App\Models\MaterialOriginCertificate;
 use App\Models\PurchaseOrder;
+use App\Models\RecyclingLoop;
 use App\Models\SupplierBatch;
 use App\Services\PurchaseOrderService;
 use App\Services\SupplierTraceabilityService;
@@ -29,7 +30,17 @@ class SupplierAreaController extends Controller
             ->orderByRaw("case status when 'sent' then 0 when 'ordered' then 0 when 'accepted' then 1 when 'partially_shipped' then 1 when 'countered' then 2 when 'shipped' then 3 else 4 end")
             ->latest('ordered_at')->get();
 
-        return view('modules.suppliers.area.index', ['orders' => $orders]);
+        $mine = fn ($query) => $query->where('user_id', $request->user()->id);
+        $loops = RecyclingLoop::with(['brand', 'supplier', 'items', 'outputMaterial'])->whereHas('supplier', $mine)->latest()->get();
+        $batches = SupplierBatch::with('certificates')->whereHas('supplier', $mine)->get();
+
+        return view('modules.suppliers.area.index', [
+            'orders' => $orders,
+            'loops' => $loops,
+            'todoLoops' => $loops->filter(fn (RecyclingLoop $loop) => $loop->nextActor() === 'supplier'),
+            'batchCount' => $batches->count(),
+            'batchesWithoutCertificate' => $batches->filter(fn ($batch) => ! $batch->certificates->contains(fn ($c) => ! $c->isNotACertificate() && $c->status !== 'rejected'))->count(),
+        ]);
     }
 
     public function order(Request $request, PurchaseOrder $purchaseOrder): View
