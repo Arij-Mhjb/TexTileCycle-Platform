@@ -19,34 +19,38 @@ foreach ($todoLoops as $loop) {
 if ($batchesWithoutCertificate > 0) {
     $todo->push(['cert', 'Certificats de provenance', $batchesWithoutCertificate.' lot(s) n’ont pas encore de certificat valable. Une simple photo suffit.', 'Ajouter un certificat', route('supplier.batches.index'), false]);
 }
-$tone = ['order' => 'bg-purple-700', 'ship' => 'bg-purple-700', 'loop' => 'bg-teal-700', 'cert' => 'bg-pink-600'];
+$tone = ['order' => 'bg-fuchsia-700', 'ship' => 'bg-purple-700', 'loop' => 'bg-teal-700', 'cert' => 'bg-pink-600'];
 $openOrders = $orders->filter(fn ($order) => $order->awaitsSupplierAnswer() || $order->acceptsShipment())->count();
 $tiles = [
-    ['order', 'Commandes', $openOrders, $openOrders === 1 ? 'commande en cours' : 'commandes en cours', '#commandes', 'bg-purple-50 text-purple-700'],
+    ['order', 'Commandes', $openOrders, $openOrders === 1 ? 'commande en cours' : 'commandes en cours', '#commandes', 'bg-fuchsia-50 text-fuchsia-700'],
     ['cert', 'Lots & certificats', $batchCount, $batchCount === 1 ? 'lot livré' : 'lots livrés', route('supplier.batches.index'), 'bg-pink-50 text-pink-700'],
     ['loop', 'Recyclage', $loops->filter->isOpen()->count(), 'demande(s) de recyclage', route('supplier.recycling.index'), 'bg-teal-50 text-teal-700'],
     ['account', 'Mon compte', null, 'coordonnées et mot de passe', route('supplier.account.edit'), 'bg-slate-100 text-slate-700'],
 ];
 @endphp
 <x-module.supplier-layout title="Accueil">
-    {{-- Bonjour + ce qu'il y a à faire --}}
-    <section class="rounded-3xl border border-slate-200 bg-white p-6 sm:p-8">
-        <p class="text-sm font-semibold text-purple-600">{{ now()->locale('fr')->isoFormat('dddd D MMMM') }}</p>
-        <h1 class="mt-1 text-3xl font-black tracking-tight text-slate-900 sm:text-4xl">Bonjour {{ auth()->user()->name }}</h1>
-        <p class="mt-2 text-lg text-slate-600">
-            @if($todo->isEmpty())
-                Tout est à jour. Rien à faire pour le moment.
-            @else
-                Vous avez <strong class="text-slate-900">{{ $todo->count() }} {{ $todo->count() > 1 ? 'choses' : 'chose' }} à faire</strong>. Commencez par la première.
-            @endif
-        </p>
+    <x-module.hero module="suppliers" :eyebrow="'Espace fournisseur · '.now()->locale('fr')->isoFormat('dddd D MMMM')" :title="'Bonjour '.auth()->user()->name"
+        :description="$todo->isEmpty() ? 'Tout est à jour. Rien à faire pour le moment : vous serez prévenu dès qu’une marque vous écrit.' : 'Vous avez '.$todo->count().' '.($todo->count() > 1 ? 'choses' : 'chose').' à faire. Commencez par la première de la liste.'">
+        <x-slot:stats>
+            <x-module.stat label="À faire" :value="$todo->count()"/>
+            <x-module.stat label="Commandes en cours" :value="$openOrders"/>
+            <x-module.stat label="Lots livrés" :value="$batchCount"/>
+            <x-module.stat label="Recyclage en cours" :value="$loops->filter->isOpen()->count()"/>
+        </x-slot:stats>
+    </x-module.hero>
 
+    {{-- Ce qu'il y a à faire --}}
+    <section class="panel overflow-hidden">
+        <div class="flex items-center justify-between border-b border-slate-100 p-5">
+            <div><p class="text-xs font-black uppercase tracking-wider text-fuchsia-600">Priorités</p><h2 class="mt-1 text-lg font-black">À faire maintenant</h2></div>
+            @if($todo->isNotEmpty())<span class="rounded-full bg-fuchsia-50 px-3 py-1 text-xs font-black text-fuchsia-700">{{ $todo->count() }} action(s)</span>@endif
+        </div>
         @if($todo->isNotEmpty())
-            <ol class="mt-6 space-y-3">
+            <ol class="divide-y divide-slate-100">
                 @foreach($todo as $index => [$type, $who, $what, $button, $url, $late])
-                    <li class="flex flex-wrap items-center gap-4 rounded-2xl border p-4 sm:flex-nowrap {{ $index === 0 ? 'border-purple-300 bg-purple-50/50' : 'border-slate-200' }}">
-                        <span class="grid h-12 w-12 shrink-0 place-items-center rounded-2xl text-white {{ $tone[$type] }}">
-                            <svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">{!! $icons[$type] !!}</svg>
+                    <li class="flex flex-wrap items-center gap-4 p-5 sm:flex-nowrap {{ $index === 0 ? 'bg-fuchsia-50/40' : '' }}">
+                        <span class="grid h-11 w-11 shrink-0 place-items-center rounded-2xl text-white {{ $tone[$type] }}">
+                            <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">{!! $icons[$type] !!}</svg>
                         </span>
                         <div class="min-w-0 flex-1">
                             <p class="flex flex-wrap items-center gap-2 font-black text-slate-900">{{ $who }}@if($late)<span class="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-800">En retard</span>@endif</p>
@@ -57,9 +61,9 @@ $tiles = [
                 @endforeach
             </ol>
         @else
-            <div class="mt-6 flex items-center gap-3 rounded-2xl bg-emerald-50 p-4 text-sm font-semibold text-emerald-800">
+            <div class="flex items-center gap-3 p-5 text-sm font-semibold text-emerald-800">
                 <svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 5 5 9-10"/></svg>
-                Vous serez prévenu (cloche en haut) dès qu’une marque vous écrit.
+                Tout est à jour. Vous serez prévenu (cloche en haut) dès qu’une marque vous écrit.
             </div>
         @endif
     </section>
@@ -67,7 +71,7 @@ $tiles = [
     {{-- Les 4 espaces --}}
     <nav class="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-4" aria-label="Mon espace">
         @foreach($tiles as [$type, $label, $count, $hint, $url, $color])
-            <a href="{{ $url }}" class="group rounded-3xl border border-slate-200 bg-white p-5 transition hover:-translate-y-0.5 hover:border-purple-200 hover:shadow-[0_16px_30px_-22px_rgba(88,28,135,.6)]">
+            <a href="{{ $url }}" class="panel group p-5 transition hover:-translate-y-0.5 hover:border-fuchsia-200 hover:shadow-xl">
                 <span class="grid h-12 w-12 place-items-center rounded-2xl {{ $color }}">
                     <svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">{!! $icons[$type] !!}</svg>
                 </span>
@@ -81,11 +85,12 @@ $tiles = [
     </nav>
 
     {{-- Commandes --}}
-    <section id="commandes" class="mt-10 scroll-mt-6">
-        <h2 class="mb-3 text-xl font-black">Mes commandes</h2>
+    <section id="commandes" class="mt-8 scroll-mt-28">
+        <p class="text-xs font-black uppercase tracking-wider text-fuchsia-600">Bons de commande</p>
+        <h2 class="mb-4 mt-1 text-lg font-black">Mes commandes</h2>
         <div class="space-y-3">
             @forelse($orders as $order)
-                <a href="{{ route('supplier.orders.show', $order) }}" class="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-white p-5 transition hover:border-purple-200">
+                <a href="{{ route('supplier.orders.show', $order) }}" class="panel flex flex-wrap items-center justify-between gap-4 p-5 transition hover:border-fuchsia-200 hover:shadow-md">
                     <div>
                         <p class="text-[13px] font-semibold text-purple-600">{{ $order->brand->name }}</p>
                         <p class="mt-1 text-lg font-black">{{ $order->reference }}</p>
