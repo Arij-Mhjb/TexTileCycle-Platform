@@ -19,12 +19,15 @@ $out = $cycle->output_kg ?: $cycle->expected_output_kg;
             <span class="font-black text-slate-900 group-hover:text-teal-800 dark:text-white">{{ $partner }}</span>
             <span class="text-xs text-slate-400">{{ $cycle->reference }} · {{ $cycle->created_at->format('d/m/Y') }}</span>
         </span>
-        <span class="block truncate text-sm text-slate-500">{{ $cycle->items->pluck('label')->join(' · ') }}</span>
+        <span class="block truncate text-sm text-slate-500">{{ $cycle->situation($space) }}</span>
     </span>
     <span class="flex items-center gap-2 text-sm font-bold tabular-nums">
         <span class="rounded-lg bg-slate-100 px-2.5 py-1 text-slate-700 dark:bg-slate-800 dark:text-slate-200">{{ $kg($cycle->received_kg ?: $cycle->totalKg()) }} kg</span>
         <svg class="h-4 w-4 text-teal-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M5 12h14m-5-5 5 5-5 5"/></svg>
         <span class="rounded-lg px-2.5 py-1 {{ $out ? 'bg-teal-50 text-teal-800 dark:bg-teal-950 dark:text-teal-200' : 'bg-slate-50 text-slate-400 dark:bg-slate-800' }}">{{ $out ? $kg($out).' kg' : '? kg' }}</span>
+        @if($cycle->amount() !== null && $cycle->status !== 'declined')
+            <span class="hidden rounded-lg px-2.5 py-1 text-xs text-slate-500 ring-1 ring-slate-200 dark:ring-slate-700 md:inline" title="{{ $cycle->isBuyback() ? 'Avoir pour la marque' : 'Frais de recyclage' }}">{{ $cycle->isBuyback() ? 'avoir' : 'frais' }} {{ number_format(abs($cycle->amount()), 0, ',', ' ') }} TND</span>
+        @endif
     </span>
     <span class="w-full text-right sm:w-56">
         @if($highlight && $cycle->nextAction())

@@ -1,4 +1,4 @@
-{{-- La boucle en 4 temps : Accord → Envoi → Recyclage → Retour à la marque, avec les kilos.
+{{-- La boucle en 4 temps : Accord → Envoi → Recyclage → Retour à la marque (ou avoir), avec les kilos.
      Variables : $cycle (RecyclingLoop), $estimate (array), $compact (bool, optionnel) --}}
 @php
 $current = $cycle->phaseIndex();
@@ -6,11 +6,14 @@ $declined = $cycle->status === 'declined';
 $kg = fn ($value) => $value === null ? '—' : number_format((float) $value, ((float) $value == (int) $value) ? 0 : 1, ',', ' ').' kg';
 $sent = $cycle->received_kg ?: $cycle->totalKg();
 $out = $cycle->output_kg ?: ($cycle->expected_output_kg ?: ($estimate['expected_kg'] ?? null));
+$money = fn ($value) => number_format(abs((float) $value), 2, ',', ' ').' TND';
 $nodes = [
-    ['Accord', $cycle->brand->name.' ⇄ '.$cycle->supplier->name, $cycle->modeLabel() ?? 'en discussion', 'M4 9h14l-3-3M20 15H6l3 3'],
+    ['Accord', $cycle->brand->name.' ⇄ '.$cycle->supplier->name, $cycle->isBuyback() ? 'Rachat par le fournisseur' : 'Récupération de la matière', 'M4 9h14l-3-3M20 15H6l3 3'],
     ['Envoi', 'vers '.$cycle->supplier->name, $kg($sent).' d’articles', 'M3 7h11v9H3zM14 10h4l3 3v3h-7M7 19a2 2 0 1 0 0-.01M17 19a2 2 0 1 0 0-.01'],
     ['Recyclage', $cycle->outputMaterial?->name ?? ($estimate['material_name'] ?? 'matière recyclée'), $kg($out).($cycle->output_kg ? '' : ' prévus'), 'M20 12a8 8 0 0 1-13.7 5.6M4 12a8 8 0 0 1 13.7-5.6M18 3v4h-4M6 21v-4h4'],
-    ['Retour à la marque', $cycle->outputBatch?->batch_code ? 'lot '.$cycle->outputBatch->batch_code : 'nouveau lot traçable', $cycle->modeLabel() ? ($cycle->mode === 'sale' ? 'revendu' : 'restitué') : '—', 'M4 10l8-6 8 6v9a1 1 0 0 1-1 1h-5v-6h-4v6H5a1 1 0 0 1-1-1z'],
+    $cycle->isBuyback()
+        ? ['Avoir à la marque', 'frais de recyclage déduits', $cycle->amount() !== null ? $money($cycle->amount()) : '—', 'M12 3v18M17 7H9.5a3 3 0 0 0 0 6h5a3 3 0 0 1 0 6H6']
+        : ['Retour à la marque', $cycle->outputBatch?->batch_code ? 'lot '.$cycle->outputBatch->batch_code : 'nouveau lot traçable', $kg($out).' de matière', 'M4 10l8-6 8 6v9a1 1 0 0 1-1 1h-5v-6h-4v6H5a1 1 0 0 1-1-1z'],
 ];
 @endphp
 <section aria-label="Avancement de la boucle de recyclage" class="relative rounded-3xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900 sm:p-7">
@@ -41,9 +44,4 @@ $nodes = [
         <path d="M 875 2 C 875 34, 860 36, 820 36 L 180 36 C 140 36, 125 34, 125 8" stroke="{{ $current >= 4 ? '#0d9488' : '#cbd5e1' }}" stroke-width="2" stroke-dasharray="6 6" vector-effect="non-scaling-stroke"/>
         <path d="M 118 14 L 125 4 L 132 14" stroke="{{ $current >= 4 ? '#0d9488' : '#cbd5e1' }}" stroke-width="2" vector-effect="non-scaling-stroke"/>
     </svg>
-    @if($current >= 4)
-        <p class="mt-1 text-center text-sm font-bold text-teal-700 dark:text-teal-300">Boucle fermée : la matière est revenue chez {{ $cycle->brand->name }}.</p>
-    @elseif($declined)
-        <p class="mt-3 rounded-xl bg-slate-100 p-3 text-center text-sm text-slate-600 dark:bg-slate-800 dark:text-slate-300">Boucle refusée : « {{ $cycle->decline_reason }} »</p>
-    @endif
 </section>
