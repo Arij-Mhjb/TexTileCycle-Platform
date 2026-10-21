@@ -34,9 +34,7 @@
         <div class="h-[3px] bg-gradient-to-r from-purple-500 via-pink-400 to-purple-500"></div>
     </header>
     <main class="mx-auto max-w-5xl px-6 py-8">
-        @if(session('success'))
-            <div class="mb-6 flex items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-800"><span class="grid h-7 w-7 place-items-center rounded-full bg-emerald-600 text-white">✓</span>{{ session('success') }}</div>
-        @endif
+        @if(session('success'))<div data-flash-message data-flash-type="success" class="hidden">{{ session('success') }}</div>@endif
         @if(session('warning'))
             <div role="status" class="mb-6 flex gap-3 rounded-2xl border border-amber-300 bg-amber-50 px-5 py-4 text-sm text-amber-900"><span class="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-amber-500 text-xs font-bold text-white">!</span><p>{{ session('warning') }}</p></div>
         @endif

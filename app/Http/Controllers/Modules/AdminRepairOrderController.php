@@ -89,7 +89,12 @@ class AdminRepairOrderController extends Controller
             'title' => 'required|string|max:150',
             'description' => 'nullable|string|max:2000',
             'price' => 'required|numeric|min:1|max:100000',
+            'points_price' => 'nullable|integer|min:1|max:1000000',
+            'image' => 'required|image|mimes:jpg,jpeg,png,webp|max:5120',
+            'try_on_category' => 'required|in:top,dress,bottom,none',
         ]);
+        $data['image_path'] = $request->file('image')->store('marketplace/repairs', 'public');
+        unset($data['image']);
         $listing = $service->publish($repairOrder, $data);
 
         return to_route('admin.marketplace.show', $listing)->with('success', 'Annonce publiée et consommateur récompensé.');

@@ -19,6 +19,8 @@
         @case('upload')<path stroke-linecap="round" stroke-linejoin="round" d="M12 16V3m0 0L7 8m5-5 5 5M5 14v6h14v-6"/>@break
         @case('image')<path stroke-linecap="round" stroke-linejoin="round" d="M4 4h16v16H4V4Zm0 12 5-5 4 4 2-2 5 5M15 8h.01"/>@break
         @case('arrow-up')<path stroke-linecap="round" stroke-linejoin="round" d="M7 17 17 7m0 0H8m9 0v9"/>@break
+        @case('users')<path stroke-linecap="round" stroke-linejoin="round" d="M16 20v-1.5a4.5 4.5 0 0 0-4.5-4.5h-3A4.5 4.5 0 0 0 4 18.5V20m6-10a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm7-1a3 3 0 0 1 0 6m3 5v-1a4 4 0 0 0-3-3.87"/>@break
+        @case('shopping-bag')<path stroke-linecap="round" stroke-linejoin="round" d="M5 8h14l-1 13H6L5 8Zm4 0V6a3 3 0 0 1 6 0v2"/>@break
         @case('chevron-right')<path stroke-linecap="round" stroke-linejoin="round" d="m9 18 6-6-6-6"/>@break
         @default<circle cx="12" cy="12" r="9"/><path stroke-linecap="round" d="M12 8v4m0 4h.01"/>
     @endswitch

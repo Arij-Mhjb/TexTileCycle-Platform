@@ -20,6 +20,8 @@ class MarketplaceListingFactory extends Factory
             'description' => fake()->sentence(12),
             'condition_grade' => fake()->randomElement(['A', 'B', 'C']),
             'price' => fake()->randomFloat(2, 25, 250),
+            'points_price' => fake()->randomElement([null, 300, 450, 600, 800]),
+            'try_on_category' => fake()->randomElement(['top', 'dress', 'bottom']),
             'status' => 'published',
             'published_at' => now(),
         ];

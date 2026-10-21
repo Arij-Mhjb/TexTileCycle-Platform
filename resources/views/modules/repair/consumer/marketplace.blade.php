@@ -1,21 +1,23 @@
 <x-consumer-layout title="Marketplace circulaire">
-    <x-module.hero module="repair" eyebrow="Seconde vie" title="Des vêtements réparés, prêts pour une nouvelle histoire" description="Chaque article est contrôlé, reconditionné par un atelier partenaire et garde son passeport textile."/>
+    <x-module.hero module="repair" eyebrow="Boutique circulaire" title="Achetez des vêtements avec vos points" :description="'Chaque article est contrôlé et reconditionné. Votre solde disponible : '.$pointsBalance.' points.'"/>
     @include('modules.repair.consumer._tabs')
 
     <form class="mb-6 flex flex-wrap gap-3">
         <input name="search" value="{{ request('search') }}" placeholder="Rechercher un article…" class="field !mt-0 max-w-xs">
         <select name="grade" class="field !mt-0 max-w-[12rem]" onchange="this.form.submit()"><option value="">Tous les états</option>@foreach(\App\Models\MarketplaceListing::GRADES as $grade => $label)<option value="{{ $grade }}" @selected(request('grade') === $grade)>{{ $grade }} · {{ $label }}</option>@endforeach</select>
+        <label class="flex cursor-pointer items-center gap-2 rounded-xl border border-emerald-200 bg-white px-4 py-2.5 text-sm font-black text-emerald-700"><input type="checkbox" name="points_only" value="1" @checked(request()->boolean('points_only')) onchange="this.form.submit()" class="rounded border-emerald-300 text-emerald-600"> Achat en points</label>
     </form>
 
     <div class="grid gap-6 lg:grid-cols-4">
         <div class="grid gap-5 sm:grid-cols-2 lg:col-span-3 xl:grid-cols-3">
             @forelse($listings as $listing)
                 <a href="{{ route('consumer.marketplace.show', $listing) }}" class="consumer-card group overflow-hidden">
-                    <div class="relative h-48 overflow-hidden bg-amber-50"><img src="{{ $listing->product?->image_url ?? asset('images/story/clothes-sorting.jpg') }}" alt="" class="h-full w-full object-cover transition duration-500 group-hover:scale-105"><span class="absolute left-3 top-3 rounded-full bg-white/95 px-3 py-1 text-xs font-black text-amber-800">{{ $listing->gradeLabel() }}</span></div>
+                    <div class="relative h-48 overflow-hidden bg-amber-50"><img src="{{ $listing->image_url }}" alt="" class="h-full w-full object-cover transition duration-500 group-hover:scale-105"><span class="absolute left-3 top-3 rounded-full bg-white/95 px-3 py-1 text-xs font-black text-amber-800">{{ $listing->gradeLabel() }}</span>@if($listing->canTryOn())<span class="absolute bottom-3 right-3 rounded-full bg-slate-950/85 px-3 py-1 text-xs font-black text-white">Essayage IA</span>@endif</div>
                     <div class="p-5">
                         <p class="text-xs font-bold text-slate-400">{{ $listing->brand?->name ?? 'TexTileCycle' }}</p>
                         <h2 class="mt-1 font-black group-hover:text-amber-700">{{ $listing->title }}</h2>
                         <p class="mt-3 text-xl font-black text-amber-700">{{ number_format((float) $listing->price, 2, ',', ' ') }} <span class="text-sm">{{ $listing->currency }}</span></p>
+                        @if($listing->points_price)<p class="mt-1 text-sm font-black text-emerald-700">ou {{ $listing->points_price }} points</p>@endif
                     </div>
                 </a>
             @empty

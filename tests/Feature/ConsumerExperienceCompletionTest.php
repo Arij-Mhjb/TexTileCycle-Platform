@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\CollectionPoint;
 use App\Models\ConsumerClaim;
+use App\Models\CommunityPost;
 use App\Models\MarketplaceListing;
 use App\Models\RecoveryProgram;
 use App\Models\RepairCenter;
@@ -14,6 +15,8 @@ use App\Models\TradeInRequest;
 use App\Models\User;
 use App\Services\RepairMarketplaceService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class ConsumerExperienceCompletionTest extends TestCase
@@ -144,5 +147,75 @@ class ConsumerExperienceCompletionTest extends TestCase
         $this->assertStringContainsString('Export Consumer', $content);
         $this->assertStringContainsString('Mon manteau', $content);
         $this->assertStringNotContainsString('Article privé tiers', $content);
+    }
+
+    public function test_consumer_can_buy_one_marketplace_item_with_points(): void
+    {
+        $buyer = User::factory()->create(['role' => 'consumer']);
+        $other = User::factory()->create(['role' => 'consumer']);
+        foreach ([$buyer, $other] as $consumer) {
+            RewardTransaction::create([
+                'user_id' => $consumer->id, 'type' => 'return_reward', 'points' => 100,
+                'status' => 'validated', 'description' => 'Retour validé', 'validated_at' => now(),
+            ]);
+        }
+        $listing = MarketplaceListing::factory()->create(['status' => 'published', 'points_price' => 60]);
+
+        $this->actingAs($buyer)->post(route('consumer.marketplace.buy-with-points', $listing), [
+            'fulfilment_method' => 'delivery',
+            'delivery_address' => '12 rue de la Circularité, Tunis',
+        ])->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('marketplace_orders', [
+            'marketplace_listing_id' => $listing->id, 'buyer_id' => $buyer->id,
+            'points_spent' => 60, 'payment_method' => 'points', 'status' => 'confirmed',
+        ]);
+        $this->assertDatabaseHas('reward_transactions', [
+            'user_id' => $buyer->id, 'type' => 'marketplace_purchase', 'points' => -60, 'status' => 'spent',
+        ]);
+        $this->assertSame('reserved', $listing->fresh()->status);
+
+        $this->actingAs($other)->post(route('consumer.marketplace.buy-with-points', $listing), [
+            'fulfilment_method' => 'delivery', 'delivery_address' => '20 rue de la Réutilisation, Tunis',
+        ])->assertSessionHasErrors('status');
+        $this->assertSame(1, $listing->order()->count());
+    }
+
+    public function test_user_can_upload_a_profile_photo(): void
+    {
+        Storage::fake('public');
+        $consumer = User::factory()->create(['role' => 'consumer']);
+
+        $this->actingAs($consumer)->patch(route('profile.update'), [
+            'name' => $consumer->name,
+            'email' => $consumer->email,
+            'profile_photo' => UploadedFile::fake()->image('avatar.jpg', 300, 300),
+        ])->assertSessionHasNoErrors();
+
+        $path = $consumer->fresh()->profile_photo_path;
+        $this->assertNotNull($path);
+        Storage::disk('public')->assertExists($path);
+    }
+
+    public function test_consumers_can_publish_mention_like_comment_and_repost(): void
+    {
+        $author = User::factory()->create(['role' => 'consumer', 'name' => 'Amira Circular']);
+        $member = User::factory()->create(['role' => 'consumer', 'name' => 'Sami Durable']);
+
+        $this->actingAs($author)->post(route('consumer.community.posts.store'), [
+            'body' => 'Belle transformation avec @Sami Durable !',
+            'mentions' => [$member->id],
+        ])->assertSessionHasNoErrors();
+        $post = CommunityPost::firstOrFail();
+        $this->assertDatabaseHas('community_post_mentions', ['community_post_id' => $post->id, 'user_id' => $member->id]);
+        $this->assertDatabaseHas('consumer_notifications', ['user_id' => $member->id, 'type' => 'community_mention']);
+
+        $this->actingAs($member)->post(route('consumer.community.posts.like', $post))->assertSessionHasNoErrors();
+        $this->post(route('consumer.community.comments.store', $post), ['body' => 'Merci @Amira Circular !', 'mentions' => [$author->id]])->assertSessionHasNoErrors();
+        $this->post(route('consumer.community.posts.repost', $post))->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('community_post_likes', ['community_post_id' => $post->id, 'user_id' => $member->id]);
+        $this->assertDatabaseHas('community_comments', ['community_post_id' => $post->id, 'user_id' => $member->id]);
+        $this->assertDatabaseHas('community_posts', ['user_id' => $member->id, 'repost_of_id' => $post->id]);
     }
 }
