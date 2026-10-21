@@ -1,21 +1,19 @@
-import { FilesetResolver, PoseLandmarker } from '@mediapipe/tasks-vision';
+let sharedDetector;
 
-const WASM_PATH = '/vendor/mediapipe';
-const MODEL_PATH = 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/latest/pose_landmarker_lite.task';
-let sharedLandmarker;
-
-async function landmarker() {
-    if (sharedLandmarker) return sharedLandmarker;
-    const vision = await FilesetResolver.forVisionTasks(WASM_PATH);
-    const options = {
-        // IMAGE mode is deliberately used with sampled camera frames. It avoids the
-        // timestamp/graph failures triggered by VIDEO mode on some browsers while
-        // still providing a fluid preview on the lightweight pose model.
-        baseOptions: { modelAssetPath: MODEL_PATH }, runningMode: 'IMAGE', numPoses: 1,
-        minPoseDetectionConfidence: 0.55, minPosePresenceConfidence: 0.55, minTrackingConfidence: 0.55,
-    };
-    sharedLandmarker = await PoseLandmarker.createFromOptions(vision, options);
-    return sharedLandmarker;
+async function poseDetector() {
+    if (sharedDetector) return sharedDetector;
+    const [tf, poseDetection] = await Promise.all([
+        import('@tensorflow/tfjs-core'),
+        import('@tensorflow-models/pose-detection'),
+        import('@tensorflow/tfjs-backend-webgl'),
+    ]);
+    await tf.setBackend('webgl');
+    await tf.ready();
+    sharedDetector = await poseDetection.createDetector(poseDetection.SupportedModels.MoveNet, {
+        modelType: poseDetection.movenet.modelType.SINGLEPOSE_LIGHTNING,
+        enableSmoothing: true,
+    });
+    return sharedDetector;
 }
 
 function loadImage(url) {
@@ -77,6 +75,8 @@ export default function virtualTryOn({ imageUrl, category }) {
         detector: null,
         garment: null,
         lastInference: 0,
+        inferencePending: false,
+        inferenceFailures: 0,
         smoothed: null,
 
         async openTryOn() {
@@ -84,21 +84,23 @@ export default function virtualTryOn({ imageUrl, category }) {
             this.error = '';
             this.loading = true;
             await this.$nextTick();
-            let stage = 'model';
+            let stage = 'camera';
             try {
-                [this.detector, this.garment] = await Promise.all([landmarker(), loadImage(imageUrl).then(garmentCutout)]);
-                stage = 'camera';
                 this.stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 960 }, height: { ideal: 1280 } }, audio: false });
                 this.$refs.video.srcObject = this.stream;
                 await this.$refs.video.play();
                 this.resize();
                 this.running = true;
                 this.render();
+                this.status = 'Caméra en direct · chargement du filtre AR…';
+                stage = 'model';
+                [this.detector, this.garment] = await Promise.all([poseDetector(), loadImage(imageUrl).then(garmentCutout)]);
+                this.status = 'Filtre AR prêt · placez le haut du corps dans le cadre.';
             } catch (error) {
                 console.error('Virtual try-on initialization failed:', error);
-                this.error = stage === 'model'
-                    ? 'Le modèle IA n’a pas pu être chargé. Rechargez la page puis réessayez.'
-                    : 'Impossible d’ouvrir la caméra. Vérifiez son autorisation dans le navigateur.';
+                this.error = stage === 'camera'
+                    ? 'Impossible d’ouvrir la caméra. Vérifiez son autorisation dans le navigateur.'
+                    : 'La caméra reste en direct, mais le filtre AR n’a pas pu être chargé. Réessayez.';
             } finally {
                 this.loading = false;
             }
@@ -116,43 +118,51 @@ export default function virtualTryOn({ imageUrl, category }) {
             const canvas = this.$refs.canvas;
             const context = canvas.getContext('2d');
             context.clearRect(0, 0, canvas.width, canvas.height);
-            context.save();
-            context.translate(canvas.width, 0);
-            context.scale(-1, 1);
-            context.drawImage(video, 0, 0, canvas.width, canvas.height);
-            context.restore();
-
             const now = performance.now();
-            if (video.readyState >= 2 && now - this.lastInference > 90) {
+            if (this.detector && video.readyState >= 2 && !this.inferencePending && this.inferenceFailures < 3 && now - this.lastInference > 70) {
                 this.lastInference = now;
-                try {
-                    const result = this.detector.detect(video);
-                    if (result.landmarks?.[0]) this.updatePose(result.landmarks[0], canvas.width, canvas.height);
-                } catch (error) {
-                    console.error('Virtual try-on inference failed:', error);
-                    this.error = 'Le moteur IA a rencontré une erreur pendant l’analyse. Fermez puis relancez l’essayage.';
-                    this.running = false;
-                    return;
-                }
+                this.detectPose(video, canvas);
             }
-            if (this.smoothed) {
+            if (this.smoothed && this.garment) {
                 this.drawGarment(context);
                 this.drawForeground(context, video);
             }
             this.animation = requestAnimationFrame(() => this.render());
         },
 
-        updatePose(points, width, height) {
-            const point = (index) => ({ x: (1 - points[index].x) * width, y: points[index].y * height, visibility: points[index].visibility ?? 1 });
-            const pose = {
-                nose: point(0), leftEar: point(7), rightEar: point(8),
-                leftShoulder: point(11), rightShoulder: point(12),
-                leftElbow: point(13), rightElbow: point(14),
-                leftWrist: point(15), rightWrist: point(16),
-                leftHip: point(23), rightHip: point(24),
-                leftKnee: point(25), rightKnee: point(26),
+        async detectPose(video, canvas) {
+            this.inferencePending = true;
+            try {
+                const poses = await this.detector.estimatePoses(video, { maxPoses: 1, flipHorizontal: true });
+                if (poses[0]?.keypoints?.length) {
+                    this.updatePose(poses[0].keypoints, canvas.width, canvas.height, video.videoWidth, video.videoHeight);
+                    this.inferenceFailures = 0;
+                    this.error = '';
+                }
+            } catch (error) {
+                this.inferenceFailures += 1;
+                console.error('Virtual try-on inference failed:', error);
+                if (this.inferenceFailures >= 3) this.error = 'La caméra reste en direct, mais le suivi AR est indisponible. Cliquez sur Réessayer.';
+            } finally {
+                this.inferencePending = false;
+            }
+        },
+
+        updatePose(points, width, height, sourceWidth, sourceHeight) {
+            const byName = Object.fromEntries(points.map(item => [item.name, item]));
+            const point = (name) => {
+                const item = byName[name] ?? { x: 0, y: 0, score: 0 };
+                return { x: item.x * width / sourceWidth, y: item.y * height / sourceHeight, visibility: item.score ?? 0 };
             };
-            if ([pose.leftShoulder, pose.rightShoulder, pose.leftHip, pose.rightHip].some(item => item.visibility < 0.45)) {
+            const pose = {
+                nose: point('nose'), leftEar: point('left_ear'), rightEar: point('right_ear'),
+                leftShoulder: point('left_shoulder'), rightShoulder: point('right_shoulder'),
+                leftElbow: point('left_elbow'), rightElbow: point('right_elbow'),
+                leftWrist: point('left_wrist'), rightWrist: point('right_wrist'),
+                leftHip: point('left_hip'), rightHip: point('right_hip'),
+                leftKnee: point('left_knee'), rightKnee: point('right_knee'),
+            };
+            if ([pose.leftShoulder, pose.rightShoulder, pose.leftHip, pose.rightHip].some(item => item.visibility < 0.3)) {
                 this.status = 'Reculez légèrement pour rendre les épaules et les hanches visibles.';
                 return;
             }
@@ -253,9 +263,19 @@ export default function virtualTryOn({ imageUrl, category }) {
         },
 
         capture() {
+            const snapshot = document.createElement('canvas');
+            snapshot.width = this.$refs.canvas.width;
+            snapshot.height = this.$refs.canvas.height;
+            const context = snapshot.getContext('2d');
+            context.save();
+            context.translate(snapshot.width, 0);
+            context.scale(-1, 1);
+            context.drawImage(this.$refs.video, 0, 0, snapshot.width, snapshot.height);
+            context.restore();
+            context.drawImage(this.$refs.canvas, 0, 0);
             const link = document.createElement('a');
             link.download = `essayage-virtuel-${Date.now()}.png`;
-            link.href = this.$refs.canvas.toDataURL('image/png');
+            link.href = snapshot.toDataURL('image/png');
             link.click();
             window.appNotify('Votre essayage a été enregistré sur cet appareil.');
         },
@@ -265,6 +285,8 @@ export default function virtualTryOn({ imageUrl, category }) {
             cancelAnimationFrame(this.animation);
             this.stream?.getTracks().forEach(track => track.stop());
             this.stream = null;
+            this.inferencePending = false;
+            this.inferenceFailures = 0;
             this.smoothed = null;
             this.open = false;
         },
