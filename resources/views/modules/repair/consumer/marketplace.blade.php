@@ -12,7 +12,7 @@
         <div class="grid gap-5 sm:grid-cols-2 lg:col-span-3 xl:grid-cols-3">
             @forelse($listings as $listing)
                 <a href="{{ route('consumer.marketplace.show', $listing) }}" class="consumer-card group overflow-hidden">
-                    <div class="relative h-48 overflow-hidden bg-amber-50"><img src="{{ $listing->product?->image_url ?? asset('images/story/clothes-sorting.jpg') }}" alt="" class="h-full w-full object-cover transition duration-500 group-hover:scale-105"><span class="absolute left-3 top-3 rounded-full bg-white/95 px-3 py-1 text-xs font-black text-amber-800">{{ $listing->gradeLabel() }}</span></div>
+                    <div class="relative h-48 overflow-hidden bg-amber-50"><img src="{{ $listing->image_url }}" alt="" class="h-full w-full object-cover transition duration-500 group-hover:scale-105"><span class="absolute left-3 top-3 rounded-full bg-white/95 px-3 py-1 text-xs font-black text-amber-800">{{ $listing->gradeLabel() }}</span>@if($listing->canTryOn())<span class="absolute bottom-3 right-3 rounded-full bg-slate-950/85 px-3 py-1 text-xs font-black text-white">Essayage IA</span>@endif</div>
                     <div class="p-5">
                         <p class="text-xs font-bold text-slate-400">{{ $listing->brand?->name ?? 'TexTileCycle' }}</p>
                         <h2 class="mt-1 font-black group-hover:text-amber-700">{{ $listing->title }}</h2>

@@ -33,8 +33,12 @@ class BrandMarketplaceController extends Controller
             'condition_grade' => 'required|in:A,B,C',
             'price' => 'required|numeric|min:1|max:100000',
             'points_price' => 'nullable|integer|min:1|max:1000000',
+            'image' => 'required|image|mimes:jpg,jpeg,png,webp|max:5120',
+            'try_on_category' => 'required|in:top,dress,bottom,none',
         ]);
         $product = $brand->products()->findOrFail($data['product_id']);
+        $data['image_path'] = $request->file('image')->store('marketplace/'.$brand->id, 'public');
+        unset($data['image']);
 
         $brand->marketplaceListings()->create([...$data, 'product_id' => $product->id, 'status' => 'published', 'published_at' => now()]);
 

@@ -87,6 +87,16 @@ class User extends Authenticatable
         return $this->hasMany(ResaleOffer::class);
     }
 
+    public function communityPosts(): HasMany
+    {
+        return $this->hasMany(CommunityPost::class);
+    }
+
+    public function communityComments(): HasMany
+    {
+        return $this->hasMany(CommunityComment::class);
+    }
+
     public function getProfilePhotoUrlAttribute(): ?string
     {
         return $this->profile_photo_path ? Storage::disk('public')->url($this->profile_photo_path) : null;

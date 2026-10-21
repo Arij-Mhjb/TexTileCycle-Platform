@@ -173,6 +173,7 @@ class CircularModulesTest extends TestCase
 
     public function test_second_life_flow_from_return_to_marketplace_sale(): void
     {
+        Storage::fake('public');
         $admin = User::factory()->create(['role' => 'admin']);
         $consumer = User::factory()->create(['role' => 'consumer']);
         $buyer = User::factory()->create(['role' => 'consumer']);
@@ -189,9 +190,13 @@ class CircularModulesTest extends TestCase
         $this->actingAs($admin);
         $this->post(route('admin.repair-orders.start', $order))->assertSessionHasNoErrors();
         $this->post(route('admin.repair-orders.refurbish', $order), ['actions' => 'Nettoyage', 'grade' => 'A'])->assertSessionHasNoErrors();
-        $this->post(route('admin.repair-orders.publish', $order), ['title' => 'Chemise reconditionnée', 'price' => 50])->assertRedirect();
+        $this->post(route('admin.repair-orders.publish', $order), [
+            'title' => 'Chemise reconditionnée', 'price' => 50, 'try_on_category' => 'top',
+            'image' => UploadedFile::fake()->image('chemise.png', 700, 900),
+        ])->assertRedirect();
 
         $listing = MarketplaceListing::firstOrFail();
+        Storage::disk('public')->assertExists($listing->image_path);
         $this->assertSame('listed', $order->fresh()->status);
         $this->assertDatabaseHas('reward_transactions', ['user_id' => $consumer->id, 'type' => 'second_life', 'status' => 'validated']);
 

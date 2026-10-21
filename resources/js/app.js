@@ -3,9 +3,36 @@ import './bootstrap';
 import Alpine from 'alpinejs';
 import brandRegistration from './brand-registration';
 import QRCode from 'qrcode';
+import virtualTryOn from './virtual-try-on';
 
 window.Alpine = Alpine;
 Alpine.data('brandRegistration', brandRegistration);
+Alpine.data('virtualTryOn', virtualTryOn);
+
+window.mentionComposer = function (searchUrl) {
+    return {
+        results: [], mentions: [], open: false, controller: null,
+        async search() {
+            const value = this.$refs.field.value.slice(0, this.$refs.field.selectionStart);
+            const match = value.match(/(?:^|\s)@([\p{L}\p{N}._-]{2,})$/u);
+            if (!match) return this.close();
+            this.controller?.abort(); this.controller = new AbortController();
+            try {
+                const response = await fetch(`${searchUrl}?q=${encodeURIComponent(match[1])}`, { signal: this.controller.signal, headers: { Accept: 'application/json' } });
+                this.results = await response.json(); this.open = this.results.length > 0;
+            } catch (error) { if (error.name !== 'AbortError') this.close(); }
+        },
+        select(member) {
+            const field = this.$refs.field;
+            const before = field.value.slice(0, field.selectionStart).replace(/@[^@\s]*$/, `@${member.name} `);
+            const after = field.value.slice(field.selectionEnd);
+            if (!this.mentions.some(item => item.id === member.id)) this.mentions.push(member);
+            field.value = before + after; field.dispatchEvent(new Event('input', { bubbles: true }));
+            this.close(); this.$nextTick(() => { field.focus(); field.setSelectionRange(before.length, before.length); });
+        },
+        close() { this.open = false; this.results = []; },
+    };
+};
 
 window.locateCollectionPoints = function () {
     if (!navigator.geolocation) return;
@@ -39,6 +66,8 @@ window.qrScanner = function () {
 };
 
 Alpine.start();
+
+document.querySelectorAll('[data-try-on-open]').forEach((button) => button.addEventListener('click', () => window.dispatchEvent(new CustomEvent('open-virtual-try-on'))));
 
 document.querySelectorAll('[data-qr-value]').forEach((canvas) => {
     QRCode.toCanvas(canvas, canvas.dataset.qrValue, { width: 210, margin: 1, errorCorrectionLevel: 'M' })

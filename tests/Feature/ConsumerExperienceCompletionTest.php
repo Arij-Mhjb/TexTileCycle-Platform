@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\CollectionPoint;
 use App\Models\ConsumerClaim;
+use App\Models\CommunityPost;
 use App\Models\MarketplaceListing;
 use App\Models\RecoveryProgram;
 use App\Models\RepairCenter;
@@ -194,5 +195,27 @@ class ConsumerExperienceCompletionTest extends TestCase
         $path = $consumer->fresh()->profile_photo_path;
         $this->assertNotNull($path);
         Storage::disk('public')->assertExists($path);
+    }
+
+    public function test_consumers_can_publish_mention_like_comment_and_repost(): void
+    {
+        $author = User::factory()->create(['role' => 'consumer', 'name' => 'Amira Circular']);
+        $member = User::factory()->create(['role' => 'consumer', 'name' => 'Sami Durable']);
+
+        $this->actingAs($author)->post(route('consumer.community.posts.store'), [
+            'body' => 'Belle transformation avec @Sami Durable !',
+            'mentions' => [$member->id],
+        ])->assertSessionHasNoErrors();
+        $post = CommunityPost::firstOrFail();
+        $this->assertDatabaseHas('community_post_mentions', ['community_post_id' => $post->id, 'user_id' => $member->id]);
+        $this->assertDatabaseHas('consumer_notifications', ['user_id' => $member->id, 'type' => 'community_mention']);
+
+        $this->actingAs($member)->post(route('consumer.community.posts.like', $post))->assertSessionHasNoErrors();
+        $this->post(route('consumer.community.comments.store', $post), ['body' => 'Merci @Amira Circular !', 'mentions' => [$author->id]])->assertSessionHasNoErrors();
+        $this->post(route('consumer.community.posts.repost', $post))->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('community_post_likes', ['community_post_id' => $post->id, 'user_id' => $member->id]);
+        $this->assertDatabaseHas('community_comments', ['community_post_id' => $post->id, 'user_id' => $member->id]);
+        $this->assertDatabaseHas('community_posts', ['user_id' => $member->id, 'repost_of_id' => $post->id]);
     }
 }

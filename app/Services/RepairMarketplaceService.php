@@ -157,6 +157,8 @@ class RepairMarketplaceService
                 'condition_grade' => $grade,
                 'price' => $data['price'],
                 'points_price' => $data['points_price'] ?? null,
+                'image_path' => $data['image_path'] ?? null,
+                'try_on_category' => $data['try_on_category'] ?? 'top',
                 'status' => 'published',
                 'published_at' => now(),
             ]);

@@ -23,6 +23,10 @@ class ConsumerDataExportController extends Controller
                 'redemptions' => $user->rewardRedemptions()->with('item:id,name,partner_name')->get()->toArray(),
             ],
             'claims' => $user->consumerClaims()->get()->toArray(),
+            'community' => [
+                'posts' => $user->communityPosts()->withCount(['likes', 'comments', 'reposts'])->get()->toArray(),
+                'comments' => $user->communityComments()->get()->toArray(),
+            ],
             'notifications' => $user->consumerNotifications()->get()->toArray(),
         ];
 

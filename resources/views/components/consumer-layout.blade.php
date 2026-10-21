@@ -17,7 +17,7 @@
                 <a href="{{ route('consumer.home') }}" class="rounded-xl px-3.5 py-2.5 text-sm font-bold transition {{ request()->routeIs('consumer.home') ? 'bg-emerald-50 text-emerald-700' : 'text-slate-500 hover:bg-slate-50' }}">Accueil</a>
                 <a href="{{ route('consumer.products') }}" class="rounded-xl px-3.5 py-2.5 text-sm font-bold transition {{ request()->routeIs('consumer.products*') ? 'bg-emerald-50 text-emerald-700' : 'text-slate-500 hover:bg-slate-50' }}">Explorer</a>
                 <a href="{{ route('consumer.marketplace.index') }}" class="rounded-xl px-3.5 py-2.5 text-sm font-bold transition {{ request()->routeIs('consumer.marketplace.*') ? 'bg-amber-50 text-amber-800' : 'text-amber-700 hover:bg-amber-50' }}">Boutique</a>
-                <a href="{{ route('consumer.programs') }}" class="rounded-xl px-3.5 py-2.5 text-sm font-bold transition {{ request()->routeIs('consumer.programs', 'consumer.points') ? 'bg-emerald-50 text-emerald-700' : 'text-slate-500 hover:bg-slate-50' }}">Agir</a>
+                <a href="{{ route('consumer.community.index') }}" class="rounded-xl px-3.5 py-2.5 text-sm font-bold transition {{ request()->routeIs('consumer.community.*') ? 'bg-violet-50 text-violet-700' : 'text-slate-500 hover:bg-violet-50' }}">Communauté</a>
                 <div class="relative" x-data="{ activitiesOpen: false }">
                     <button type="button" @click="activitiesOpen = !activitiesOpen" @keydown.escape.window="activitiesOpen = false" class="flex items-center gap-1 rounded-xl px-3.5 py-2.5 text-sm font-bold text-slate-500 transition hover:bg-slate-50">Mon espace <span aria-hidden="true">⌄</span></button>
                     <div x-cloak x-show="activitiesOpen" @click.outside="activitiesOpen = false" x-transition class="absolute left-0 top-full z-50 mt-2 grid w-56 gap-1 rounded-2xl border border-slate-200 bg-white p-2 shadow-2xl dark:border-slate-700 dark:bg-slate-900">
@@ -27,6 +27,7 @@
                         <a href="{{ route('consumer.repairs.index') }}" class="rounded-xl px-3 py-2 text-sm font-bold hover:bg-amber-50">Mes réparations</a>
                         <a href="{{ route('consumer.trade-ins.index') }}" class="rounded-xl px-3 py-2 text-sm font-bold hover:bg-amber-50">Reprise contre points</a>
                         <a href="{{ route('consumer.wallet') }}" class="rounded-xl px-3 py-2 text-sm font-bold hover:bg-emerald-50">Wallet et récompenses</a>
+                        <a href="{{ route('consumer.programs') }}" class="rounded-xl px-3 py-2 text-sm font-bold hover:bg-emerald-50">Solutions circulaires</a>
                     </div>
                 </div>
             </nav>
@@ -66,7 +67,7 @@
     <nav aria-label="Navigation mobile" class="fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 border-t border-slate-200 bg-white/95 px-2 pt-2 pb-[max(.5rem,env(safe-area-inset-bottom))] backdrop-blur-xl dark:border-slate-800 dark:bg-slate-950/95 xl:hidden">
         @foreach([
             ['consumer.home','home','Accueil'],['consumer.products','search','Explorer'],['scans.create','scan','Scanner'],
-            ['consumer.points','map-pin','Collecte'],['product-returns.index','refresh','Retours']
+            ['consumer.community.index','users','Communauté'],['consumer.marketplace.index','shopping-bag','Boutique']
         ] as [$routeName,$icon,$label])
             <a href="{{ route($routeName) }}" class="flex flex-col items-center gap-1 rounded-xl py-1.5 text-[10px] font-bold {{ request()->routeIs($routeName) ? 'text-emerald-600' : 'text-slate-400' }}"><x-icon :name="$icon" class="h-5 w-5" />{{ $label }}</a>
         @endforeach
