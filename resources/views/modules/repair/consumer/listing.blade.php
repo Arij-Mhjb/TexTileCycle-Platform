@@ -1,7 +1,9 @@
 <x-consumer-layout :title="$listing->title">
     @include('modules.repair.consumer._tabs')
     <div class="grid gap-8 lg:grid-cols-2">
-        <div class="overflow-hidden rounded-2xl bg-amber-50"><img src="{{ $listing->product?->image_url ?? asset('images/story/clothes-sorting.jpg') }}" alt="{{ $listing->title }}" class="h-full max-h-[32rem] w-full object-cover"></div>
+        <div><div class="overflow-hidden rounded-2xl bg-amber-50"><img src="{{ $listing->image_url }}" alt="{{ $listing->title }}" class="h-full max-h-[32rem] w-full object-cover"></div>
+            @if($listing->canTryOn())<button type="button" data-try-on-open class="mt-4 w-full rounded-2xl bg-gradient-to-r from-violet-600 to-fuchsia-600 px-5 py-3.5 font-black text-white shadow-lg shadow-violet-200 transition hover:-translate-y-0.5">✦ Essayer ce vêtement avec l’IA</button>@endif
+        </div>
         <div>
             <x-module.badge tone="repair">{{ $listing->gradeLabel() }} · Grade {{ $listing->condition_grade }}</x-module.badge>
             <h1 class="mt-3 text-3xl font-black tracking-tight">{{ $listing->title }}</h1>
@@ -64,4 +66,7 @@
             @endif
         </div>
     </div>
+    @if($listing->canTryOn())
+        @include('modules.repair.consumer._virtual-try-on', ['listing' => $listing])
+    @endif
 </x-consumer-layout>

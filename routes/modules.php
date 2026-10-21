@@ -23,6 +23,7 @@ use App\Http\Controllers\Modules\BrandTraceabilityController;
 use App\Http\Controllers\Modules\ConsumerMarketplaceController;
 use App\Http\Controllers\Modules\ConsumerRepairController;
 use App\Http\Controllers\Modules\ConsumerTradeInController;
+use App\Http\Controllers\Modules\CommunityController;
 use App\Http\Controllers\Modules\ModuleAiController;
 use App\Http\Controllers\Modules\NotificationCenterController;
 use App\Http\Controllers\Modules\SupplierAreaController;
@@ -131,6 +132,15 @@ Route::middleware(['auth', 'verified'])->group(function () {
     });
 
     Route::middleware('role:consumer')->prefix('discover')->name('consumer.')->group(function () {
+        Route::get('/community', [CommunityController::class, 'index'])->name('community.index');
+        Route::get('/community/users/search', [CommunityController::class, 'searchUsers'])->name('community.users.search');
+        Route::get('/community/users/{user}', [CommunityController::class, 'profile'])->name('community.profile');
+        Route::post('/community/posts', [CommunityController::class, 'store'])->name('community.posts.store');
+        Route::delete('/community/posts/{post}', [CommunityController::class, 'destroy'])->name('community.posts.destroy');
+        Route::post('/community/posts/{post}/like', [CommunityController::class, 'toggleLike'])->name('community.posts.like');
+        Route::post('/community/posts/{post}/comments', [CommunityController::class, 'comment'])->name('community.comments.store');
+        Route::delete('/community/comments/{comment}', [CommunityController::class, 'destroyComment'])->name('community.comments.destroy');
+        Route::post('/community/posts/{post}/repost', [CommunityController::class, 'repost'])->name('community.posts.repost');
         Route::get('/marketplace', [ConsumerMarketplaceController::class, 'index'])->name('marketplace.index');
         Route::get('/marketplace/{listing}', [ConsumerMarketplaceController::class, 'show'])->name('marketplace.show');
         Route::post('/marketplace/{listing}/offers', [ConsumerMarketplaceController::class, 'offer'])->name('marketplace.offer');

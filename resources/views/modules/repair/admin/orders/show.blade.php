@@ -70,12 +70,14 @@
             @endif
 
             @if($order->status === 'repaired' && $order->decision === 'resale')
-                <form method="POST" action="{{ route('admin.repair-orders.publish', $order) }}" class="panel grid gap-4 p-6 md:grid-cols-3">
+                <form method="POST" action="{{ route('admin.repair-orders.publish', $order) }}" enctype="multipart/form-data" class="panel grid gap-4 p-6 md:grid-cols-3">
                     @csrf
                     <div class="md:col-span-3"><p class="text-[13px] font-semibold text-amber-600">Étape 4</p><h2 class="mt-1 text-lg font-black">Publier sur le marketplace</h2><p class="text-sm text-slate-500">Le consommateur recevra {{ \App\Services\RepairMarketplaceService::RESALE_POINTS }} points.</p></div>
                     <div class="md:col-span-2"><x-module.field name="title" label="Titre de l’annonce" :value="($order->product?->name ?? 'Article').' — reconditionné'" required/></div>
                     <x-module.field name="price" type="number" step="0.01" min="1" label="Prix (TND){{ isset($order->ai_diagnosis['resale_price']) ? ' — suggéré par l’IA' : '' }}" :value="$order->ai_diagnosis['resale_price'] ?? null" required/>
                     <x-module.field name="points_price" type="number" min="1" label="Prix en points (facultatif)"/>
+                    <x-ui.select name="try_on_category" label="Type pour l’essayage IA" :options="\App\Models\MarketplaceListing::TRY_ON_CATEGORIES" value="top" required/>
+                    <label class="block md:col-span-2"><span class="text-sm font-bold">Photo du vêtement *</span><input type="file" name="image" accept="image/jpeg,image/png,image/webp" data-max-bytes="5242880" class="field" required><span class="text-xs text-slate-500">Photo de face sur fond uni ou PNG transparent recommandée.</span></label>
                     <div class="md:col-span-2"><x-ui.textarea name="description" label="Description" rows="3" :value="$order->refurbishments->first()?->actions"/></div>
                     <div class="md:col-span-3 flex justify-end"><x-module.button module="repair">Publier l’annonce</x-module.button></div>
                 </form>
