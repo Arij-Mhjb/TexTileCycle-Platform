@@ -1,6 +1,6 @@
-<x-brand-nav-dropdown label="Écosystème" :active="request()->routeIs('brand.suppliers.*', 'brand.traceability.*', 'brand.impact.*', 'brand.marketplace.*', 'brand.supplier-returns.*')">
+<x-brand-nav-dropdown label="Écosystème" :active="request()->routeIs('brand.suppliers.*', 'brand.traceability.*', 'brand.impact.*', 'brand.marketplace.*', 'brand.recycling.*')">
     <a role="menuitem" href="{{ route('brand.suppliers.index') }}" class="rounded-xl px-3 py-2.5 hover:bg-purple-50"><span class="block text-sm font-bold text-purple-800">Fournisseurs</span><span class="block text-xs text-slate-500">Commandes et traçabilité</span></a>
     <a role="menuitem" href="{{ route('brand.impact.index') }}" class="rounded-xl px-3 py-2.5 hover:bg-sky-50"><span class="block text-sm font-bold text-sky-800">Impact ESG</span><span class="block text-xs text-slate-500">Mesurer les impacts des produits</span></a>
-    <a role="menuitem" href="{{ route('brand.supplier-returns.index') }}" class="rounded-xl px-3 py-2.5 hover:bg-amber-50"><span class="block text-sm font-bold text-amber-800">Retours fournisseurs</span><span class="block text-xs text-slate-500">Seconde vie de la matière</span></a>
+    <a role="menuitem" href="{{ route('brand.recycling.index') }}" class="rounded-xl px-3 py-2.5 hover:bg-teal-50"><span class="block text-sm font-bold text-teal-800">Recyclage avec mes fournisseurs</span><span class="block text-xs text-slate-500">Seconde vie de la matière</span></a>
     <a role="menuitem" href="{{ route('brand.marketplace.index') }}" class="rounded-xl px-3 py-2.5 hover:bg-amber-50"><span class="block text-sm font-bold text-amber-800">Seconde vie</span><span class="block text-xs text-slate-500">Réparation, reprise et revente</span></a>
 </x-brand-nav-dropdown>

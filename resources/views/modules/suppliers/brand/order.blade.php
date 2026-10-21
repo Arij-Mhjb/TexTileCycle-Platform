@@ -68,7 +68,7 @@
                                 </p>
                             </div>
                             @if($batch->received_at)
-                                <div class="flex items-center gap-2"><x-module.badge tone="good">Reçu le {{ $batch->received_at->format('d/m/Y') }}</x-module.badge><a href="{{ route('brand.supplier-returns.create', ['batch' => $batch->id]) }}" class="text-sm font-semibold text-amber-700 hover:underline">Renvoyer</a></div>
+                                <x-module.badge tone="good">Reçu le {{ $batch->received_at->format('d/m/Y') }}</x-module.badge>
                             @else
                                 <form method="POST" action="{{ route('brand.purchase-orders.receive', $batch) }}">@csrf<x-module.button module="suppliers" variant="soft">Confirmer la réception</x-module.button></form>
                             @endif
