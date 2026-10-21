@@ -12,7 +12,7 @@ use App\Services\RecyclingEstimator;
 class FiberVisionService
 {
     /** Libellé montré à CLIP => [nom affiché, matière du référentiel]. */
-    private const FIBERS = [
+    public const FIBERS = [
         'a close-up photo of plain cotton fabric' => ['Coton', 'Coton conventionnel'],
         'a close-up photo of blue denim jeans fabric' => ['Denim (coton)', 'Coton conventionnel'],
         'a close-up photo of shiny polyester sportswear fabric' => ['Polyester', 'Polyester vierge'],

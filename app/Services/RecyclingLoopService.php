@@ -72,14 +72,19 @@ class RecyclingLoopService
             return $loop;
         });
 
-        // Photos : stockées puis analysées par l'IA (défauts visibles).
+        // Photos : stockées puis analysées par l'IA (défauts visibles). Si le navigateur a déjà fait tourner CLIP
+        // (Transformers.js, sans crédit Hugging Face), on reprend ses scores ; sinon l'analyse se fait côté serveur.
         foreach ($loop->items()->orderBy('id')->get()->values() as $index => $item) {
             $photo = $photos[$index] ?? null;
             if ($photo instanceof UploadedFile) {
                 $path = $photo->store('recycling-loops', 'local');
+                $reason = $item->kind === 'defective' ? 'defect' : 'surplus';
+                $browserScores = json_decode((string) ($items[$index]['clip_scores'] ?? ''), true);
                 $item->update([
                     'photo_path' => $path,
-                    'ai_analysis' => $this->vision->analyse(Storage::disk('local')->path($path), $item->kind === 'defective' ? 'defect' : 'surplus'),
+                    'ai_analysis' => is_array($browserScores) && $browserScores !== []
+                        ? $this->vision->fromScores($browserScores, $reason, 'huggingface', 'Xenova/clip-vit-base-patch32 (navigateur)')
+                        : $this->vision->analyse(Storage::disk('local')->path($path), $reason),
                 ]);
             }
         }

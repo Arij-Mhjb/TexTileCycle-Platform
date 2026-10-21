@@ -19,6 +19,7 @@ class CopilotController extends Controller
             'brand' => $request->user()->brand()->firstOrFail(),
             'toolLabels' => CopilotTools::LABELS,
             'model' => app(HuggingFaceClient::class)->enabled() ? (config('huggingface.chat_models')[0] ?? null) : null,
+            'hfStatus' => app(HuggingFaceClient::class)->status(),
         ]);
     }
 

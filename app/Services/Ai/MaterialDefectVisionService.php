@@ -32,21 +32,41 @@ class MaterialDefectVisionService
     {
         $scores = $this->huggingFace->classifyImage($imagePath, array_keys(self::LABELS));
         if ($scores) {
-            $findings = [];
-            foreach ($scores as $prompt => $score) {
-                if ($score >= self::THRESHOLD && count($findings) < 3 && isset(self::LABELS[$prompt])) {
-                    [$label, $isDefect] = self::LABELS[$prompt];
-                    $findings[] = ['label' => $label, 'confidence' => (int) round($score * 100), 'defect' => $isDefect];
-                }
-            }
-            if ($findings === []) {
-                $top = array_key_first($scores);
-                $findings[] = ['label' => self::LABELS[$top][0], 'confidence' => (int) round($scores[$top] * 100), 'defect' => self::LABELS[$top][1]];
-            }
-
-            return $this->conclude('huggingface', (string) config('huggingface.vision_model'), $findings, $reason);
+            return $this->fromScores($scores, $reason, 'huggingface', (string) config('huggingface.vision_model'));
         }
 
+        return $this->withGemini($imagePath, $reason);
+    }
+
+    /**
+     * Scores CLIP déjà calculés (par exemple dans le navigateur avec Transformers.js) : seuls les libellés connus
+     * sont gardés, et la conclusion (défaut visible, cohérence avec la déclaration) est refaite ici.
+     *
+     * @param  array<string, float|int|string>  $scores  libellé anglais => probabilité
+     */
+    public function fromScores(array $scores, string $reason, string $source, string $model): array
+    {
+        $scores = collect($scores)->only(array_keys(self::LABELS))->map(fn ($score) => max(0.0, min(1.0, (float) $score)))->sortDesc()->all();
+        if ($scores === []) {
+            return $this->unavailable();
+        }
+        $findings = [];
+        foreach ($scores as $prompt => $score) {
+            if ($score >= self::THRESHOLD && count($findings) < 3 && isset(self::LABELS[$prompt])) {
+                [$label, $isDefect] = self::LABELS[$prompt];
+                $findings[] = ['label' => $label, 'confidence' => (int) round($score * 100), 'defect' => $isDefect];
+            }
+        }
+        if ($findings === []) {
+            $top = array_key_first($scores);
+            $findings[] = ['label' => self::LABELS[$top][0], 'confidence' => (int) round($scores[$top] * 100), 'defect' => self::LABELS[$top][1]];
+        }
+
+        return $this->conclude($source, $model, $findings, $reason);
+    }
+
+    private function withGemini(string $imagePath, string $reason): array
+    {
         $answer = $this->gemini->ask($this->prompt(), $this->schema(), [$imagePath]);
         if (is_array($answer) && isset($answer['defects'])) {
             $findings = collect((array) $answer['defects'])->filter(fn ($row) => is_array($row) && filled($row['label'] ?? null))->take(3)
@@ -58,6 +78,11 @@ class MaterialDefectVisionService
             return $this->conclude('gemini-vision', (string) config('services.gemini.model'), $findings, $reason);
         }
 
+        return $this->unavailable();
+    }
+
+    private function unavailable(): array
+    {
         return ['source' => 'none', 'model' => null, 'findings' => [], 'defect_visible' => false, 'consistent' => null, 'summary' => 'Analyse IA indisponible : la déclaration de la marque fait foi.'];
     }
 

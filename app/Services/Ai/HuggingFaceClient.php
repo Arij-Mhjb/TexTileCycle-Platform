@@ -2,6 +2,10 @@
 
 namespace App\Services\Ai;
 
+use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Http\Client\RequestException;
+use Illuminate\Http\Client\Response;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Throwable;
@@ -13,14 +17,41 @@ use Throwable;
  *  - zeroShotText  : classification de texte zero-shot (mDeBERTa, BART-MNLI) ;
  *  - chat          : LLM / modèle vision-langage compatible OpenAI, avec appels d'outils.
  * Retourne null si le jeton manque ou si l'API ne répond pas : l'appelant passe alors en mode local.
+ *
+ * Disjoncteur : si Hugging Face répond « plus de crédits » (402) ou « jeton refusé » (401/403), on arrête
+ * d'appeler l'API pendant 15 minutes ; un modèle « non servi » (400/404) est ignoré pendant 24 h.
+ * Les pages restent rapides au lieu d'attendre des appels voués à l'échec.
  */
 class HuggingFaceClient
 {
     private const MAX_IMAGE_BYTES = 8_000_000;
 
-    public function enabled(): bool
+    private const DOWN_KEY = 'huggingface:down';
+
+    public function configured(): bool
     {
         return (bool) config('huggingface.enabled') && filled(config('huggingface.token'));
+    }
+
+    public function enabled(): bool
+    {
+        return $this->configured() && ! Cache::has(self::DOWN_KEY);
+    }
+
+    /** @return array{state: string, message: string} ok | off | no_credits | bad_token */
+    public function status(): array
+    {
+        if (! $this->configured()) {
+            return ['state' => 'off', 'message' => 'Pas de jeton HF_TOKEN : les fonctions IA passent en mode local.'];
+        }
+
+        return Cache::get(self::DOWN_KEY) ?? ['state' => 'ok', 'message' => 'Hugging Face disponible.'];
+    }
+
+    /** Réinitialise le disjoncteur (commande huggingface:check). */
+    public function reset(): void
+    {
+        Cache::forget(self::DOWN_KEY);
     }
 
     /**
@@ -83,6 +114,12 @@ class HuggingFaceClient
         }
 
         foreach ($models ?? config('huggingface.chat_models', []) as $model) {
+            if (! $this->enabled()) {
+                return null;
+            }
+            if (! $this->supported($model)) {
+                continue;
+            }
             try {
                 $response = Http::acceptJson()->asJson()
                     ->withToken((string) config('huggingface.token'))
@@ -97,7 +134,7 @@ class HuggingFaceClient
             if ($response->successful() && is_array($message)) {
                 return ['message' => $message, 'model' => $model];
             }
-            Log::warning('Hugging Face chat ('.$model.') : réponse '.$response->status().' '.mb_substr($response->body(), 0, 200));
+            $this->failure($model, $response);
         }
 
         return null;
@@ -170,16 +207,19 @@ class HuggingFaceClient
 
     private function post(string $model, array $payload): mixed
     {
+        if (! $this->supported($model)) {
+            return null;
+        }
         try {
             $response = Http::acceptJson()->asJson()
                 ->withToken((string) config('huggingface.token'))
                 ->withHeaders(['x-wait-for-model' => 'true'])
                 ->timeout((int) config('huggingface.timeout', 30))
-                ->retry(2, 500, throw: false)
+                ->retry(2, 500, fn ($exception) => $exception instanceof ConnectionException || ($exception instanceof RequestException && $exception->response->serverError()), throw: false)
                 ->post(rtrim((string) config('huggingface.base_url'), '/').'/'.$model, $payload);
 
             if (! $response->successful()) {
-                Log::warning('Hugging Face ('.$model.') : réponse '.$response->status().' '.mb_substr($response->body(), 0, 200));
+                $this->failure($model, $response);
 
                 return null;
             }
@@ -189,6 +229,26 @@ class HuggingFaceClient
             Log::warning('Hugging Face indisponible : '.$exception->getMessage());
 
             return null;
+        }
+    }
+
+    private function supported(string $model): bool
+    {
+        return ! Cache::has('huggingface:unsupported:'.md5($model));
+    }
+
+    /** Mémorise les échecs qui se répéteraient : crédits épuisés, jeton refusé, modèle non servi. */
+    private function failure(string $model, Response $response): void
+    {
+        $status = $response->status();
+        Log::warning('Hugging Face ('.$model.') : réponse '.$status.' '.mb_substr($response->body(), 0, 200));
+
+        if ($status === 402) {
+            Cache::put(self::DOWN_KEY, ['state' => 'no_credits', 'message' => 'Crédits Hugging Face épuisés (402) : rechargez le compte ou passez à HF PRO. En attendant, mode local.'], now()->addMinutes(15));
+        } elseif (in_array($status, [401, 403], true)) {
+            Cache::put(self::DOWN_KEY, ['state' => 'bad_token', 'message' => 'Jeton Hugging Face refusé ('.$status.') : vérifiez HF_TOKEN et la permission « Make calls to Inference Providers ».'], now()->addMinutes(15));
+        } elseif ($status === 404 || ($status === 400 && str_contains(mb_strtolower($response->body()), 'not supported'))) {
+            Cache::put('huggingface:unsupported:'.md5($model), true, now()->addDay());
         }
     }
 }

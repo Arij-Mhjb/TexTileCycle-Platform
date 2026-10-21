@@ -26,7 +26,7 @@ $suggestions = [
                     <p class="text-[11px] text-slate-400">Hugging Face · appels d’outils</p>
                 @else
                     <p class="mt-2 font-black text-slate-200">Mode local</p>
-                    <p class="text-[11px] text-slate-400">Ajoutez HF_TOKEN pour le LLM</p>
+                    <p class="max-w-[16rem] text-[11px] leading-4 text-slate-400">{{ $hfStatus['message'] }}</p>
                 @endif
             </div>
         </div>

@@ -6,6 +6,7 @@ $initialItems = collect(old('items', [$blank]))->values()->map(function ($item, 
     $item['issue'] = (string) $item['issue'];
     $item['photoName'] = '';
     $item['ai'] = null;
+    $item['clipScores'] = null;
 
     return ['uid' => $i + 1] + $item;
 });
@@ -34,7 +35,7 @@ $steps = ['Fournisseur', 'Articles', 'Retour', 'Envoi'];
     @else
     <form method="POST" action="{{ route('brand.recycling.store') }}" enctype="multipart/form-data" novalidate
           x-data="recyclingWizard({
-              identifyUrl: @js(route('brand.recycling.identify-fiber')),
+              identifyUrl: @js(route('brand.recycling.identify-fiber')), clip: @js($clip),
               items: @js($initialItems), routes: @js($routes), productMaterial: @js($productMaterial), kindFactors: @js($kindFactors),
               tariff: @js($tariff), supplier: @js((string) old('supplier_id', $selectedSupplier)), mode: @js(old('mode', '')),
               productNames: @js($products->pluck('name', 'id')), materialNames: @js($materials->pluck('name', 'id')),
@@ -187,15 +188,20 @@ $steps = ['Fournisseur', 'Articles', 'Retour', 'Envoi'];
                                     <input type="file" :name="'items[' + index + '][photo]'" accept="image/jpeg,image/png,image/webp" class="sr-only" @change="item.photoName = $event.target.files[0]?.name || ''; identify(item, $event.target.files[0])">
                                 </label>
 
-                                {{-- IA : la fibre reconnue sur la photo (CLIP, Hugging Face) --}}
+                                {{-- IA : CLIP (Hugging Face) tourne dans le navigateur avec Transformers.js — aucun crédit nécessaire. --}}
+                                <input type="hidden" :name="'items[' + index + '][clip_scores]'" :value="item.clipScores ? JSON.stringify(item.clipScores) : ''">
                                 <div class="sm:col-span-2" x-show="item.ai" x-cloak>
                                     <div class="rounded-2xl border border-amber-200 bg-amber-50/60 p-4 dark:border-amber-900 dark:bg-amber-950/20">
-                                        <p class="flex items-center gap-2 text-sm font-bold text-amber-900 dark:text-amber-200">
-                                            <span class="rounded-full bg-gradient-to-r from-amber-400 to-yellow-300 px-2 py-0.5 text-[11px] font-black text-slate-900">🤗 Hugging Face · CLIP</span>
-                                            <span x-show="item.ai?.loading">L’IA regarde la photo…</span>
+                                        <p class="flex flex-wrap items-center gap-2 text-sm font-bold text-amber-900 dark:text-amber-200">
+                                            <span class="rounded-full bg-gradient-to-r from-amber-400 to-yellow-300 px-2 py-0.5 text-[11px] font-black text-slate-900" x-text="item.ai?.engine === 'browser' ? '🤗 CLIP · dans votre navigateur' : '🤗 Hugging Face · CLIP'"></span>
+                                            <span x-show="item.ai?.loading && item.ai?.progress < 100" x-text="'Téléchargement du modèle (une seule fois) : ' + (item.ai?.progress || 0) + ' %'"></span>
+                                            <span x-show="item.ai?.loading && item.ai?.progress >= 100">L’IA regarde la photo…</span>
                                             <span x-show="item.ai && ! item.ai.loading && item.ai.matches?.length">Matière reconnue sur la photo</span>
                                             <span x-show="item.ai && ! item.ai.loading && ! item.ai.matches?.length" class="font-semibold">IA indisponible : choisissez la matière vous-même.</span>
                                         </p>
+                                        <div class="mt-2 h-1.5 overflow-hidden rounded-full bg-amber-100 dark:bg-amber-900/40" x-show="item.ai?.loading">
+                                            <div class="h-1.5 rounded-full bg-amber-500 transition-all" :style="'width:' + Math.max(8, item.ai?.progress || 0) + '%'"></div>
+                                        </div>
                                         <div class="mt-3 flex flex-wrap gap-2" x-show="item.ai?.matches?.length">
                                             <template x-for="match in (item.ai?.matches || [])" :key="match.material">
                                                 <button type="button" @click="if (match.material_id) item.what = 'm:' + match.material_id"
@@ -206,6 +212,7 @@ $steps = ['Fournisseur', 'Articles', 'Retour', 'Envoi'];
                                                 </button>
                                             </template>
                                         </div>
+                                        <p class="mt-3 text-xs text-amber-900/80 dark:text-amber-200/80" x-show="item.ai?.defects?.length" x-text="'Vu sur la photo : ' + (item.ai?.defects || []).join(' · ')"></p>
                                     </div>
                                 </div>
                             </div>
@@ -349,6 +356,26 @@ $steps = ['Fournisseur', 'Articles', 'Retour', 'Envoi'];
     </form>
 
     <script>
+        // CLIP (Hugging Face) chargé à la demande depuis le CDN, puis gardé en cache par le navigateur.
+        let clipPipeline = null;
+        function loadClip(onProgress) {
+            clipPipeline ??= import('https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.7.6').then(({ pipeline, env }) => {
+                env.allowLocalModels = false;
+                const files = {};
+                return pipeline('zero-shot-image-classification', 'Xenova/clip-vit-base-patch32', {
+                    dtype: 'q8',
+                    progress_callback: (event) => {
+                        if (event.status === 'progress' && event.total) {
+                            files[event.file] = [event.loaded, event.total];
+                            const [loaded, total] = Object.values(files).reduce((sum, [l, t]) => [sum[0] + l, sum[1] + t], [0, 0]);
+                            onProgress(Math.min(99, Math.round(loaded / total * 100)));
+                        }
+                    },
+                });
+            }).catch((error) => { clipPipeline = null; throw error; });
+            return clipPipeline;
+        }
+
         function recyclingWizard(config) {
             const shortKinds = { defective: 'Défectueux', surplus: 'Surplus', offcuts: 'Chutes' };
             const round = (value, digits = 2) => Math.round(value * 10 ** digits) / 10 ** digits;
@@ -359,7 +386,7 @@ $steps = ['Fournisseur', 'Articles', 'Retour', 'Envoi'];
                     const what = (type === 'p' ? this.productNames[id] : this.materialNames[id]) || 'matière à préciser';
                     return [shortKinds[item.kind], what, item.kind === 'defective' && item.pieces ? item.pieces + ' pièces' : null].filter(Boolean).join(' · ');
                 },
-                add() { this.items.push({ uid: this.next_uid++, kind: 'surplus', what: '', pieces: '', quantity_kg: '', issue: '', photoName: '', ai: null }); },
+                add() { this.items.push({ uid: this.next_uid++, kind: 'surplus', what: '', pieces: '', quantity_kg: '', issue: '', photoName: '', ai: null, clipScores: null }); },
                 bump(item, field, delta) { item[field] = Math.max(0, (Number(item[field]) || 0) + delta) || ''; },
                 toggleProblem(item, problem) {
                     const parts = item.issue.split(',').map((part) => part.trim()).filter(Boolean);
@@ -367,21 +394,56 @@ $steps = ['Fournisseur', 'Articles', 'Retour', 'Envoi'];
                     at >= 0 ? parts.splice(at, 1) : parts.push(problem);
                     item.issue = parts.join(', ');
                 },
-                // Photo → fibre reconnue par l'IA ; si aucune matière n'est choisie, on prend la plus probable.
+                // Photo → CLIP (Hugging Face) exécuté dans le navigateur avec Transformers.js : fibre + défauts visibles.
+                // Si le navigateur ne peut pas charger le modèle, on demande au serveur (API Hugging Face).
                 async identify(item, file) {
                     if (! file) return;
-                    item.ai = { loading: true, matches: [] };
-                    const body = new FormData();
-                    body.append('photo', file);
+                    item.ai = { loading: true, matches: [], defects: [], progress: 0, engine: 'browser' };
+                    item.clipScores = null;
                     try {
-                        const response = await fetch(this.identifyUrl, { method: 'POST', body, headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content } });
-                        const data = response.ok ? await response.json() : { matches: [] };
-                        item.ai = { loading: false, matches: data.matches || [] };
-                        const best = item.ai.matches[0];
-                        if (best && best.material_id && ! item.what) item.what = 'm:' + best.material_id;
+                        const classifier = await loadClip((progress) => { if (item.ai) item.ai.progress = progress; });
+                        item.ai.progress = 100;
+                        const url = URL.createObjectURL(file);
+                        const fiberScores = await classifier(url, Object.keys(this.clip.fibers), { hypothesis_template: '{}' });
+                        const defectScores = await classifier(url, this.clip.defects, { hypothesis_template: '{}' });
+                        URL.revokeObjectURL(url);
+                        item.clipScores = Object.fromEntries(defectScores.map((row) => [row.label, Math.round(row.score * 1000) / 1000]));
+                        item.ai = { loading: false, engine: 'browser', progress: 100, matches: this.fiberMatches(fiberScores), defects: this.defectLabels(defectScores) };
                     } catch (error) {
-                        item.ai = { loading: false, matches: [] };
+                        console.warn('CLIP dans le navigateur indisponible, appel au serveur', error);
+                        const body = new FormData();
+                        body.append('photo', file);
+                        try {
+                            const response = await fetch(this.identifyUrl, { method: 'POST', body, headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content } });
+                            const data = response.ok ? await response.json() : { matches: [] };
+                            item.ai = { loading: false, engine: 'server', matches: data.matches || [], defects: [] };
+                        } catch (fallbackError) {
+                            item.ai = { loading: false, engine: 'server', matches: [], defects: [] };
+                        }
                     }
+                    const best = item.ai.matches[0];
+                    if (best && best.material_id && ! item.what) item.what = 'm:' + best.material_id;
+                },
+                // Même regroupement que App\Services\Ai\FiberVisionService (denim + coton = coton…).
+                fiberMatches(scores) {
+                    const byMaterial = {};
+                    scores.forEach(({ label, score }) => {
+                        const [fiber, material] = this.clip.fibers[label] || [];
+                        if (! material) return;
+                        byMaterial[material] ??= { fiber, score: 0 };
+                        byMaterial[material].score += score;
+                    });
+                    return Object.entries(byMaterial).sort((a, b) => b[1].score - a[1].score).slice(0, 3).map(([material, row]) => {
+                        const id = this.clip.materialIds[material] ?? null;
+                        const [route, rate] = this.routes[id] || ['Coton recyclé', 0.6];
+                        return { fiber: row.fiber, material, material_id: id, confidence: Math.round(row.score * 100), route, yield: Math.round(rate * 100) };
+                    });
+                },
+                defectLabels(scores) {
+                    const names = { 'a photo of fabric with a stain': 'tache', 'a photo of fabric with a hole or a tear': 'trou ou déchirure', 'a photo of faded discolored fabric': 'décoloration',
+                        'a photo of fabric with a weaving defect or pulled threads': 'fils tirés', 'a photo of wet or moldy fabric': 'humidité', 'a photo of fabric of the wrong color': 'mauvais coloris',
+                        'a photo of clean fabric rolls in perfect condition': 'aucun défaut', 'a photo of yarn bobbins in good condition': 'bobines en bon état' };
+                    return scores.filter((row) => row.score >= 0.12).slice(0, 3).map((row) => (names[row.label] || row.label) + ' ' + Math.round(row.score * 100) + ' %');
                 },
                 pickSupplier(id) { this.supplier = id; setTimeout(() => this.next(), 180); },
                 pickMode(mode) { this.mode = mode; this.hint = ''; },

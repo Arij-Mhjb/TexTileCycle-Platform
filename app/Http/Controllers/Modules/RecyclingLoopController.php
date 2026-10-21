@@ -7,6 +7,7 @@ use App\Models\Material;
 use App\Models\RecyclingLoop;
 use App\Models\RecyclingLoopItem;
 use App\Services\Ai\FiberVisionService;
+use App\Services\Ai\MaterialDefectVisionService;
 use App\Services\RecyclingEstimator;
 use App\Services\RecyclingFlowService;
 use App\Services\RecyclingInvoiceService;
@@ -52,6 +53,11 @@ class RecyclingLoopController extends Controller
             'productMaterial' => $products->mapWithKeys(fn ($product) => [$product->id => $product->materials->sortByDesc(fn ($m) => (float) ($m->pivot->percentage ?? 0))->first()?->id]),
             'kindFactors' => $estimator->kindFactors(),
             'tariff' => RecyclingPricing::tariff(),
+            'clip' => [
+                'fibers' => FiberVisionService::FIBERS,
+                'materialIds' => $materials->pluck('id', 'name'),
+                'defects' => array_keys(MaterialDefectVisionService::LABELS),
+            ],
             'selectedSupplier' => $request->integer('supplier') ?: null,
         ]);
     }
@@ -73,6 +79,7 @@ class RecyclingLoopController extends Controller
             'items.*.quantity_kg' => 'required|numeric|min:0.1|max:100000',
             'items.*.issue' => 'nullable|required_if:items.*.kind,defective|string|max:500',
             'items.*.photo' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:8192',
+            'items.*.clip_scores' => 'nullable|json|max:4000',
         ], [
             'items.*.issue.required_if' => 'Décrivez le défaut des pièces.',
             'items.required' => 'Ajoutez au moins un lot d’articles.',
