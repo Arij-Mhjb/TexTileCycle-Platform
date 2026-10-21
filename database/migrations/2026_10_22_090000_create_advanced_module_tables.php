@@ -15,6 +15,12 @@ return new class extends Migration
 {
     public function up(): void
     {
+        // Reprise après une tentative interrompue (MySQL ne fait pas de DDL transactionnel) : les tables créées
+        // à moitié sont vides, on les recrée proprement.
+        Schema::dropIfExists('certificate_alerts');
+        Schema::dropIfExists('recycling_schedules');
+        Schema::dropIfExists('carbon_targets');
+
         Schema::create('carbon_targets', function (Blueprint $table) {
             $table->id();
             $table->foreignId('brand_id')->constrained()->cascadeOnDelete();
@@ -51,13 +57,19 @@ return new class extends Migration
             $table->foreignId('material_origin_certificate_id')->constrained()->cascadeOnDelete();
             $table->unsignedSmallInteger('threshold');
             $table->dateTime('sent_at');
-            $table->unique(['material_origin_certificate_id', 'threshold']);
+            $table->unique(['material_origin_certificate_id', 'threshold'], 'cert_alerts_threshold_unique'); // nom court : limite MySQL de 64 caractères
         });
 
         Schema::table('recycling_loops', function (Blueprint $table) {
-            $table->string('invoice_number', 40)->nullable()->unique();
-            $table->dateTime('invoiced_at')->nullable();
-            $table->unsignedBigInteger('recycling_schedule_id')->nullable()->index();
+            if (! Schema::hasColumn('recycling_loops', 'invoice_number')) {
+                $table->string('invoice_number', 40)->nullable()->unique();
+            }
+            if (! Schema::hasColumn('recycling_loops', 'invoiced_at')) {
+                $table->dateTime('invoiced_at')->nullable();
+            }
+            if (! Schema::hasColumn('recycling_loops', 'recycling_schedule_id')) {
+                $table->unsignedBigInteger('recycling_schedule_id')->nullable()->index();
+            }
         });
     }
 
