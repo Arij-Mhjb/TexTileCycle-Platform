@@ -7,5 +7,6 @@
         </x-slot:actions>
     </x-module.hero>
     @include('modules.esg._report')
+    @include('modules.esg._simulator', ['endpoint' => route('brand.impact.simulate', $report)])
     @include('modules.esg._ai-recommendations', ['action' => route('brand.impact.ai-recommendations', $report)])
 </x-brand-layout>
