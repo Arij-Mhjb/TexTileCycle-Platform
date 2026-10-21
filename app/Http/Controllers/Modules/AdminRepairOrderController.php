@@ -89,6 +89,7 @@ class AdminRepairOrderController extends Controller
             'title' => 'required|string|max:150',
             'description' => 'nullable|string|max:2000',
             'price' => 'required|numeric|min:1|max:100000',
+            'points_price' => 'nullable|integer|min:1|max:1000000',
         ]);
         $listing = $service->publish($repairOrder, $data);
 
