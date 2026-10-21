@@ -8,7 +8,7 @@
     @endphp
     <section class="mb-6 rounded-2xl border-2 border-purple-300 bg-white p-6" x-data="{ copied: false }">
         <p class="text-[13px] font-semibold text-purple-700">Invitation prête</p>
-        <h2 class="mt-1 text-lg font-black text-slate-900">Envoyez ce lien d’activation à {{ $sent['supplier'] }}</h2>
+        <h2 class="mt-1 text-lg font-black text-slate-900">{{ ! empty($sent['mail']['sent']) ? 'Lien d’activation envoyé à '.$sent['supplier'] : 'Envoyez ce lien d’activation à '.$sent['supplier'] }}</h2>
         <p class="mt-1 text-sm text-slate-600">Il choisira lui-même son mot de passe : vous ne le verrez jamais. Le lien ne marche qu’une fois et expire le {{ $sent['expires_at'] }}.</p>
         <div class="mt-4 flex items-center gap-2 rounded-xl bg-slate-50 p-3 ring-1 ring-slate-200">
             <code class="min-w-0 flex-1 truncate text-sm text-slate-700">{{ $sent['url'] }}</code>
@@ -22,6 +22,19 @@
                 <span x-text="copied ? 'Message copié' : 'Copier le message'"></span>
             </button>
         </div>
+        @if(! empty($sent['mail']))
+            <p class="mt-4 flex items-start gap-2 text-sm {{ $sent['mail']['sent'] ? 'text-emerald-700' : 'text-rose-700' }}">
+                <svg class="mt-0.5 h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>
+                <span>
+                    @if($sent['mail']['sent'])
+                        E-mail d’invitation envoyé à <strong>{{ $sent['mail']['to'] }}</strong>.
+                        @if($sent['mail']['driver'] === 'log')<span class="block text-xs text-amber-700">Mode test (MAIL_MAILER=log) : l’e-mail est écrit dans storage/logs/laravel.log. Passez MAIL_MAILER=smtp pour l’envoyer vraiment.</span>@endif
+                    @else
+                        E-mail non envoyé ({{ $sent['mail']['error'] }}). Vérifiez la configuration MAIL_ du fichier .env ; le lien ci-dessus reste valable.
+                    @endif
+                </span>
+            </p>
+        @endif
         @if($sent['sms'])
             <p class="mt-4 text-sm {{ $sent['sms']['status'] === 'failed' ? 'text-rose-700' : 'text-emerald-700' }}">
                 {{ $sent['sms']['status'] === 'failed' ? 'SMS non envoyé : '.$sent['sms']['error'] : 'Lien envoyé aussi par SMS au '.$sent['sms']['to'].'.' }}

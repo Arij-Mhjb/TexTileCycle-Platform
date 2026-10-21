@@ -8,13 +8,17 @@ use App\Models\Material;
 use App\Models\MaterialOriginCertificate;
 use App\Models\Supplier;
 use App\Models\SupplierBatch;
+use App\Notifications\SupplierInvitationMail;
 use App\Services\Sms\SmsService;
 use App\Services\SupplierAccountService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
+use Throwable;
 
 class BrandSupplierController extends Controller
 {
@@ -118,6 +122,16 @@ class BrandSupplierController extends Controller
         }
 
         $message = $accounts->invitationMessage($supplier, $invitation);
+        // E-mail au fournisseur avec le lien d'activation. Un problème d'envoi (SMTP) n'empêche pas l'invitation.
+        $mail = ['to' => $invitation['email'], 'sent' => true, 'error' => null, 'driver' => (string) config('mail.default')];
+        try {
+            Notification::route('mail', $invitation['email'])->notify(new SupplierInvitationMail(
+                $supplier->brand?->name ?? 'Votre client', $supplier->contact_name ?: $supplier->name, $invitation['url'], $invitation['expires_at']->format('d/m/Y à H:i'),
+            ));
+        } catch (Throwable $exception) {
+            report($exception);
+            $mail = ['sent' => false, 'error' => Str::limit($exception->getMessage(), 160)] + $mail;
+        }
         $sms = null;
         if ($supplier->phone && config('sms.driver') !== 'log') {
             $sms = app(SmsService::class)->send($supplier->phone, $message, $supplier->id, str_replace($invitation['url'], '[lien d’activation]', $message));
@@ -131,7 +145,8 @@ class BrandSupplierController extends Controller
             'message' => $message,
             'phone' => $supplier->phone,
             'sms' => $sms ? ['to' => $sms->to, 'status' => $sms->status, 'error' => $sms->error] : null,
-        ])->with('success', 'Invitation créée : transmettez le lien d’activation à '.$supplier->name.'.');
+            'mail' => $mail,
+        ])->with('success', $mail['sent'] ? 'Invitation envoyée par e-mail à '.$invitation['email'].'.' : 'Invitation créée : transmettez le lien d’activation à '.$supplier->name.'.');
     }
 
     /** Suspendre / réactiver : plus de nouvelles commandes, mais l'historique et les preuves sont conservés. */
