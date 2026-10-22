@@ -83,6 +83,70 @@ Alpine.data('articleReactions', ({ reactUrl, likes, dislikes, userReaction }) =>
     },
 }));
 
+Alpine.data('productForm', (initialTotal = 0) => ({
+    total: Number(initialTotal) || 0,
+    photoProcessing: false,
+    photoError: '',
+    photoName: '',
+    async preparePhoto(event) {
+        const input = event.target;
+        const file = input.files?.[0];
+        this.photoError = '';
+        this.photoName = '';
+        input.setCustomValidity('');
+        if (!file) return;
+
+        const extension = file.name.split('.').pop()?.toLowerCase();
+        const accepted = ['image/jpeg', 'image/png', 'image/webp'].includes(file.type)
+            || ['jpg', 'jpeg', 'png', 'webp'].includes(extension);
+        if (!accepted) {
+            this.photoError = 'Choisissez une image JPG, JPEG, PNG ou WebP.';
+            input.setCustomValidity(this.photoError);
+            return;
+        }
+
+        const targetBytes = 1_800_000;
+        if (file.size <= targetBytes) {
+            this.photoName = `${file.name} · ${(file.size / 1024 / 1024).toFixed(1)} Mo`;
+            return;
+        }
+
+        this.photoProcessing = true;
+        try {
+            const bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' });
+            const scale = Math.min(1, 2400 / Math.max(bitmap.width, bitmap.height));
+            const canvas = document.createElement('canvas');
+            canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+            canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+            const context = canvas.getContext('2d');
+            context.fillStyle = '#ffffff';
+            context.fillRect(0, 0, canvas.width, canvas.height);
+            context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+            bitmap.close();
+
+            let quality = 0.86;
+            let blob;
+            do {
+                blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', quality));
+                quality -= 0.08;
+            } while (blob && blob.size > targetBytes && quality >= 0.46);
+
+            if (!blob || blob.size > targetBytes) throw new Error('compression-failed');
+            const compressed = new File([blob], file.name.replace(/\.[^.]+$/, '') + '.jpg', { type: 'image/jpeg', lastModified: Date.now() });
+            const transfer = new DataTransfer();
+            transfer.items.add(compressed);
+            input.files = transfer.files;
+            input.setCustomValidity('');
+            this.photoName = `${compressed.name} · ${(compressed.size / 1024 / 1024).toFixed(1)} Mo · optimisée automatiquement`;
+        } catch (_) {
+            this.photoError = 'Cette photo dépasse 2 Mo et n’a pas pu être optimisée. Réduisez sa taille puis réessayez.';
+            input.setCustomValidity(this.photoError);
+        } finally {
+            this.photoProcessing = false;
+        }
+    },
+}));
+
 window.mentionComposer = function (searchUrl) {
     return {
         results: [], mentions: [], open: false, controller: null,

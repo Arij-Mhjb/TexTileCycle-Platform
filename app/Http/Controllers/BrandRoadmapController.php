@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\SubmitRoadmapStepRequest;
 use App\Models\Label;
 use App\Models\LabelRoadmap;
 use App\Models\BrandMember;
@@ -164,22 +165,12 @@ class BrandRoadmapController extends Controller
         return back()->with('success','La démarche complète du label a été affectée à '.$member->name.'.');
     }
 
-    public function submit(Request $r, RoadmapStep $step, LabelRoadmapService $service, MediaStorageService $media)
+    public function submit(SubmitRoadmapStepRequest $r, RoadmapStep $step, LabelRoadmapService $service, MediaStorageService $media)
     {
         $roadmap = $step->roadmap;
         $this->own($r, $roadmap);
         abort_unless($roadmap->status === 'active', 409);
-        $rules = ['scope_version' => ['required', 'integer', Rule::in([$roadmap->scope_version])],
-            'actions' => 'required|string|min:10|max:5000', 'results' => 'required|string|min:10|max:5000',
-            'product_results' => 'required|array', 'product_results.*' => 'required|string|min:5|max:2000',
-            'proofs' => 'required|array|min:1|max:4', 'proofs.*' => 'required|file|mimes:pdf,jpg,jpeg,png,webp,doc,docx,csv,txt|max:8192',
-            'material_match_id' => ['nullable', 'integer', Rule::exists('material_matches', 'id')->where('status', 'verified')],
-            'material_name' => 'nullable|string|max:255',
-            'recycled_output_kg' => 'nullable|numeric|min:0|max:100000', 'incorporated_kg' => 'nullable|numeric|min:0|max:100000'];
-        foreach ($roadmap->products()->pluck('products.id') as $id) {
-            $rules['product_results.'.$id] = 'required|string|min:5|max:2000';
-        }
-        $data = $r->validate($rules);
+        $data = $r->validated();
         $files = [];
         try {
             foreach ($r->file('proofs') as $file) {

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\BrandProductRequest;
 use App\Models\Material;
 use App\Models\Product;
 use App\Services\ActivityService;
@@ -12,7 +13,6 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
-use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class BrandProductController extends Controller
@@ -35,7 +35,7 @@ class BrandProductController extends Controller
         return view('brand.products.form', ['product' => new Product, 'materials' => Material::orderBy('name')->get(), 'analysis' => null]);
     }
 
-    public function store(Request $request, MediaStorageService $media): RedirectResponse
+    public function store(BrandProductRequest $request, MediaStorageService $media): RedirectResponse
     {
         [$data,$materials] = $this->validated($request);
         $data += ['brand_id' => $request->user()->brand->id, 'brand' => $request->user()->brand->name, 'slug' => Str::slug($data['name']).'-'.Str::lower(Str::random(5)), 'status' => 'draft', 'is_active' => false];
@@ -73,7 +73,7 @@ class BrandProductController extends Controller
         return view('brand.products.form', ['product' => $product, 'materials' => Material::orderBy('name')->get(), 'analysis' => app(ProductCompletenessService::class)->analyse($product)]);
     }
 
-    public function update(Request $request, Product $product, MediaStorageService $media): RedirectResponse
+    public function update(BrandProductRequest $request, Product $product, MediaStorageService $media): RedirectResponse
     {
         $this->own($request, $product);
         if ($product->status === 'published') {
@@ -168,22 +168,10 @@ class BrandProductController extends Controller
         return to_route('brand.products.index')->with('success', 'Produit restauré en brouillon.');
     }
 
-    private function validated(Request $request, ?Product $product = null): array
+    private function validated(BrandProductRequest $request, ?Product $product = null): array
     {
-        $id = $product?->id;
-        $data = $request->validate([
-            'name' => 'required|string|max:255', 'sku' => "required|string|max:100|unique:products,sku,$id",
-            'barcode' => "nullable|string|max:100|unique:products,barcode,$id", 'qr_code' => "nullable|string|max:255|unique:products,qr_code,$id",
-            'category' => 'required|string|max:100', 'description' => 'nullable|string', 'origin' => 'nullable|string|max:150',
-            'image' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:4096', 'recyclability_score' => 'nullable|integer|min:0|max:100', 'recycling_instructions' => 'nullable|string',
-            'repairable' => 'nullable|boolean', 'reusable' => 'nullable|boolean', 'recyclable' => 'nullable|boolean',
-            'materials' => 'nullable|array', 'materials.*' => 'nullable|numeric|min:0|max:100|decimal:0,2',
-        ]);
-        $materials = array_filter($request->input('materials', []), fn ($v) => (float) $v > 0);
-        $total = round(array_sum($materials), 2);
-        if ($materials && abs($total - 100) > 0.01) {
-            throw ValidationException::withMessages(['materials' => "La composition doit totaliser exactement 100 %. Total actuel : {$total} %."]);
-        }
+        $data = $request->validated();
+        $materials = $request->materialPercentages();
         foreach (['repairable', 'reusable', 'recyclable'] as $field) {
             $data[$field] = $request->boolean($field);
         }

@@ -96,6 +96,20 @@ class ProfessionalBrandWorkflowTest extends TestCase
         Storage::disk('public')->assertExists($product->image_path);
     }
 
+    public function test_oversized_product_photo_has_a_clear_error_message(): void
+    {
+        $user = $this->brandUser();
+
+        $this->actingAs($user)->post(route('brand.products.store'), [
+            'name' => 'Produit photo lourde', 'sku' => 'PHOTO-LARGE', 'category' => 'Veste',
+            'image' => UploadedFile::fake()->image('veste.jpg', 1200, 1200)->size(2000),
+        ])->assertSessionHasErrors([
+            'image' => 'La photo ne doit pas dépasser 1,9 Mo. Les grandes photos sont normalement optimisées automatiquement.',
+        ]);
+
+        $this->assertDatabaseMissing('products', ['sku' => 'PHOTO-LARGE']);
+    }
+
     public function test_complete_product_can_be_submitted_and_versioned(): void
     {
         $user = $this->brandUser();
