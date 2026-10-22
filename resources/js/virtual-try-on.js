@@ -78,6 +78,7 @@ export default function virtualTryOn({ imageUrl, category }) {
         loading: false,
         running: false,
         generating: false,
+        countdown: 0,
         error: '',
         status: 'Placez-vous face à la caméra, avec le corps bien visible.',
         stream: null,
@@ -85,6 +86,7 @@ export default function virtualTryOn({ imageUrl, category }) {
         resultUrl: '',
         captureFile: null,
         job: null,
+        provider: '',
 
         async openTryOn() {
             this.open = true;
@@ -136,21 +138,27 @@ export default function virtualTryOn({ imageUrl, category }) {
             }
 
             if (!generatedUrl) throw new Error(`${provider}: aucune image retournée.`);
+            this.provider = provider;
             return generatedUrl;
         },
 
         async captureAndGenerate() {
-            if (this.generating || (!this.running && !this.captureFile)) return;
+            if (this.generating || this.countdown || (!this.running && !this.captureFile)) return;
             this.error = '';
-            this.generating = true;
             this.status = this.captureFile ? 'Nouvelle génération de l’essayage…' : 'Capture de la photo…';
             try {
                 if (!this.captureFile) {
+                    for (this.countdown = 3; this.countdown > 0; this.countdown -= 1) {
+                        this.status = `Capture dans ${this.countdown} · reculez pour montrer la tête, les bras et les hanches.`;
+                        await new Promise(resolve => setTimeout(resolve, 1000));
+                        if (!this.open || !this.running) return;
+                    }
                     this.captureFile = await frameBlob(this.$refs.video);
                     this.stopCamera();
                     this.revokeUrl('capturedUrl');
                     this.capturedUrl = URL.createObjectURL(this.captureFile);
                 }
+                this.generating = true;
                 this.status = 'Connexion au service IA gratuit…';
 
                 const { Client, handle_file: handleFile } = await import('@gradio/client');
@@ -158,16 +166,7 @@ export default function virtualTryOn({ imageUrl, category }) {
                 const selectedCategory = categoryLabel(category);
                 let generatedUrl;
 
-                try {
-                    const client = await Client.connect(SPACE_NAME, { events: ['status', 'data'] });
-                    const endpoint = fullBodyEndpoint(await client.view_api());
-                    generatedUrl = await this.waitForResult(client, endpoint, [
-                        handleFile(this.captureFile), handleFile(garmentFile), selectedCategory, 1, 20, 2, -1,
-                    ], 'OOTDiffusion');
-                } catch (primaryError) {
-                    if (selectedCategory !== 'Upper-body') throw primaryError;
-                    console.warn('OOTDiffusion failed, switching to IDM-VTON:', primaryError);
-                    this.status = 'Premier moteur indisponible · essai automatique avec IDM-VTON…';
+                if (selectedCategory === 'Upper-body') {
                     try {
                         const fallback = await Client.connect(FALLBACK_SPACE_NAME, { events: ['status', 'data'] });
                         generatedUrl = await this.waitForResult(fallback, '/tryon', [
@@ -176,16 +175,32 @@ export default function virtualTryOn({ imageUrl, category }) {
                             'upper-body garment from the reference image',
                             true,
                             true,
-                            30,
-                            42,
+                            35,
+                            Math.floor(Math.random() * 2147483647),
                         ], 'IDM-VTON');
-                    } catch (fallbackError) {
-                        throw new Error(`${primaryError.message || primaryError} / ${fallbackError.message || fallbackError}`);
+                    } catch (primaryError) {
+                        console.warn('IDM-VTON failed, switching to OOTDiffusion:', primaryError);
+                        this.status = 'Premier moteur indisponible · essai automatique avec OOTDiffusion…';
+                        try {
+                            const client = await Client.connect(SPACE_NAME, { events: ['status', 'data'] });
+                            const endpoint = fullBodyEndpoint(await client.view_api());
+                            generatedUrl = await this.waitForResult(client, endpoint, [
+                                handleFile(this.captureFile), handleFile(garmentFile), selectedCategory, 1, 30, 2, -1,
+                            ], 'OOTDiffusion');
+                        } catch (fallbackError) {
+                            throw new Error(`${primaryError.message || primaryError} / ${fallbackError.message || fallbackError}`);
+                        }
                     }
+                } else {
+                    const client = await Client.connect(SPACE_NAME, { events: ['status', 'data'] });
+                    const endpoint = fullBodyEndpoint(await client.view_api());
+                    generatedUrl = await this.waitForResult(client, endpoint, [
+                        handleFile(this.captureFile), handleFile(garmentFile), selectedCategory, 1, 30, 2, -1,
+                    ], 'OOTDiffusion');
                 }
 
                 this.resultUrl = generatedUrl;
-                this.status = 'Essayage IA terminé · vous pouvez télécharger le résultat.';
+                this.status = `Essayage terminé avec ${this.provider} · vous pouvez télécharger le résultat.`;
                 window.appNotify('Votre essayage réaliste est prêt.');
             } catch (error) {
                 console.error('AI virtual try-on failed:', error);
@@ -194,6 +209,7 @@ export default function virtualTryOn({ imageUrl, category }) {
                 this.status = 'La capture est conservée sur cet écran pour permettre un nouvel essai.';
             } finally {
                 this.job = null;
+                this.countdown = 0;
                 this.generating = false;
             }
         },
@@ -214,13 +230,21 @@ export default function virtualTryOn({ imageUrl, category }) {
             }
         },
 
+        async regenerate() {
+            this.resultUrl = '';
+            this.provider = '';
+            await this.captureAndGenerate();
+        },
+
         async takeAnotherPhoto() {
             this.job?.cancel();
             this.job = null;
             this.generating = false;
+            this.countdown = 0;
             this.captureFile = null;
             this.revokeUrl('capturedUrl');
             this.resultUrl = '';
+            this.provider = '';
             await this.startCamera();
         },
 
@@ -237,6 +261,8 @@ export default function virtualTryOn({ imageUrl, category }) {
             this.revokeUrl('capturedUrl');
             this.resultUrl = '';
             this.generating = false;
+            this.countdown = 0;
+            this.provider = '';
             this.open = false;
         },
     };
