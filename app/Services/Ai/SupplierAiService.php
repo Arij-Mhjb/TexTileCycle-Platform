@@ -43,6 +43,10 @@ class SupplierAiService
             $source = 'huggingface';
             $model = $hf['model'];
         } else {
+            // Gemini (avec ses relances) peut dépasser les 30 s par défaut de PHP : on lui laisse le temps.
+            if (function_exists('set_time_limit') && ! app()->runningUnitTests()) {
+                @set_time_limit(180);
+            }
             $answer = $this->gemini->ask($this->certificatePrompt($batch), $this->certificateSchema(), [$imagePath]);
         }
         if ($answer) {

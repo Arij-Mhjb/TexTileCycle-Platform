@@ -113,6 +113,10 @@ class HuggingFaceClient
             return null;
         }
 
+        // Budget total : on n'enchaîne pas trois modèles lents au point de dépasser la limite de PHP.
+        $deadline = microtime(true) + (int) config('huggingface.chat_budget', 45);
+        self::extendTimeLimit();
+
         foreach ($models ?? config('huggingface.chat_models', []) as $model) {
             if (! $this->enabled()) {
                 return null;
@@ -120,10 +124,17 @@ class HuggingFaceClient
             if (! $this->supported($model)) {
                 continue;
             }
+            $remaining = (int) floor($deadline - microtime(true));
+            if ($remaining < 5) {
+                Log::warning('Hugging Face chat : budget de temps épuisé, passage au plan B.');
+
+                return null;
+            }
             try {
                 $response = Http::acceptJson()->asJson()
                     ->withToken((string) config('huggingface.token'))
-                    ->timeout((int) config('huggingface.chat_timeout', 60))
+                    ->connectTimeout(10)
+                    ->timeout(min((int) config('huggingface.chat_timeout', 60), $remaining))
                     ->post((string) config('huggingface.chat_url'), ['model' => $model, 'messages' => $messages] + $options + ['max_tokens' => 900, 'temperature' => 0.2]);
             } catch (Throwable $exception) {
                 Log::warning('Hugging Face chat ('.$model.') indisponible : '.$exception->getMessage());
@@ -160,6 +171,17 @@ class HuggingFaceClient
         $data = $answer ? self::decodeJson((string) ($answer['message']['content'] ?? '')) : null;
 
         return $data === null ? null : ['data' => $data, 'model' => $answer['model']];
+    }
+
+    /**
+     * Un appel à un modèle distant peut durer plus que les 30 s par défaut de PHP (max_execution_time) :
+     * on laisse 2 minutes à la requête, puis le plan B (Gemini, OCR, règles) prend le relais.
+     */
+    private static function extendTimeLimit(): void
+    {
+        if (function_exists('set_time_limit') && ! app()->runningUnitTests()) {
+            @set_time_limit(120);
+        }
     }
 
     /** Extrait le premier objet JSON d'une réponse de modèle (avec ou sans bloc ```json). */
@@ -210,6 +232,7 @@ class HuggingFaceClient
         if (! $this->supported($model)) {
             return null;
         }
+        self::extendTimeLimit();
         try {
             $response = Http::acceptJson()->asJson()
                 ->withToken((string) config('huggingface.token'))
