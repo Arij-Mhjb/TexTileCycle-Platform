@@ -30,7 +30,7 @@ class ProductReturnWorkflowService
     public function create(User $user, array $data): ProductReturn
     {
         return DB::transaction(function () use ($user, $data) {
-            $point = $this->validateDestination($data);
+            $point = $this->validateDestination($data, $user);
 
             $return = ProductReturn::create([
                 ...$data,
@@ -68,7 +68,7 @@ class ProductReturnWorkflowService
         }
 
         return DB::transaction(function () use ($return, $data, $actor) {
-            $point = $this->validateDestination($data);
+            $point = $this->validateDestination($data, $actor, $return);
             $return->update($data);
 
             if ($return->rewardTransaction?->status === 'pending') {
@@ -156,7 +156,7 @@ class ProductReturnWorkflowService
         });
     }
 
-    private function validateDestination(array $data): CollectionPoint
+    private function validateDestination(array $data, User $actor, ?ProductReturn $currentReturn = null): CollectionPoint
     {
         $productIsAvailable = Product::whereKey($data['product_id'])
             ->where('status', 'published')
@@ -170,6 +170,23 @@ class ProductReturnWorkflowService
         if (! empty($data['scan_id'])) {
             $scan = Scan::with('passportProposal')->findOrFail($data['scan_id']);
             $proposal = $scan->passportProposal;
+
+            if (! $actor->isAdmin() && $scan->user_id !== $actor->id) {
+                throw ValidationException::withMessages([
+                    'scan_id' => 'Ce scan appartient à un autre consommateur.',
+                ]);
+            }
+
+            $existingReturn = ProductReturn::where('scan_id', $scan->id)
+                ->whereNotIn('status', ['cancelled', 'rejected'])
+                ->when($currentReturn, fn ($query) => $query->where('id', '!=', $currentReturn->id))
+                ->exists();
+
+            if ($existingReturn) {
+                throw ValidationException::withMessages([
+                    'scan_id' => 'Un retour actif existe déjà pour ce scan.',
+                ]);
+            }
 
             if ($scan->source_type === 'multimodal' && (! $proposal || ! $proposal->isReady() || $proposal->product_id !== (int) $data['product_id'])) {
                 throw ValidationException::withMessages([
