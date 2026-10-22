@@ -18,6 +18,7 @@
                 <a href="{{ route('consumer.products') }}" class="rounded-xl px-3.5 py-2.5 text-sm font-bold transition {{ request()->routeIs('consumer.products*') ? 'bg-emerald-50 text-emerald-700' : 'text-slate-500 hover:bg-slate-50' }}">Explorer</a>
                 <a href="{{ route('consumer.marketplace.index') }}" class="rounded-xl px-3.5 py-2.5 text-sm font-bold transition {{ request()->routeIs('consumer.marketplace.*') ? 'bg-amber-50 text-amber-800' : 'text-amber-700 hover:bg-amber-50' }}">Boutique</a>
                 <a href="{{ route('consumer.community.index') }}" class="rounded-xl px-3.5 py-2.5 text-sm font-bold transition {{ request()->routeIs('consumer.community.*') ? 'bg-violet-50 text-violet-700' : 'text-slate-500 hover:bg-violet-50' }}">Communauté</a>
+                <a href="{{ route('blog.index') }}" class="rounded-xl px-3.5 py-2.5 text-sm font-bold transition {{ request()->routeIs('blog.*') ? 'bg-emerald-50 text-emerald-700' : 'text-slate-500 hover:bg-emerald-50' }}">Blog</a>
                 <div class="relative" x-data="{ activitiesOpen: false }">
                     <button type="button" @click="activitiesOpen = !activitiesOpen" @keydown.escape.window="activitiesOpen = false" class="flex items-center gap-1 rounded-xl px-3.5 py-2.5 text-sm font-bold text-slate-500 transition hover:bg-slate-50">Mon espace <span aria-hidden="true">⌄</span></button>
                     <div x-cloak x-show="activitiesOpen" @click.outside="activitiesOpen = false" x-transition class="absolute left-0 top-full z-50 mt-2 grid w-56 gap-1 rounded-2xl border border-slate-200 bg-white p-2 shadow-2xl dark:border-slate-700 dark:bg-slate-900">
@@ -45,6 +46,7 @@
                     <a href="{{ route('consumer.wardrobe') }}" class="block rounded-xl px-3 py-2.5 text-sm font-bold hover:bg-slate-50 dark:hover:bg-slate-800 lg:hidden">Ma garde-robe</a>
                     <a href="{{ route('scans.index') }}" class="block rounded-xl px-3 py-2.5 text-sm font-bold hover:bg-slate-50 dark:hover:bg-slate-800 lg:hidden">Mes scans</a>
                     <a href="{{ route('consumer.wallet') }}" class="block rounded-xl px-3 py-2.5 text-sm font-bold hover:bg-slate-50 dark:hover:bg-slate-800 lg:hidden">Wallet et récompenses</a>
+                    <a href="{{ route('blog.index') }}" class="block rounded-xl px-3 py-2.5 text-sm font-bold hover:bg-slate-50 dark:hover:bg-slate-800 lg:hidden">Blog</a>
                     <a href="{{ route('consumer.notifications.index') }}" class="block rounded-xl px-3 py-2.5 text-sm font-bold hover:bg-slate-50 dark:hover:bg-slate-800">Toutes mes notifications</a>
                     <a href="{{ route('consumer.claims.index') }}" class="block rounded-xl px-3 py-2.5 text-sm font-bold hover:bg-slate-50 dark:hover:bg-slate-800">Aide et réclamations</a>
                     @include('modules.partials.consumer-menu')

@@ -28,6 +28,60 @@ Alpine.data('brandAssistant', ({ endpoint, page }) => ({
     },
 }));
 Alpine.data('virtualTryOn', virtualTryOn);
+Alpine.data('chatWidget', ({ askUrl, suggestionsUrl }) => ({
+    open: false, message: '', loading: false, error: '', suggestions: [],
+    messages: [{ role: 'bot', content: 'Bonjour ! Je suis l\'assistant TexTileCycle. Posez-moi une question sur le scan, les retours, la réparation, le recyclage ou nos labels.' }],
+    get sessionId() {
+        let id = localStorage.getItem('textilecycle-chat-session');
+        if (!id) { id = crypto.randomUUID(); localStorage.setItem('textilecycle-chat-session', id); }
+        return id;
+    },
+    async init() {
+        try {
+            const response = await fetch(suggestionsUrl, { headers: { Accept: 'application/json' } });
+            const data = await response.json();
+            this.suggestions = data.suggestions || [];
+        } catch (_) { this.suggestions = []; }
+    },
+    ask(question) { this.message = question; this.send(); },
+    async send() {
+        const question = this.message.trim();
+        if (question.length < 2 || this.loading) return;
+        this.messages.push({ role: 'user', content: question });
+        this.message = ''; this.loading = true; this.error = '';
+        this.$nextTick(() => { this.$refs.messages.scrollTop = this.$refs.messages.scrollHeight; });
+        try {
+            const response = await fetch(askUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '' },
+                body: JSON.stringify({ message: question, session_id: this.sessionId }),
+            });
+            if (!response.ok) throw new Error(response.status === 429 ? 'Trop de questions envoyées, réessayez dans une minute.' : 'Assistant indisponible pour le moment.');
+            const data = await response.json();
+            this.messages.push({ role: 'bot', content: data.answer });
+            this.suggestions = data.suggestions || [];
+        } catch (error) { this.error = error.message; }
+        finally { this.loading = false; this.$nextTick(() => { this.$refs.messages.scrollTop = this.$refs.messages.scrollHeight; }); }
+    },
+}));
+Alpine.data('articleReactions', ({ reactUrl, likes, dislikes, userReaction }) => ({
+    likes, dislikes, userReaction, loading: false,
+    async react(type) {
+        if (this.loading) return;
+        this.loading = true;
+        try {
+            const response = await fetch(reactUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '' },
+                body: JSON.stringify({ type }),
+            });
+            if (!response.ok) throw new Error('reaction-failed');
+            const data = await response.json();
+            this.likes = data.likes; this.dislikes = data.dislikes; this.userReaction = data.user_reaction;
+        } catch (_) { /* silently ignore, counts stay unchanged */ }
+        finally { this.loading = false; }
+    },
+}));
 
 window.mentionComposer = function (searchUrl) {
     return {

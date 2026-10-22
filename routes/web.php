@@ -1,6 +1,15 @@
 <?php
 
+use App\Http\Controllers\AdminArticleController;
 use App\Http\Controllers\AdminBrandApplicationController;
+use App\Http\Controllers\AdminCategoryController;
+use App\Http\Controllers\BlogController;
+use App\Http\Controllers\ArticleReactionController;
+use App\Http\Controllers\AdminBlogStatsController;
+use App\Http\Controllers\AdminChatbotCategoryController;
+use App\Http\Controllers\AdminChatbotQuestionController;
+use App\Http\Controllers\AdminChatbotStatsController;
+use App\Http\Controllers\ChatWidgetController;
 use App\Http\Controllers\AdminConsumerClaimController;
 use App\Http\Controllers\AdminCollectorController;
 use App\Http\Controllers\AdminEvidenceReviewController;
@@ -87,6 +96,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/admin/collectors', [AdminCollectorController::class, 'store'])->name('admin.collectors.store');
         Route::delete('/admin/collectors/{collector}', [AdminCollectorController::class, 'destroy'])->name('admin.collectors.destroy');
         Route::get('/admin', DashboardController::class)->name('admin.dashboard');
+        Route::resource('admin/categories', AdminCategoryController::class)->names('admin.categories')->except('show');
+        Route::resource('admin/articles', AdminArticleController::class)->names('admin.articles')->except('show');
+        Route::get('/admin/blog-stats', AdminBlogStatsController::class)->name('admin.blog-stats.index');
+        Route::get('/admin/chatbot-stats', AdminChatbotStatsController::class)->name('admin.chatbot-stats.index');
+        Route::resource('admin/chatbot-categories', AdminChatbotCategoryController::class)->names('admin.chatbot-categories')->except('show');
+        Route::resource('admin/chatbot-questions', AdminChatbotQuestionController::class)->names('admin.chatbot-questions')->except('show');
         Route::resources([
             'products' => ProductController::class, 'materials' => MaterialController::class, 'detections' => DetectionController::class,
             'recovery-programs' => RecoveryProgramController::class, 'collection-points' => CollectionPointController::class,
@@ -212,5 +227,12 @@ Route::get('/partners', [PartnerController::class, 'index'])->name('partners.ind
 Route::get('/partners/{repairPartner:slug}', [PartnerController::class, 'show'])->name('partners.show');
 Route::get('/public-workshops', [RepairWorkshopController::class, 'catalog'])->name('public-workshops.index');
 Route::get('/public-workshops/{repairWorkshop:slug}', [RepairWorkshopController::class, 'showPublic'])->name('public-workshops.show');
+
+Route::get('/blog', [BlogController::class, 'index'])->name('blog.index');
+Route::get('/blog/{article:slug}', [BlogController::class, 'show'])->name('blog.show');
+Route::post('/blog/{article:slug}/react', ArticleReactionController::class)->middleware('throttle:30,1')->name('blog.react');
+
+Route::post('/assistant-chat/ask', [ChatWidgetController::class, 'ask'])->middleware('throttle:20,1')->name('chatbot.ask');
+Route::get('/assistant-chat/suggestions', [ChatWidgetController::class, 'suggestions'])->middleware('throttle:30,1')->name('chatbot.suggestions');
 
 require __DIR__.'/auth.php';

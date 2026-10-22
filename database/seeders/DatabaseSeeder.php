@@ -252,5 +252,7 @@ class DatabaseSeeder extends Seeder
         $this->call(MaterialExchangeSeeder::class);
         $this->call(CircularModulesSeeder::class);
         $this->call(ConsumerExperienceSeeder::class);
+        $this->call(BlogSeeder::class);
+        $this->call(ChatbotSeeder::class);
     }
 }

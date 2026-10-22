@@ -15,6 +15,16 @@ $groups = [
   ['route'=>'scans.index','active'=>'scans.*','label'=>'Smart scans','icon'=>'M4 7V4h3M17 4h3v3M20 17v3h-3M7 20H4v-3M8 8h8v8H8z'],
   ['route'=>'detections.index','active'=>'detections.*','label'=>'Détections','icon'=>'M12 3 4 7v5c0 5 3.4 8 8 9 4.6-1 8-4 8-9V7l-8-4Z'],
  ]],
+ ['label'=>'Blog','description'=>'Sensibilisation & contenus','icon'=>'M4 19.5A2.5 2.5 0 0 1 6.5 17H20M4 19.5A2.5 2.5 0 0 0 6.5 22H20V2H6.5A2.5 2.5 0 0 0 4 4.5v15Z','items'=>[
+  ['route'=>'admin.blog-stats.index','active'=>'admin.blog-stats.*','label'=>'Statistiques','icon'=>'M4 20V10m6 10V4m6 16v-7m4 7H2'],
+  ['route'=>'admin.categories.index','active'=>'admin.categories.*','label'=>'Catégories','icon'=>'M4 6h16M4 12h16M4 18h10'],
+  ['route'=>'admin.articles.index','active'=>'admin.articles.*','label'=>'Articles','icon'=>'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6Zm0 0v6h6M8 13h8M8 17h5'],
+ ]],
+ ['label'=>'Assistant virtuel','description'=>'Chatbot questions/réponses','icon'=>'M8 10h8M8 14h5M21 12c0 4.4-4 8-9 8-1.3 0-2.5-.2-3.6-.6L3 21l1.3-4.3C3.5 15.3 3 13.7 3 12c0-4.4 4-8 9-8s9 3.6 9 8Z','items'=>[
+  ['route'=>'admin.chatbot-stats.index','active'=>'admin.chatbot-stats.*','label'=>'Statistiques','icon'=>'M4 20V10m6 10V4m6 16v-7m4 7H2'],
+  ['route'=>'admin.chatbot-categories.index','active'=>'admin.chatbot-categories.*','label'=>'Catégories','icon'=>'M4 6h16M4 12h16M4 18h10'],
+  ['route'=>'admin.chatbot-questions.index','active'=>'admin.chatbot-questions.*','label'=>'Questions/Réponses','icon'=>'M8 10h8M8 14h5M21 12c0 4.4-4 8-9 8-1.3 0-2.5-.2-3.6-.6L3 21l1.3-4.3C3.5 15.3 3 13.7 3 12c0-4.4 4-8 9-8s9 3.6 9 8Z'],
+ ]],
  ['label'=>'Collecte & circularité','description'=>'Flux de récupération','icon'=>'M20 7h-5V2M4 17h5v5M19 17a8 8 0 0 1-13 2M5 7A8 8 0 0 1 18 5','items'=>[
   ['route'=>'product-returns.index','active'=>'product-returns.*','label'=>'Retours textiles','icon'=>'M9 14 4 9l5-5M4 9h11a5 5 0 0 1 0 10h-3'],
   ['route'=>'recovery-programs.index','active'=>'recovery-programs.*','label'=>'Programmes de collecte','icon'=>'M20 7h-5V2M4 17h5v5M19 17a8 8 0 0 1-13 2M5 7A8 8 0 0 1 18 5'],
