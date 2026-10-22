@@ -18,7 +18,7 @@
         "vite": "^7.0.7"
     },
     "dependencies": {
-        "@mediapipe/tasks-vision": "^1.1.1",
+        "@gradio/client": "^2.7.1",
         "chart.js": "^4.5.1",
         "qrcode": "^1.5.4"
     }
