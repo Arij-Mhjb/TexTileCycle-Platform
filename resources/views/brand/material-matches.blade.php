@@ -67,7 +67,26 @@
                     <div class="rounded-2xl bg-slate-50 p-5">
                         @if($match->status === 'suggested' && $match->ai_verdict === 'compatible')
                             <p class="mb-4 text-sm text-slate-600">L’IA recommande cette correspondance. Vérifiez les preuves avant de réserver.</p>
-                            <form method="POST" action="{{ route('brand.material-matches.accept',$match) }}">@csrf<button class="w-full rounded-xl bg-emerald-600 px-4 py-3 font-black text-white">Accepter et réserver</button></form>
+                            <form method="POST" action="{{ route('brand.material-matches.accept',$match) }}"
+                                  x-data="{ override: false, confirmed: false, showConfirm: false }"
+                                  x-ref="acceptForm"
+                                  @submit="if (override && !confirmed) { $event.preventDefault(); showConfirm = true }"
+                                  class="space-y-3">
+                                @csrf
+                                <button class="w-full rounded-xl bg-emerald-600 px-4 py-3 font-black text-white">Accepter et réserver</button>
+                                <label class="flex cursor-pointer items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">
+                                    <input type="checkbox" name="allow_over_capacity" value="1" x-model="override" class="mt-1 rounded border-amber-400 text-amber-600">
+                                    <span><strong>Accepter même si la quantité disponible est dépassée</strong><br><span class="text-xs">Cette décision exceptionnelle sera enregistrée dans la traçabilité.</span></span>
+                                </label>
+                                <div x-show="showConfirm" x-cloak role="alertdialog" aria-modal="true" class="rounded-xl border-2 border-amber-400 bg-white p-4 shadow-lg">
+                                    <p class="font-black text-amber-900">Confirmer le dépassement ?</p>
+                                    <p class="mt-1 text-xs text-slate-600">Le poids de ce textile peut dépasser le besoin restant. La demande pourra être clôturée avec une quantité supérieure à l’objectif.</p>
+                                    <div class="mt-3 flex gap-2">
+                                        <button type="button" @click="showConfirm = false" class="flex-1 rounded-lg border px-3 py-2 text-sm font-bold">Annuler</button>
+                                        <button type="button" @click="confirmed = true; showConfirm = false; $nextTick(() => $refs.acceptForm.requestSubmit())" class="flex-1 rounded-lg bg-amber-600 px-3 py-2 text-sm font-black text-white">Oui, accepter</button>
+                                    </div>
+                                </div>
+                            </form>
                         @elseif($match->status === 'review_needed')
                             <p class="text-sm font-bold text-amber-800">Compatibilité incertaine : une validation humaine est nécessaire. La réservation reste bloquée tant que les critères obligatoires ne sont pas satisfaits.</p>
                         @elseif($match->status === 'incompatible')
