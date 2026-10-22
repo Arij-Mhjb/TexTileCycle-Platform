@@ -1,18 +1,43 @@
 import moveNetManifestUrl from '../models/movenet-lightning.json?url';
-import moveNetWeightsUrl from '../models/movenet-lightning.bin?url';
+import moveNetWeightsPart00Url from '../models/movenet-lightning-part-00.bin?url';
+import moveNetWeightsPart01Url from '../models/movenet-lightning-part-01.bin?url';
+import moveNetWeightsPart02Url from '../models/movenet-lightning-part-02.bin?url';
+import moveNetWeightsPart03Url from '../models/movenet-lightning-part-03.bin?url';
+import moveNetWeightsPart04Url from '../models/movenet-lightning-part-04.bin?url';
+import moveNetWeightsPart05Url from '../models/movenet-lightning-part-05.bin?url';
+import moveNetWeightsPart06Url from '../models/movenet-lightning-part-06.bin?url';
+import moveNetWeightsPart07Url from '../models/movenet-lightning-part-07.bin?url';
+
+const moveNetWeightUrls = [
+    moveNetWeightsPart00Url,
+    moveNetWeightsPart01Url,
+    moveNetWeightsPart02Url,
+    moveNetWeightsPart03Url,
+    moveNetWeightsPart04Url,
+    moveNetWeightsPart05Url,
+    moveNetWeightsPart06Url,
+    moveNetWeightsPart07Url,
+];
 
 let sharedDetector;
 
 async function bundledMoveNetModel() {
-    const [manifestResponse, weightsResponse] = await Promise.all([
+    const [manifestResponse, ...weightResponses] = await Promise.all([
         fetch(moveNetManifestUrl),
-        fetch(moveNetWeightsUrl),
+        ...moveNetWeightUrls.map(url => fetch(url)),
     ]);
-    if (!manifestResponse.ok || !weightsResponse.ok) {
-        throw new Error(`MoveNet assets unavailable (${manifestResponse.status}/${weightsResponse.status})`);
+    const failedWeight = weightResponses.find(response => !response.ok);
+    if (!manifestResponse.ok || failedWeight) {
+        throw new Error(`MoveNet assets unavailable (${manifestResponse.status}/${failedWeight?.status ?? 'ok'})`);
     }
     const manifest = await manifestResponse.json();
-    const weightData = await weightsResponse.arrayBuffer();
+    const weightParts = await Promise.all(weightResponses.map(response => response.arrayBuffer()));
+    const weightData = new Uint8Array(weightParts.reduce((total, part) => total + part.byteLength, 0));
+    let offset = 0;
+    weightParts.forEach(part => {
+        weightData.set(new Uint8Array(part), offset);
+        offset += part.byteLength;
+    });
     return {
         load: async () => ({
             modelTopology: manifest.modelTopology,
@@ -20,7 +45,7 @@ async function bundledMoveNetModel() {
             generatedBy: manifest.generatedBy,
             convertedBy: manifest.convertedBy,
             weightSpecs: manifest.weightsManifest.flatMap(group => group.weights),
-            weightData,
+            weightData: weightData.buffer,
         }),
     };
 }
