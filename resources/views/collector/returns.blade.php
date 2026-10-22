@@ -32,9 +32,14 @@
                     @if(in_array($item->status,['dropoff_expected','deposit_declared','received','inspected','routed']))
                     <form method="POST" action="{{ route('collector.returns.update',$item) }}" enctype="multipart/form-data" class="mt-6 grid gap-4 md:grid-cols-3" x-data="qrScanner()" @submit="stop()">
                         @csrf @method('PATCH')
-                        <x-ui.select name="status" label="Nouvelle étape" :options="collect([
-                            'received'=>'Reçu au point','inspected'=>'Contrôlé','routed'=>'Orienté','completed'=>'Terminé','rejected'=>'Refusé'
-                        ])" required/>
+                        @php($nextStatuses = collect(match($item->status) {
+                            'dropoff_expected', 'deposit_declared' => ['received' => 'Reçu au point'],
+                            'received' => ['inspected' => 'Contrôlé', 'rejected' => 'Refusé'],
+                            'inspected' => ['routed' => 'Orienté', 'rejected' => 'Refusé'],
+                            'routed' => ['completed' => 'Terminé', 'rejected' => 'Refusé'],
+                            default => [],
+                        }))
+                        <x-ui.select name="status" label="Nouvelle étape" :options="$nextStatuses" required/>
                         <div><label class="text-sm font-black">Code QR (réception)</label><input x-ref="token" name="qr_token" class="field"><button type="button" @click="start()" class="mt-2 text-sm font-black text-sky-700">Scanner avec la caméra</button><p x-text="error" class="mt-1 text-xs text-rose-600"></p></div><div x-show="scanning" x-cloak><video x-ref="video" class="h-36 w-full rounded-xl bg-black object-cover"></video><button type="button" @click="stop()" class="text-xs text-rose-600">Arrêter</button></div>
                         <x-ui.input name="confirmed_weight_kg" label="Poids confirmé (kg)" type="number" step="0.01" :value="$item->confirmed_weight_kg"/>
                         <x-ui.select name="condition" label="État constaté" :value="$item->condition" :options="collect(['good'=>'Bon','wearable'=>'Portable','minor_damage'=>'Petits défauts','damaged'=>'Endommagé','unusable'=>'Inutilisable','unknown'=>'Inconnu'])"/>
