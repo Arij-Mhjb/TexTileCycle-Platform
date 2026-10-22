@@ -3,7 +3,10 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 COPY . .
-RUN npm run build
+RUN npm run build \
+    && test -f public/build/manifest.json \
+    && find public/build/assets -maxdepth 1 -type f -name 'movenet-lightning-*.json' -print -quit | grep -q . \
+    && find public/build/assets -maxdepth 1 -type f -name 'movenet-lightning-*.bin' -print -quit | grep -q .
 
 FROM php:8.3-apache-bookworm
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -23,6 +26,9 @@ RUN composer install --no-dev --no-interaction --prefer-dist --optimize-autoload
     && printf 'upload_max_filesize=12M\npost_max_size=40M\nmax_file_uploads=10\nmemory_limit=256M\n' > /usr/local/etc/php/conf.d/uploads.ini \
     && chmod +x docker/start.sh
 COPY --from=assets /app/public/build ./public/build
+RUN test -f public/build/manifest.json \
+    && find public/build/assets -maxdepth 1 -type f -name 'movenet-lightning-*.json' -print -quit | grep -q . \
+    && find public/build/assets -maxdepth 1 -type f -name 'movenet-lightning-*.bin' -print -quit | grep -q .
 ENV APP_ENV=production APP_DEBUG=false LOG_CHANNEL=stderr
 EXPOSE 10000
 CMD ["sh", "docker/start.sh"]
