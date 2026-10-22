@@ -4,13 +4,30 @@ use App\Http\Requests\SubmitRoadmapStepRequest;
 use App\Models\RoadmapStep;
 use App\Services\LabelRoadmapService;
 use App\Services\MediaStorageService;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 class BrandMemberTaskController extends Controller {
- private function own(Request $r,RoadmapStep $step):void{abort_unless($step->brand_member_id===$r->user()->brandMembership?->id,403);}
- public function index(Request $r):View
+ private function own(Request $r,RoadmapStep $step):void
+ {
+     abort_unless(
+         $r->user()->brandMembership
+         && $step->brand_member_id === $r->user()->brandMembership->id,
+         403,
+         'Cette tâche appartient au collaborateur qui a reçu l’e-mail. Connectez-vous avec son adresse professionnelle.'
+     );
+ }
+
+ public function index(Request $r):View|RedirectResponse
  {
      $member = $r->user()->brandMembership;
+     if (! $member) {
+         return to_route('brand.dashboard')->with(
+             'error',
+             'Cet espace appartient au collaborateur invité. Déconnectez-vous puis connectez-vous avec l’adresse qui a reçu l’e-mail.'
+         );
+     }
+
      $steps = $member->steps()
          ->with(['roadmap.label', 'roadmap.products'])
          ->orderByRaw("case priority when 'urgent' then 0 when 'high' then 1 when 'normal' then 2 else 3 end")
