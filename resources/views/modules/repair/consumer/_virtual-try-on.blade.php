@@ -22,20 +22,25 @@
 
                 <div class="mt-5 rounded-2xl bg-violet-50 p-4 text-sm text-violet-900">
                     <p class="font-black" x-text="status"></p>
-                    <p class="mt-2 text-xs leading-5">Cadrez votre corps, puis l’IA combine votre capture avec l’image du vêtement pour produire un résultat réaliste.</p>
+                    <p class="mt-2 text-xs leading-5">Utilisez la caméra ou importez une photo. L’IA la combine avec l’image du vêtement pour produire un résultat réaliste.</p>
                 </div>
 
                 <ol class="mt-5 space-y-3 text-sm text-slate-700 dark:text-slate-200">
-                    <li class="flex gap-3"><span class="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-violet-100 text-xs font-black text-violet-700">1</span><span>Reculez jusqu’à voir entièrement la tête, les épaules, les bras et les hanches dans le guide.</span></li>
-                    <li class="flex gap-3"><span class="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-violet-100 text-xs font-black text-violet-700">2</span><span>Cliquez sur « Capturer et essayer ».</span></li>
+                    <li class="flex gap-3"><span class="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-violet-100 text-xs font-black text-violet-700">1</span><span>Cadrez la tête, les épaules, les bras et les hanches, ou importez une photo bien éclairée.</span></li>
+                    <li class="flex gap-3"><span class="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-violet-100 text-xs font-black text-violet-700">2</span><span>Capturez ou sélectionnez la photo à utiliser, puis lancez l’essayage.</span></li>
                     <li class="flex gap-3"><span class="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-violet-100 text-xs font-black text-violet-700">3</span><span>Attendez la génération, puis téléchargez votre résultat.</span></li>
                 </ol>
 
+                <input x-ref="photoInput" type="file" accept="image/jpeg,image/png,image/webp" @change="selectPhoto($event)" class="hidden">
                 <button x-show="!capturedUrl && !resultUrl" type="button" @click="captureAndGenerate()" :disabled="!running || generating || countdown" class="mt-6 w-full rounded-2xl bg-violet-600 px-4 py-3 font-black text-white shadow-lg shadow-violet-600/20 disabled:opacity-40">📸 Capturer et essayer avec l’IA</button>
-                <button x-show="capturedUrl && !resultUrl && !generating" type="button" @click="captureAndGenerate()" class="mt-6 w-full rounded-2xl bg-violet-600 px-4 py-3 font-black text-white">✨ Relancer la génération</button>
+                <div x-show="!capturedUrl && !resultUrl" class="my-3 flex items-center gap-3 text-xs font-black uppercase tracking-widest text-slate-400"><span class="h-px flex-1 bg-slate-200"></span>ou<span class="h-px flex-1 bg-slate-200"></span></div>
+                <button x-show="!capturedUrl && !resultUrl" type="button" @click="chooseAnotherPhoto()" :disabled="generating || countdown" class="w-full rounded-2xl border-2 border-violet-200 bg-violet-50 px-4 py-3 font-black text-violet-800 disabled:opacity-40">🖼️ Importer ma photo</button>
+                <p x-show="!capturedUrl && !resultUrl" class="mt-2 text-center text-[11px] text-slate-500">JPG, PNG ou WebP · 12 Mo maximum</p>
+                <button x-show="capturedUrl && !resultUrl && !generating" type="button" @click="captureAndGenerate()" class="mt-6 w-full rounded-2xl bg-violet-600 px-4 py-3 font-black text-white">✨ Essayer cette photo avec l’IA</button>
                 <button x-show="resultUrl" type="button" @click="downloadResult()" class="mt-6 w-full rounded-2xl bg-emerald-600 px-4 py-3 font-black text-white">⬇ Télécharger le résultat</button>
                 <button x-show="resultUrl" type="button" @click="regenerate()" :disabled="generating" class="mt-3 w-full rounded-2xl bg-violet-100 px-4 py-3 font-black text-violet-800 disabled:opacity-40">✨ Générer une autre variante</button>
-                <button x-show="capturedUrl || resultUrl" type="button" @click="takeAnotherPhoto()" :disabled="generating" class="mt-3 w-full rounded-2xl border border-slate-300 px-4 py-3 font-black text-slate-700 disabled:opacity-40 dark:text-slate-200">Reprendre une photo</button>
+                <button x-show="capturedUrl || resultUrl" type="button" @click="chooseAnotherPhoto()" :disabled="generating" class="mt-3 w-full rounded-2xl border border-violet-200 px-4 py-3 font-black text-violet-700 disabled:opacity-40 dark:text-violet-300">🖼️ Choisir une autre photo</button>
+                <button x-show="capturedUrl || resultUrl" type="button" @click="takeAnotherPhoto()" :disabled="generating" class="mt-3 w-full rounded-2xl border border-slate-300 px-4 py-3 font-black text-slate-700 disabled:opacity-40 dark:text-slate-200">📸 Utiliser la caméra</button>
 
                 <div class="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-900">
                     <strong>Confidentialité :</strong> après votre clic, la capture et le fichier du vêtement sont envoyés temporairement aux Spaces publics OOTDiffusion ou IDM-VTON de Hugging Face. N’utilisez pas de photo sensible. Les services gratuits peuvent être lents ou indisponibles.
