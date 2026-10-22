@@ -6,8 +6,14 @@
                 <img x-show="capturedUrl && !resultUrl" :src="capturedUrl" alt="Photo capturée pour l’essayage" class="absolute inset-0 h-full w-full object-contain">
                 <img x-show="resultUrl" :src="resultUrl" alt="Résultat de l’essayage virtuel" class="absolute inset-0 h-full w-full object-contain">
 
+                <div x-show="running && !capturedUrl" class="pointer-events-none absolute inset-y-[7%] left-1/2 z-10 w-[58%] -translate-x-1/2 rounded-[45%_45%_28%_28%] border-2 border-dashed border-white/80 shadow-[0_0_0_999px_rgba(2,6,23,.16)]">
+                    <span class="absolute -top-1 left-1/2 -translate-x-1/2 rounded-full bg-white/90 px-3 py-1 text-[11px] font-black text-slate-900">TÊTE</span>
+                    <span class="absolute -bottom-1 left-1/2 -translate-x-1/2 rounded-full bg-white/90 px-3 py-1 text-[11px] font-black text-slate-900">HANCHES</span>
+                </div>
+
                 <div x-show="running && !capturedUrl" class="absolute left-4 top-4 flex items-center gap-2 rounded-full bg-slate-950/75 px-3 py-1.5 text-xs font-black text-white shadow-lg backdrop-blur"><span class="h-2.5 w-2.5 animate-pulse rounded-full bg-rose-500"></span> CAMÉRA EN DIRECT</div>
                 <div x-show="loading || generating" class="absolute inset-0 z-20 grid place-items-center bg-slate-950/55 p-6 text-center text-white backdrop-blur-[2px]"><div><div class="mx-auto h-12 w-12 animate-spin rounded-full border-4 border-white/20 border-t-violet-400"></div><p class="mt-4 font-black" x-text="status"></p><p x-show="generating" class="mt-2 text-sm text-slate-200">Le service ZeroGPU peut avoir une file d’attente.</p></div></div>
+                <div x-show="countdown" class="pointer-events-none absolute inset-0 z-20 grid place-items-center"><span class="grid h-28 w-28 place-items-center rounded-full bg-violet-600/90 text-6xl font-black text-white shadow-2xl" x-text="countdown"></span></div>
                 <div x-show="error" class="absolute inset-x-4 bottom-4 z-30 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-rose-600 p-4 font-bold text-white"><span x-text="error"></span><button type="button" @click="capturedUrl ? captureAndGenerate() : startCamera()" :disabled="generating" class="rounded-xl bg-white px-3 py-2 text-sm font-black text-rose-700 disabled:opacity-50">Réessayer</button></div>
             </div>
 
@@ -20,14 +26,15 @@
                 </div>
 
                 <ol class="mt-5 space-y-3 text-sm text-slate-700 dark:text-slate-200">
-                    <li class="flex gap-3"><span class="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-violet-100 text-xs font-black text-violet-700">1</span><span>Placez-vous face à la caméra, bras et vêtement actuel visibles.</span></li>
+                    <li class="flex gap-3"><span class="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-violet-100 text-xs font-black text-violet-700">1</span><span>Reculez jusqu’à voir entièrement la tête, les épaules, les bras et les hanches dans le guide.</span></li>
                     <li class="flex gap-3"><span class="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-violet-100 text-xs font-black text-violet-700">2</span><span>Cliquez sur « Capturer et essayer ».</span></li>
                     <li class="flex gap-3"><span class="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-violet-100 text-xs font-black text-violet-700">3</span><span>Attendez la génération, puis téléchargez votre résultat.</span></li>
                 </ol>
 
-                <button x-show="!capturedUrl && !resultUrl" type="button" @click="captureAndGenerate()" :disabled="!running || generating" class="mt-6 w-full rounded-2xl bg-violet-600 px-4 py-3 font-black text-white shadow-lg shadow-violet-600/20 disabled:opacity-40">📸 Capturer et essayer avec l’IA</button>
+                <button x-show="!capturedUrl && !resultUrl" type="button" @click="captureAndGenerate()" :disabled="!running || generating || countdown" class="mt-6 w-full rounded-2xl bg-violet-600 px-4 py-3 font-black text-white shadow-lg shadow-violet-600/20 disabled:opacity-40">📸 Capturer et essayer avec l’IA</button>
                 <button x-show="capturedUrl && !resultUrl && !generating" type="button" @click="captureAndGenerate()" class="mt-6 w-full rounded-2xl bg-violet-600 px-4 py-3 font-black text-white">✨ Relancer la génération</button>
                 <button x-show="resultUrl" type="button" @click="downloadResult()" class="mt-6 w-full rounded-2xl bg-emerald-600 px-4 py-3 font-black text-white">⬇ Télécharger le résultat</button>
+                <button x-show="resultUrl" type="button" @click="regenerate()" :disabled="generating" class="mt-3 w-full rounded-2xl bg-violet-100 px-4 py-3 font-black text-violet-800 disabled:opacity-40">✨ Générer une autre variante</button>
                 <button x-show="capturedUrl || resultUrl" type="button" @click="takeAnotherPhoto()" :disabled="generating" class="mt-3 w-full rounded-2xl border border-slate-300 px-4 py-3 font-black text-slate-700 disabled:opacity-40 dark:text-slate-200">Reprendre une photo</button>
 
                 <div class="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-900">
