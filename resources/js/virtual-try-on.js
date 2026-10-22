@@ -1,4 +1,5 @@
 const SPACE_NAME = 'levihsu/OOTDiffusion';
+const FALLBACK_SPACE_NAME = 'yisol/IDM-VTON';
 
 function frameBlob(video) {
     const canvas = document.createElement('canvas');
@@ -47,6 +48,18 @@ function categoryLabel(category) {
     if (category === 'bottom' || category === 'lower') return 'Lower-body';
     if (category === 'dress' || category === 'overall') return 'Dress';
     return 'Upper-body';
+}
+
+async function imageBlob(url) {
+    if (!url) throw new Error('Aucune image de vêtement n’est associée à ce produit.');
+    const absoluteUrl = new URL(url, window.location.href);
+    const response = await fetch(absoluteUrl, {
+        credentials: absoluteUrl.origin === window.location.origin ? 'include' : 'omit',
+    });
+    if (!response.ok) throw new Error(`Image du vêtement inaccessible (HTTP ${response.status}).`);
+    const blob = await response.blob();
+    if (!blob.type.startsWith('image/')) throw new Error('Le fichier du produit n’est pas une image exploitable.');
+    return blob;
 }
 
 function fullBodyEndpoint(api) {
@@ -108,6 +121,24 @@ export default function virtualTryOn({ imageUrl, category }) {
             if (this.$refs.video) this.$refs.video.srcObject = null;
         },
 
+        async waitForResult(client, endpoint, payload, provider) {
+            this.status = `${provider} · demande envoyée à la file gratuite…`;
+            this.job = client.submit(endpoint, payload);
+            let generatedUrl = null;
+
+            for await (const message of this.job) {
+                if (message.type === 'status') {
+                    if (message.stage === 'generating') this.status = `${provider} habille votre photo… cela peut prendre une minute.`;
+                    else if (message.stage === 'pending' && Number.isFinite(message.position)) this.status = `${provider} · position ${message.position + 1} dans la file gratuite.`;
+                    else if (message.stage === 'error') throw new Error(`${provider}: ${message.message || 'erreur de génération'}`);
+                }
+                if (message.type === 'data') generatedUrl = findOutputUrl(message.data) ?? generatedUrl;
+            }
+
+            if (!generatedUrl) throw new Error(`${provider}: aucune image retournée.`);
+            return generatedUrl;
+        },
+
         async captureAndGenerate() {
             if (this.generating || (!this.running && !this.captureFile)) return;
             this.error = '';
@@ -123,39 +154,43 @@ export default function virtualTryOn({ imageUrl, category }) {
                 this.status = 'Connexion au service IA gratuit…';
 
                 const { Client, handle_file: handleFile } = await import('@gradio/client');
-                const client = await Client.connect(SPACE_NAME, { events: ['status', 'data'] });
-                const endpoint = fullBodyEndpoint(await client.view_api());
-                const garmentUrl = new URL(imageUrl, window.location.href).href;
-                const payload = [
-                    handleFile(this.captureFile),
-                    handleFile(garmentUrl),
-                    categoryLabel(category),
-                    1,
-                    20,
-                    2,
-                    -1,
-                ];
+                const garmentFile = await imageBlob(imageUrl);
+                const selectedCategory = categoryLabel(category);
+                let generatedUrl;
 
-                this.status = 'Votre demande est dans la file d’attente gratuite…';
-                this.job = client.submit(endpoint, payload);
-                let generatedUrl = null;
-
-                for await (const message of this.job) {
-                    if (message.type === 'status') {
-                        if (message.stage === 'generating') this.status = 'L’IA habille votre photo… cela peut prendre une minute.';
-                        else if (message.stage === 'pending' && Number.isFinite(message.position)) this.status = `File d’attente gratuite · position ${message.position + 1}.`;
-                        else if (message.stage === 'error') throw new Error(message.message || 'Erreur du service IA');
+                try {
+                    const client = await Client.connect(SPACE_NAME, { events: ['status', 'data'] });
+                    const endpoint = fullBodyEndpoint(await client.view_api());
+                    generatedUrl = await this.waitForResult(client, endpoint, [
+                        handleFile(this.captureFile), handleFile(garmentFile), selectedCategory, 1, 20, 2, -1,
+                    ], 'OOTDiffusion');
+                } catch (primaryError) {
+                    if (selectedCategory !== 'Upper-body') throw primaryError;
+                    console.warn('OOTDiffusion failed, switching to IDM-VTON:', primaryError);
+                    this.status = 'Premier moteur indisponible · essai automatique avec IDM-VTON…';
+                    try {
+                        const fallback = await Client.connect(FALLBACK_SPACE_NAME, { events: ['status', 'data'] });
+                        generatedUrl = await this.waitForResult(fallback, '/tryon', [
+                            { background: handleFile(this.captureFile), layers: [], composite: null },
+                            handleFile(garmentFile),
+                            'upper-body garment from the reference image',
+                            true,
+                            true,
+                            30,
+                            42,
+                        ], 'IDM-VTON');
+                    } catch (fallbackError) {
+                        throw new Error(`${primaryError.message || primaryError} / ${fallbackError.message || fallbackError}`);
                     }
-                    if (message.type === 'data') generatedUrl = findOutputUrl(message.data) ?? generatedUrl;
                 }
 
-                if (!generatedUrl) throw new Error('Aucune image n’a été retournée.');
                 this.resultUrl = generatedUrl;
                 this.status = 'Essayage IA terminé · vous pouvez télécharger le résultat.';
                 window.appNotify('Votre essayage réaliste est prêt.');
             } catch (error) {
                 console.error('AI virtual try-on failed:', error);
-                this.error = 'Le service IA gratuit est occupé ou temporairement indisponible. Réessayez dans quelques minutes.';
+                const detail = String(error?.message || error).replace(/\s+/g, ' ').slice(0, 220);
+                this.error = `L’essayage IA a échoué. ${detail}`;
                 this.status = 'La capture est conservée sur cet écran pour permettre un nouvel essai.';
             } finally {
                 this.job = null;
