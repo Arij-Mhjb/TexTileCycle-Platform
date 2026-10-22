@@ -119,6 +119,94 @@ class PassportProposalWorkflowTest extends TestCase
         ]);
     }
 
+    public function test_admin_approval_reuses_the_product_that_already_owns_the_barcode(): void
+    {
+        $consumer = User::factory()->create(['role' => 'consumer']);
+        $admin = User::factory()->create(['role' => 'admin']);
+        $point = $this->point();
+        $canonicalProduct = Product::create([
+            'name' => 'Chemise canonique',
+            'slug' => 'chemise-canonique',
+            'brand' => 'Marque existante',
+            'sku' => 'CANON-1',
+            'barcode' => '8684143465678',
+            'category' => 'Chemise',
+            'status' => 'published',
+            'is_active' => true,
+        ]);
+        $draftProduct = Product::create([
+            'name' => 'Brouillon du scan',
+            'slug' => 'brouillon-du-scan',
+            'brand' => 'Marque proposée',
+            'sku' => 'DRAFT-1',
+            'category' => 'Textile',
+            'status' => 'draft',
+            'is_active' => false,
+        ]);
+        $scan = $this->scan($consumer, ['barcode' => '8684143465678']);
+        $scan->update(['product_id' => $draftProduct->id]);
+
+        $workflow = app(PassportProposalWorkflowService::class);
+        $proposal = $workflow->createFromScan($scan->fresh(), $consumer);
+        $proposal = $workflow->adminReview($proposal, $admin, 'approve', [
+            'collection_point_ids' => [$point->id],
+        ]);
+
+        $this->assertSame($canonicalProduct->id, $proposal->product_id);
+        $this->assertSame($canonicalProduct->id, $scan->fresh()->product_id);
+        $this->assertSame(1, Product::where('barcode', '8684143465678')->count());
+        $this->assertSame('published', $canonicalProduct->fresh()->status);
+        $this->assertTrue($canonicalProduct->fresh()->is_active);
+    }
+
+    public function test_complete_consumer_scan_journey_ends_with_validated_points(): void
+    {
+        $consumer = User::factory()->create(['role' => 'consumer']);
+        $admin = User::factory()->create(['role' => 'admin']);
+        $point = $this->point();
+        $scan = $this->scan($consumer, ['barcode' => '6191234567890']);
+        $passportWorkflow = app(PassportProposalWorkflowService::class);
+
+        $proposal = $passportWorkflow->createFromScan($scan, $consumer);
+        $proposal = $passportWorkflow->adminReview($proposal, $admin, 'approve', [
+            'collection_point_ids' => [$point->id],
+        ]);
+
+        $returnWorkflow = app(ProductReturnWorkflowService::class);
+        $return = $returnWorkflow->create($consumer, [
+            'scan_id' => $scan->id,
+            'product_id' => $proposal->product_id,
+            'collection_point_id' => $point->id,
+            'action' => 'recycling',
+            'condition' => 'good',
+        ]);
+
+        foreach (['dropoff_expected', 'deposit_declared', 'received', 'inspected', 'routed', 'completed'] as $status) {
+            $return = $returnWorkflow->transition($return, $status, $admin, 'Étape du scénario complet');
+        }
+
+        $this->assertSame('completed', $return->status);
+        $this->assertSame(50, $return->fresh()->points_awarded);
+        $this->assertDatabaseHas('reward_transactions', [
+            'user_id' => $consumer->id,
+            'product_return_id' => $return->id,
+            'points' => 50,
+            'status' => 'validated',
+        ]);
+        $this->assertDatabaseHas('consumer_notifications', [
+            'user_id' => $consumer->id,
+            'type' => 'return_completed',
+        ]);
+
+        $this->expectException(ValidationException::class);
+        $returnWorkflow->create($consumer, [
+            'scan_id' => $scan->id,
+            'product_id' => $proposal->product_id,
+            'collection_point_id' => $point->id,
+            'action' => 'recycling',
+        ]);
+    }
+
     private function scan(User $consumer, array $overrides = []): Scan
     {
         return Scan::create([
