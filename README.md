@@ -23,7 +23,6 @@ Projet **Applications Web Avancées — ESPRIT · 5TWIN4 · TechForGood · 2026�
 - [Rôles et fonctionnalités](#rôles-et-fonctionnalités)
 - [Scénario complet : une matière contribue à une démarche label](#scénario-complet--une-matière-contribue-à-une-démarche-label)
 - [Autres parcours métier](#autres-parcours-métier)
-- [Fournisseurs, Impact ESG, recyclage et copilote IA](#fournisseurs-impact-esg-recyclage-et-copilote-ia)
 - [Architecture et technologies](#architecture-et-technologies)
 - [Installation locale](#installation-locale)
 - [Configuration des services](#configuration-des-services)
@@ -397,7 +396,6 @@ Piloter les statistiques, le catalogue, la collecte et la préparation aux réf�
 | --- | --- |
 | **Consommateur** | Consulter le catalogue, identifier un textile, confirmer les informations du scan, suivre son passeport, déclarer un retour et un dépôt avec photo, consulter les points et la seconde vie déclarée. |
 | **Marque** | Compléter son onboarding, gérer ses produits et compositions, soumettre les passeports, publier des besoins en matières, réserver et réceptionner des textiles compatibles, documenter leur transformation et constituer les preuves de ses feuilles de route. |
-| **Fournisseur** | Gérer son espace, ses commandes, livraisons, lots et certificats ; répondre aux demandes de recyclage et suivre les actions à traiter. |
 | **Collecteur** | Contrôler le dépôt, le QR, l’état et la pesée ; documenter la remise des textiles du centre vers la marque. |
 | **Administrateur** | Examiner les inscriptions, retenir les labels proposés, vérifier les produits et passeports, contrôler les matières et preuves, approuver les étapes ou demander une correction et consulter les statistiques. |
 
@@ -415,10 +413,6 @@ Les ateliers, associations et recycleurs interviennent comme partenaires du parc
 | **Orientation produit-label** | Règles déterministes versionnées, explications IA facultatives et création d’une feuille de route depuis une recommandation retenue. |
 | **Feuilles de route** | Périmètre de produits, étapes, responsables, échéances, actions, résultats et pièces privées avec revue administrative. |
 | **Dossiers documentaires** | Preuves versionnées et pondérées, commentaires, historique et score distinct de celui des feuilles de route. |
-| **Espace fournisseurs** | Invitations avec activation de compte, lots et certificats, commandes, performance OTIF, alertes d’expiration et indicateurs de risque. |
-| **Impact ESG** | Rapports d’impact, simulation de composition, objectifs carbone avec leviers matière et analyse des allégations environnementales. |
-| **Recyclage fournisseur** | Demandes de recyclage, estimation et recalcul des coûts, proposition du fournisseur, suivi de transformation, facture ou avoir et collectes programmées. |
-| **Copilote IA** | Assistant de marque avec outils en lecture seule pour interroger risques, certificats, commandes, impacts, objectifs carbone et recyclage. |
 
 ## Scénario complet : une matière contribue à une démarche label
 
@@ -513,54 +507,6 @@ name,sku,category,description,origin,barcode,recyclability_score,recycling_instr
 T-shirt circulaire,TS-001,T-shirt,Description,Tunisie,6190000000001,85,Réemploi puis collecte
 ```
 
-## Fournisseurs, Impact ESG, recyclage et copilote IA
-
-Ces modules prolongent le parcours circulaire avec des outils destinés aux marques, à leurs fournisseurs et à l’administration.
-
-### Espace fournisseurs
-
-- La marque peut inviter un fournisseur et lui envoyer un lien d’activation pour créer son propre accès.
-- Le fournisseur gère ses commandes, lots et certificats depuis son espace. L’analyse d’un certificat extrait les informations disponibles et indique le modèle utilisé.
-- La marque suit la performance des livraisons (OTIF), les facteurs de risque et les échéances des certificats. Les alertes peuvent être envoyées aux comptes concernés.
-- Les commandes prennent en charge les réponses et contre-propositions du fournisseur ainsi que le suivi des livraisons.
-
-### Impact ESG
-
-- Les rapports présentent les impacts calculés des produits, dont les émissions de CO₂e et la consommation d’eau.
-- Le simulateur permet de comparer une composition alternative sans modifier le rapport enregistré.
-- Les objectifs carbone associent un budget et une échéance à des produits et volumes prévus ; des leviers de composition permettent d’en recalculer l’impact.
-- L’analyse anti-greenwashing classe les allégations et propose des corrections. Les règles restent disponibles lorsque les modèles externes ne le sont pas.
-
-### Recyclage fournisseur
-
-- Une marque soumet des articles ou des chutes à recycler ; l’analyse d’image peut suggérer une fibre et des défauts visibles. La reconnaissance CLIP s’exécute dans le navigateur.
-- Le coût est estimé à partir du type de matière, des quantités et des opérations. Il est recalculé avec la proposition du fournisseur puis les quantités réellement produites.
-- Le parcours suit la réception, la transformation, la livraison de matière recyclée ou le rachat. Les pièces générées comprennent une facture ou, selon le mode choisi, un avoir.
-- Les collectes récurrentes peuvent être programmées, mises en pause et lancées ; l’administration dispose d’une vue des flux et de leur état.
-
-### Copilote IA
-
-Le copilote répond aux questions de la marque en s’appuyant sur des outils qui lisent ses données : risques fournisseurs, certificats, commandes, performance OTIF, impacts produit, objectifs carbone, bilan de recyclage et analyse d’allégations. Les outils ne modifient pas les données. Si le service Hugging Face n’est pas configuré ou est indisponible, les modules concernés utilisent leurs mécanismes locaux lorsqu’ils en disposent.
-
-### Configurer Hugging Face (facultatif)
-
-Ajouter le jeton uniquement au fichier `.env` local ou aux variables d’environnement du serveur :
-
-```env
-HF_AI_ENABLED=true
-HF_TOKEN=<jeton_serveur>
-```
-
-Sans `HF_TOKEN`, les fonctionnalités compatibles restent en mode local. Les modèles peuvent être ajustés avec les variables `HF_VLM_MODELS`, `HF_CHAT_MODELS`, `HF_CLAIMS_MODEL`, `HF_SPECIFICITY_MODEL` et `HF_ZERO_SHOT_MODEL`. Ne jamais exposer le jeton dans le navigateur ni le committer.
-
-Pour vérifier le jeton et tester les services IA configurés :
-
-```bash
-php artisan huggingface:check
-```
-
-Les alertes d’expiration des certificats sont planifiées à 8 h et les collectes récurrentes à 7 h 30. En développement, démarrer le planificateur Laravel avec `php artisan schedule:work` ; en production, s’assurer que le planificateur est exécuté régulièrement.
-
 ## Architecture et technologies
 
 | Couche | Technologies et responsabilités |
@@ -570,7 +516,7 @@ Les alertes d’expiration des certificats sont planifiées à 8 h et les collec
 | **Assets** | Vite 7, Node.js et npm ; build reproductible avec `package-lock.json`. |
 | **Données** | MySQL en local, PostgreSQL sur Render ; SQLite pour les tests. |
 | **Médias** | Cloudinary en production ; stockage local configurable pour le développement et les preuves. |
-| **Analyse** | Tesseract OCR, ZBar et ImageMagick ; Hugging Face, Gemini et OpenAI facultatifs selon le module. |
+| **Analyse** | Tesseract OCR, ZBar et ImageMagick ; Gemini et OpenAI facultatifs selon le module. |
 | **Asynchrone** | File Laravel en base de données, worker, notifications et emails SMTP. |
 | **Exécution** | Docker multi-stage : assets Node 22, PHP 8.3, Apache et Supervisor. |
 | **Validation** | PHPUnit 11, tests Laravel et workflow GitHub Actions. |
@@ -651,10 +597,9 @@ php artisan db:seed
 | --- | --- | --- |
 | Administrateur | `admin@textilecycle.test` | `password` |
 | Marque | `brand@textilecycle.test` | `password` |
-| Fournisseur | `fournisseur@textilecycle.test` | `password` |
 | Consommateur | `consumer@textilecycle.test` | `password` |
 
-Ces identifiants sont ceux des seeders locaux ; le compte fournisseur est créé pour les données de démonstration avancées. Les trois espaces de démonstration public documentés ont été ouverts sur Render le 8 octobre 2026. Le collecteur intervient dans le scénario et les tests ; cette table ne lui invente pas de compte de démonstration. Ne pas utiliser les comptes de seed en exploitation réelle.
+Ces identifiants sont ceux des seeders locaux ; les trois espaces de démonstration ont été ouverts sur Render le 8 octobre 2026. Le collecteur intervient dans le scénario et les tests ; cette table ne lui invente pas de compte de démonstration. Ne pas utiliser les comptes de seed en exploitation réelle.
 
 ## Configuration des services
 
@@ -680,12 +625,11 @@ Les preuves locales de feuilles de route nécessitent un disque privé persistan
 GEMINI_AI_ENABLED=true
 GEMINI_API_KEY=<cle_serveur>
 GEMINI_MODEL=gemini-3.5-flash-lite
-SMART_SCAN_ASYNC=false
 ```
 
 Le modèle ci-dessus est la valeur configurée dans le dépôt ; sa disponibilité et ses quotas dépendent du fournisseur. Sans clé, en cas de quota ou d’erreur réseau, le parcours conserve l’analyse locale. Les suggestions complètent les champs vides sans écraser les données locales ou du catalogue et restent soumises à confirmation.
 
-Pour déplacer l’analyse vers la file, définir `SMART_SCAN_ASYNC=true` et maintenir un worker actif. Le formulaire informe l’utilisateur du recours au service externe.
+L’analyse multimodale est toujours envoyée dans la file afin que Cloudinary, l’OCR ou Gemini ne puissent pas dépasser la limite de temps d’une requête web. `QUEUE_CONNECTION=database` doit être configuré et un worker `php artisan queue:work --tries=3 --timeout=150` doit rester actif. La page du scan se rafraîchit automatiquement pendant le traitement.
 
 ### Orientation marque et produit-label : OpenAI facultatif
 
