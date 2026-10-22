@@ -1,90 +1,21 @@
-import moveNetManifestUrl from '../models/movenet-lightning.json?url';
-import moveNetWeightsPart00Url from '../models/movenet-lightning-part-00.bin?url';
-import moveNetWeightsPart01Url from '../models/movenet-lightning-part-01.bin?url';
-import moveNetWeightsPart02Url from '../models/movenet-lightning-part-02.bin?url';
-import moveNetWeightsPart03Url from '../models/movenet-lightning-part-03.bin?url';
-import moveNetWeightsPart04Url from '../models/movenet-lightning-part-04.bin?url';
-import moveNetWeightsPart05Url from '../models/movenet-lightning-part-05.bin?url';
-import moveNetWeightsPart06Url from '../models/movenet-lightning-part-06.bin?url';
-import moveNetWeightsPart07Url from '../models/movenet-lightning-part-07.bin?url';
-
-const moveNetWeightUrls = [
-    moveNetWeightsPart00Url,
-    moveNetWeightsPart01Url,
-    moveNetWeightsPart02Url,
-    moveNetWeightsPart03Url,
-    moveNetWeightsPart04Url,
-    moveNetWeightsPart05Url,
-    moveNetWeightsPart06Url,
-    moveNetWeightsPart07Url,
-];
-
 let sharedDetector;
-
-async function bundledMoveNetModel() {
-    const [manifestResponse, ...weightResponses] = await Promise.all([
-        fetch(moveNetManifestUrl),
-        ...moveNetWeightUrls.map(url => fetch(url)),
-    ]);
-    const failedWeight = weightResponses.find(response => !response.ok);
-    if (!manifestResponse.ok || failedWeight) {
-        throw new Error(`MoveNet assets unavailable (${manifestResponse.status}/${failedWeight?.status ?? 'ok'})`);
-    }
-    const manifest = await manifestResponse.json();
-    const weightParts = await Promise.all(weightResponses.map(response => response.arrayBuffer()));
-    const weightData = new Uint8Array(weightParts.reduce((total, part) => total + part.byteLength, 0));
-    let offset = 0;
-    weightParts.forEach(part => {
-        weightData.set(new Uint8Array(part), offset);
-        offset += part.byteLength;
-    });
-    return {
-        load: async () => ({
-            modelTopology: manifest.modelTopology,
-            format: manifest.format,
-            generatedBy: manifest.generatedBy,
-            convertedBy: manifest.convertedBy,
-            weightSpecs: manifest.weightsManifest.flatMap(group => group.weights),
-            weightData: weightData.buffer,
-        }),
-    };
-}
 
 async function poseDetector() {
     if (sharedDetector) return sharedDetector;
-    const [tf, poseDetection] = await Promise.all([
-        import('@tensorflow/tfjs-core'),
-        import('@tensorflow-models/pose-detection'),
-        import('@tensorflow/tfjs-backend-webgl'),
-        import('@tensorflow/tfjs-backend-cpu'),
-    ]);
-    let webglReady = false;
-    try {
-        webglReady = await tf.setBackend('webgl');
-        if (webglReady) await tf.ready();
-    } catch (error) {
-        console.warn('TensorFlow WebGL backend unavailable, using CPU:', error);
-    }
-    if (!webglReady) {
-        await tf.setBackend('cpu');
-        await tf.ready();
-    }
-    const modelUrl = await bundledMoveNetModel();
-    const options = {
-        modelType: poseDetection.movenet.modelType.SINGLEPOSE_LIGHTNING,
-        modelUrl,
-        enableSmoothing: true,
-        minPoseScore: 0.2,
-    };
-    try {
-        sharedDetector = await poseDetection.createDetector(poseDetection.SupportedModels.MoveNet, options);
-    } catch (error) {
-        if (tf.getBackend() !== 'webgl') throw error;
-        console.warn('MoveNet WebGL initialization failed, retrying on CPU:', error);
-        await tf.setBackend('cpu');
-        await tf.ready();
-        sharedDetector = await poseDetection.createDetector(poseDetection.SupportedModels.MoveNet, options);
-    }
+    const { FilesetResolver, PoseLandmarker } = await import('@mediapipe/tasks-vision');
+    const vision = await FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.1.1/wasm');
+    sharedDetector = await PoseLandmarker.createFromOptions(vision, {
+        baseOptions: {
+            modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task',
+            delegate: 'CPU',
+        },
+        runningMode: 'VIDEO',
+        numPoses: 1,
+        minPoseDetectionConfidence: 0.35,
+        minPosePresenceConfidence: 0.35,
+        minTrackingConfidence: 0.35,
+        outputSegmentationMasks: false,
+    });
     return sharedDetector;
 }
 
@@ -211,9 +142,24 @@ export default function virtualTryOn({ imageUrl, category }) {
         async detectPose(video, canvas) {
             this.inferencePending = true;
             try {
-                const poses = await this.detector.estimatePoses(video, { maxPoses: 1, flipHorizontal: true });
-                if (poses[0]?.keypoints?.length) {
-                    this.updatePose(poses[0].keypoints, canvas.width, canvas.height, video.videoWidth, video.videoHeight);
+                const result = this.detector.detectForVideo(video, performance.now());
+                const landmarks = result.landmarks?.[0];
+                if (landmarks?.length) {
+                    const landmarkNames = {
+                        nose: 0, left_ear: 7, right_ear: 8,
+                        left_shoulder: 11, right_shoulder: 12,
+                        left_elbow: 13, right_elbow: 14,
+                        left_wrist: 15, right_wrist: 16,
+                        left_hip: 23, right_hip: 24,
+                        left_knee: 25, right_knee: 26,
+                    };
+                    const points = Object.entries(landmarkNames).map(([name, index]) => ({
+                        name,
+                        x: (1 - landmarks[index].x) * video.videoWidth,
+                        y: landmarks[index].y * video.videoHeight,
+                        score: Math.min(landmarks[index].visibility ?? 1, landmarks[index].presence ?? 1),
+                    }));
+                    this.updatePose(points, canvas.width, canvas.height, video.videoWidth, video.videoHeight);
                     this.inferenceFailures = 0;
                     this.error = '';
                 }

@@ -15,7 +15,7 @@
                 <label class="mt-5 block text-sm font-bold">Position verticale <input type="range" min="-0.4" max="0.4" step="0.01" x-model="vertical" class="mt-2 w-full accent-violet-600"></label>
                 <label class="mt-5 block text-sm font-bold">Opacité <input type="range" min="0.6" max="1" step="0.01" x-model="opacity" class="mt-2 w-full accent-violet-600"></label>
                 <button type="button" @click="capture()" :disabled="!running" class="mt-6 w-full rounded-2xl bg-violet-600 px-4 py-3 font-black text-white disabled:opacity-40">📸 Capturer le résultat</button>
-                <p class="mt-4 text-xs leading-5 text-slate-500">Aperçu indicatif : la coupe réelle dépend de votre morphologie, de la matière et de la taille choisie. Détection corporelle locale par MoveNet.</p>
+                <p class="mt-4 text-xs leading-5 text-slate-500">Aperçu indicatif : la coupe réelle dépend de votre morphologie, de la matière et de la taille choisie. Détection corporelle locale par MediaPipe Pose.</p>
             </aside>
         </div>
     </div>
