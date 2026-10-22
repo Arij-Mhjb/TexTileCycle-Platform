@@ -1,0 +1,1 @@
+<x-app-layout title="Preuves et documents"><x-ui.page-heading title="Preuves et documents" description="Pièces justificatives liées aux évaluations et aux labels."/><form method="POST" action="{{ route('evidences.store') }}" class="panel p-6 sm:p-8">@csrf @include('evidences._form')<x-ui.form-actions :cancel="route('evidences.index')"/></form></x-app-layout>

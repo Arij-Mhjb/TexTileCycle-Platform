@@ -1,0 +1,1 @@
+<x-app-layout title="Produits"><x-ui.page-heading title="Produits" description="Passeports numériques et scores de circularité."/><form method="POST" action="{{ route('products.store') }}" enctype="multipart/form-data" class="panel p-6 sm:p-8">@csrf @include('products._form')<x-ui.form-actions :cancel="route('products.index')"/></form></x-app-layout>

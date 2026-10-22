@@ -1,0 +1,1 @@
+<x-role-layout title="Retours textiles"><x-ui.page-heading title="Retours textiles" description="Suivi de chaque dépôt depuis sa déclaration jusqu’au traitement."/><form method="POST" action="{{ route('product-returns.store') }}" class="panel p-6 sm:p-8">@csrf @include('product-returns._form')<x-ui.form-actions :cancel="route('product-returns.index')"/></form></x-role-layout>

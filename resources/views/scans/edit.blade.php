@@ -1,0 +1,1 @@
+<x-role-layout title="Modifier · Smart scans"><x-ui.page-heading title="Modifier · Smart scans" description="Tickets, étiquettes, codes-barres et QR codes analysés."/><form method="POST" action="{{ route('scans.update',$item) }}" class="panel p-6 sm:p-8">@csrf @method('PUT')@include('scans._form')<x-ui.form-actions :cancel="route('scans.index')"/></form></x-role-layout>

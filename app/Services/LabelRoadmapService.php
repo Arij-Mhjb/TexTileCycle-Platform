@@ -1,0 +1,158 @@
+<?php
+
+namespace App\Services;
+
+use App\Models\Label;
+use App\Models\LabelRoadmap;
+use App\Models\MaterialMatch;
+use App\Models\Product;
+use App\Models\ProductLabelRecommendation;
+use App\Models\RoadmapStep;
+use App\Models\RoadmapSubmission;
+use App\Models\User;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
+
+class LabelRoadmapService
+{
+    public function snapshot(Product $p): array
+    {
+        $p->loadMissing('materials');
+
+        return ['id' => $p->id, 'name' => $p->name, 'sku' => $p->sku, 'category' => $p->category, 'current_version' => $p->current_version,
+            'composition' => $p->materials->map(fn ($m) => ['material' => $m->name, 'percentage' => $m->pivot->percentage, 'supplier' => $m->pivot->supplier])->all()];
+    }
+
+    public function create(User $user, array $data): LabelRoadmap
+    {
+        return DB::transaction(function () use ($user, $data) {
+            $label = Label::findOrFail($data['label_id']);
+            $recommendation = ! empty($data['recommendation_id'])
+                ? ProductLabelRecommendation::where('brand_id', $user->brand->id)->findOrFail($data['recommendation_id']) : null;
+            if ($recommendation && ($recommendation->label_id !== $label->id || ! in_array($recommendation->product_id, array_map('intval', $data['products']), true))) {
+                throw ValidationException::withMessages(['recommendation_id' => 'La recommandation doit correspondre au label et à un produit du périmètre.']);
+            }
+            $roadmap = LabelRoadmap::create(collect($data)->except('products', 'recommendation_id')->all() + [
+                'brand_id' => $user->brand->id, 'label_snapshot' => $label->only('id', 'name', 'official_url', 'description'),
+                'certification_estimate' => $recommendation?->certification_estimate,
+                'product_label_recommendation_id' => $recommendation?->id,
+                'specification' => $this->specification($label, $recommendation),
+                'impact_summary' => $recommendation ? ['environmental' => $recommendation->environmental_impacts, 'reputation' => $recommendation->reputation_impacts] : null,
+                'ai_assessment_snapshot' => $recommendation?->only(['id', 'path', 'readiness_score', 'eligibility_breakdown', 'reason', 'gaps', 'target_composition', 'next_steps', 'analysis_mode', 'analysis_model', 'analysed_at']),
+            ]);
+            $this->setProducts($roadmap, $data['products']);
+            $definitions = app(RoadmapTemplates::class)->steps($label);
+            $days = $roadmap->starts_on->diffInDays($roadmap->target_date);
+            foreach ($definitions as $index => [$title,$instructions,$evidence]) {
+                $roadmap->steps()->create(['title' => $title, 'instructions' => $instructions, 'required_evidence' => $evidence,
+                    'completion_points' => [$evidence, 'Résultat concret renseigné pour chaque produit du périmètre.', 'Au moins une preuve privée jointe et revue par un administrateur.'],
+                    'material_stage' => ['Tracer les matières et leur collecte' => 'collection', 'Documenter la transformation' => 'transformation', 'Produire et contrôler un lot pilote' => 'incorporation'][$title] ?? null,
+                    'position' => $index + 1, 'due_date' => $roadmap->starts_on->copy()->addDays((int) round($days * ($index + 1) / count($definitions))),
+                    'owner_name' => $user->name, 'goal' => $instructions, 'status' => 'todo']);
+            }
+            app(ActivityService::class)->log($user->id, $roadmap->brand_id, 'roadmap.created', $roadmap, ['scope_version' => 1, 'products' => $data['products']]);
+            $recommendation?->update(['status' => 'assigned']);
+
+            return $roadmap;
+        });
+    }
+
+    private function specification(Label $label, ?ProductLabelRecommendation $recommendation): array
+    {
+        return [
+            'title' => 'Cahier des charges de préparation — '.$label->name,
+            'official_source' => $label->official_url,
+            'ruleset_version' => '2026-10',
+            'criteria_to_verify' => $recommendation?->gaps ?? ['Identifier les critères applicables dans le référentiel officiel.'],
+            'target_composition' => $recommendation?->target_composition,
+            'required_work' => $recommendation?->next_steps ?? ['Analyser les écarts', 'Réunir les preuves', 'Faire vérifier le dossier'],
+            'badge_condition' => 'Le badge ne peut être utilisé qu’après validation du produit, du périmètre et des claims par l’organisme compétent.',
+            'measurement_notice' => 'Les bénéfices environnementaux chiffrés exigent une méthode, un périmètre et des données de cycle de vie documentés.',
+        ];
+    }
+
+    private function setProducts(LabelRoadmap $roadmap, array $ids): void
+    {
+        $products = Product::with('materials')->where('brand_id', $roadmap->brand_id)->whereIn('id', $ids)->get();
+        if ($products->count() !== count($ids)) {
+            throw ValidationException::withMessages(['products' => 'Sélectionnez uniquement des produits disponibles de votre marque.']);
+        }
+        $roadmap->products()->sync($products->mapWithKeys(fn ($p) => [$p->id => ['snapshot' => json_encode($this->snapshot($p), JSON_UNESCAPED_UNICODE)]])->all());
+    }
+
+    public function update(User $user, LabelRoadmap $roadmap, array $data): void
+    {
+        DB::transaction(function () use ($user, $roadmap, $data) {
+            $roadmap = LabelRoadmap::whereKey($roadmap->id)->lockForUpdate()->firstOrFail();
+            abort_unless($roadmap->status === 'active', 409);
+            $before = $roadmap->products()->pluck('products.id')->sort()->values()->all();
+            $after = collect($data['products'])->map(fn ($v) => (int) $v)->sort()->values()->all();
+            $changed = $before !== $after || $roadmap->scope_description !== $data['scope_description'] || $roadmap->baseline !== $data['baseline'] || $roadmap->objective !== $data['objective'];
+            if ($changed && $roadmap->materialUsages()->exists()) {
+                throw ValidationException::withMessages(['products' => 'Des matières sont affectées à ce périmètre. Conservez-le pour sa traçabilité et créez une nouvelle feuille de route pour un autre périmètre.']);
+            }
+            $roadmap->update(collect($data)->except('products')->all());
+            foreach ($roadmap->steps()->get() as $step) {
+                if ($step->due_date->lt($roadmap->starts_on)) {
+                    $step->update(['due_date' => $roadmap->starts_on]);
+                } elseif ($step->due_date->gt($roadmap->target_date)) {
+                    $step->update(['due_date' => $roadmap->target_date]);
+                }
+            }
+            if ($changed) {
+                $roadmap->increment('scope_version');
+                $this->setProducts($roadmap, $data['products']);
+                $roadmap->steps()->update(['status' => 'todo']);
+            }
+            app(ActivityService::class)->log($user->id, $roadmap->brand_id, 'roadmap.updated', $roadmap, ['scope_version' => $roadmap->scope_version, 'approvals_reset' => $changed]);
+        });
+    }
+
+    public function submit(User $user, RoadmapStep $step, array $data, array $files): RoadmapSubmission
+    {
+        return DB::transaction(function () use ($user, $step, $data, $files) {
+            $roadmap = LabelRoadmap::whereKey($step->label_roadmap_id)->lockForUpdate()->firstOrFail();
+            $step = RoadmapStep::whereKey($step->id)->lockForUpdate()->firstOrFail();
+            abort_unless($roadmap->status === 'active', 409);
+            abort_unless($step->status !== 'approved', 409, 'Cette étape est déjà approuvée.');
+            $products = $roadmap->products()->get();
+            abort_unless((int) $data['scope_version'] === $roadmap->scope_version, 409, 'Le périmètre a changé. Rechargez la feuille de route.');
+            foreach ($products as $product) {
+                if (! filled($data['product_results'][$product->id] ?? null)) {
+                    throw ValidationException::withMessages(['product_results' => 'Décrivez le résultat concret pour chaque produit du périmètre.']);
+                }
+            }
+            $material = null;
+            if (! empty($data['material_match_id'])) {
+                $match = MaterialMatch::with('productReturn')->whereHas('request', fn ($q) => $q->where('brand_id', $roadmap->brand_id))->where('status', 'verified')->findOrFail($data['material_match_id']);
+                $material = app(MaterialUsageService::class)->evidence($match, $roadmap, $step, $data);
+            } elseif (isset($data['recycled_output_kg']) || isset($data['incorporated_kg'])) {
+                throw ValidationException::withMessages(['material_match_id' => 'Associez un lot vérifié pour enregistrer ces poids.']);
+            }
+            $submission = $step->submissions()->create(['submitted_by' => $user->id, 'scope_version' => $roadmap->scope_version,
+                'version' => ($step->submissions()->max('version') ?? 0) + 1, 'actions' => $data['actions'], 'results' => $data['results'],
+                'product_results' => collect($data['product_results'])->only($products->pluck('id')->all())->all(),
+                'files' => $files, 'scope_snapshot' => $products->map(fn ($p) => json_decode($p->pivot->snapshot, true))->all(),
+                'step_snapshot' => $step->only('title', 'goal', 'due_date', 'required_evidence'), 'material_match_id' => $data['material_match_id'] ?? null, 'material_record' => $material, 'status' => 'pending']);
+            $step->update(['status' => 'submitted']);
+            app(ActivityService::class)->log($user->id, $roadmap->brand_id, 'roadmap.step.submitted', $submission, ['scope_version' => $roadmap->scope_version]);
+
+            return $submission;
+        });
+    }
+
+    public function review(User $admin, RoadmapSubmission $submission, array $data): void
+    {
+        DB::transaction(function () use ($admin, $submission, $data) {
+            $roadmap = LabelRoadmap::whereKey($submission->step->label_roadmap_id)->lockForUpdate()->firstOrFail();
+            $step = RoadmapStep::whereKey($submission->roadmap_step_id)->lockForUpdate()->firstOrFail();
+            $submission = RoadmapSubmission::whereKey($submission->id)->lockForUpdate()->firstOrFail();
+            abort_unless($roadmap->status === 'active' && $step->status === 'submitted' && $submission->status === 'pending' && $submission->scope_version === $roadmap->scope_version
+             && (int) $step->submissions()->max('version') === $submission->version, 409, 'Cette soumission est ancienne ou déjà examinée.');
+            $submission->update($data + ['reviewed_by' => $admin->id, 'reviewed_at' => now()]);
+            $step->update(['status' => $data['status'] === 'approved' ? 'approved' : 'changes_requested']);
+            app(ActivityService::class)->log($admin->id, $roadmap->brand_id, 'roadmap.step.'.$data['status'], $submission, ['comment' => $data['review_comment']]);
+            app(ActivityService::class)->notify($roadmap->brand->user_id, 'roadmap_review', 'Revue de feuille de route', $step->title.' : '.$data['review_comment'], route('brand.roadmaps.show', $roadmap));
+        });
+    }
+}

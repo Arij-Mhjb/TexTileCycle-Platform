@@ -1,0 +1,1 @@
+<x-app-layout title="Points de collecte"><x-ui.page-heading title="Points de collecte" description="Ateliers, associations, magasins et centres partenaires."/><form method="POST" action="{{ route('collection-points.store') }}" class="panel p-6 sm:p-8">@csrf @include('collection-points._form')<x-ui.form-actions :cancel="route('collection-points.index')"/></form></x-app-layout>

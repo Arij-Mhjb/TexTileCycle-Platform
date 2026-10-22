@@ -1,0 +1,1 @@
+<x-app-layout title="Modifier · Matières"><x-ui.page-heading title="Modifier · Matières" description="Référentiel des fibres et composants textiles."/><form method="POST" action="{{ route('materials.update',$item) }}" class="panel p-6 sm:p-8">@csrf @method('PUT')@include('materials._form')<x-ui.form-actions :cancel="route('materials.index')"/></form></x-app-layout>

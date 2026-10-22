@@ -1,0 +1,1 @@
+@props(['cancel'])<div class="mt-8 flex items-center justify-end gap-3 border-t border-slate-100 pt-6"><a href="{{ $cancel }}" class="btn-secondary">Annuler</a><button class="btn-primary">Enregistrer</button></div>
