@@ -260,7 +260,11 @@ function confirmAction(message) {
 }
 
 function validationMessage(field) {
-    const label = field.closest('label')?.querySelector('span')?.textContent?.replace('*', '').trim() || 'Ce champ';
+    const label = field.dataset.fieldLabel
+        || field.closest('label')?.querySelector('[data-field-label-text]')?.textContent?.replace('*', '').trim()
+        || field.closest('label')?.querySelector('span')?.textContent?.replace('*', '').trim()
+        || 'Ce champ';
+    if (field.validity.customError) return field.validationMessage;
     if (field.validity.valueMissing) return `${label} est obligatoire.`;
     if (field.validity.typeMismatch && field.type === 'email') return 'Saisissez une adresse e-mail valide.';
     if (field.validity.tooShort) return `${label} doit contenir au moins ${field.minLength} caractères.`;
@@ -303,12 +307,30 @@ document.addEventListener('input', (event) => {
 
 document.addEventListener('change', (event) => {
     const field = event.target;
-    if (!(field instanceof HTMLInputElement) || field.type !== 'file' || !field.files?.length) return;
-    const file = field.files[0];
-    const acceptedTypes = (field.accept || '').split(',').map((type) => type.trim()).filter(Boolean);
-    const tooLarge = field.dataset.maxBytes && file.size > Number(field.dataset.maxBytes);
-    const wrongType = acceptedTypes.length && !acceptedTypes.includes(file.type);
-    field.setCustomValidity(tooLarge || wrongType ? (field.dataset.validationMessage || 'Le fichier sélectionné n’est pas valide.') : '');
+    if (!(field instanceof HTMLInputElement) || field.type !== 'file') return;
+
+    const files = Array.from(field.files || []);
+    const acceptedTypes = (field.accept || '').split(',').map((type) => type.trim().toLowerCase()).filter(Boolean);
+    const maxBytes = Number(field.dataset.maxBytes || 0);
+    const maxFiles = Number(field.dataset.maxFiles || 0);
+    const matchesAcceptedType = (file) => acceptedTypes.length === 0 || acceptedTypes.some((accepted) => {
+        const mime = (file.type || '').toLowerCase();
+        const name = file.name.toLowerCase();
+        if (accepted.startsWith('.')) return name.endsWith(accepted);
+        if (accepted.endsWith('/*')) return mime.startsWith(accepted.slice(0, -1));
+        return mime === accepted;
+    });
+
+    let message = '';
+    if (maxFiles && files.length > maxFiles) {
+        message = `Vous pouvez joindre au maximum ${maxFiles} fichiers.`;
+    } else if (maxBytes && files.some((file) => file.size > maxBytes)) {
+        message = `Chaque fichier doit faire au maximum ${Math.round(maxBytes / 1024 / 1024)} Mo.`;
+    } else if (files.some((file) => !matchesAcceptedType(file))) {
+        message = field.dataset.validationMessage || 'Format de fichier non accepté.';
+    }
+
+    field.setCustomValidity(message);
     if (field.validity.valid) clearFieldError(field); else showFieldError(field);
 }, true);
 
