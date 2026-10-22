@@ -41,7 +41,7 @@
             </div>
         </section>
 
-        @if($step->status !== 'approved')
+        @if(in_array($step->status, ['todo', 'in_progress', 'changes_requested'], true))
         <form method="POST" enctype="multipart/form-data" action="{{ route('member.tasks.submit', $step) }}" class="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-7">
             @csrf
             <input type="hidden" name="scope_version" value="{{ $step->roadmap->scope_version }}">
@@ -59,8 +59,10 @@
                 <label class="block rounded-2xl border-2 border-dashed border-slate-300 bg-slate-50 p-5 transition hover:border-indigo-400 dark:border-slate-700 dark:bg-slate-800/60"><span class="text-sm font-black text-slate-800 dark:text-slate-100">Documents et preuves <span class="text-rose-600">*</span></span><span class="mt-1 block text-xs leading-5 text-slate-500 dark:text-slate-400">1 à 4 fichiers : PDF, image, Word, CSV ou texte. Maximum 8 Mo par fichier.</span><input type="file" name="proofs[]" multiple required accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx,.csv,.txt" data-field-label="Documents et preuves" data-max-files="4" data-max-bytes="8388608" data-validation-message="Formats acceptés : PDF, JPG, JPEG, PNG, WebP, Word, CSV ou TXT." class="mt-4 block w-full text-sm text-slate-600 file:mr-4 file:rounded-xl file:border-0 file:bg-indigo-600 file:px-4 file:py-2.5 file:font-bold file:text-white hover:file:bg-indigo-700 dark:text-slate-300"></label>
             </div>
 
-            <div class="mt-7 flex flex-col-reverse gap-3 border-t border-slate-100 pt-5 dark:border-slate-800 sm:flex-row sm:items-center sm:justify-between"><p class="text-xs leading-5 text-slate-500 dark:text-slate-400">La marque pourra vérifier votre soumission avant validation.</p><button class="rounded-2xl bg-indigo-600 px-6 py-3.5 text-sm font-black text-white shadow-lg shadow-indigo-200 transition hover:bg-indigo-700 focus:outline-none focus:ring-4 focus:ring-indigo-200 dark:shadow-none dark:focus:ring-indigo-950">Envoyer ma soumission</button></div>
+            <div class="mt-7 flex flex-col-reverse gap-3 border-t border-slate-100 pt-5 dark:border-slate-800 sm:flex-row sm:items-center sm:justify-between"><p class="text-xs leading-5 text-slate-500 dark:text-slate-400">Votre soumission sera transmise à l’administrateur pour vérification et décision.</p><button class="rounded-2xl bg-indigo-600 px-6 py-3.5 text-sm font-black text-white shadow-lg shadow-indigo-200 transition hover:bg-indigo-700 focus:outline-none focus:ring-4 focus:ring-indigo-200 dark:shadow-none dark:focus:ring-indigo-950">Envoyer à l’administrateur</button></div>
         </form>
+        @elseif($step->status === 'submitted')
+        <section class="rounded-3xl border border-amber-200 bg-amber-50 p-7 text-center dark:border-amber-900 dark:bg-amber-950/30"><div class="mx-auto grid h-12 w-12 place-items-center rounded-full bg-amber-500 text-xl font-black text-white">⌛</div><h2 class="mt-3 text-xl font-black text-amber-900 dark:text-amber-100">Soumission envoyée à l’administrateur</h2><p class="mt-2 text-sm text-amber-700 dark:text-amber-300">Les preuves sont en cours de vérification. Vous pourrez envoyer une correction si l’administrateur la demande.</p></section>
         @else
         <section class="rounded-3xl border border-emerald-200 bg-emerald-50 p-7 text-center dark:border-emerald-900 dark:bg-emerald-950/30"><div class="mx-auto grid h-12 w-12 place-items-center rounded-full bg-emerald-600 text-xl font-black text-white">✓</div><h2 class="mt-3 text-xl font-black text-emerald-900 dark:text-emerald-100">Étape validée</h2><p class="mt-2 text-sm text-emerald-700 dark:text-emerald-300">Votre travail a été approuvé. Aucune nouvelle soumission n’est nécessaire.</p></section>
         @endif

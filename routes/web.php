@@ -23,6 +23,7 @@ use App\Http\Controllers\AssessmentController;
 use App\Http\Controllers\BrandDashboardController;
 use App\Http\Controllers\BrandTeamController;
 use App\Http\Controllers\BrandMemberInvitationController;
+use App\Http\Controllers\BrandMemberEmailAccessController;
 use App\Http\Controllers\BrandMemberTaskController;
 use App\Http\Controllers\BrandAssistantController;
 use App\Http\Controllers\BrandEvidenceCommentController;
@@ -73,6 +74,8 @@ Route::get('/brands', [PublicBrandController::class, 'index'])->name('brands.ind
 Route::get('/brands/{brand:slug}', [PublicBrandController::class, 'show'])->name('brands.show');
 Route::get('/invitation-equipe/{token}', [BrandMemberInvitationController::class,'show'])->middleware('throttle:30,1')->name('brand-member.invitation.show');
 Route::post('/invitation-equipe/{token}', [BrandMemberInvitationController::class,'store'])->middleware('throttle:10,1')->name('brand-member.invitation.store');
+Route::get('/acces-tache/{step}/{member}', [BrandMemberEmailAccessController::class, 'show'])->middleware(['signed','throttle:20,1'])->name('member.tasks.email-access');
+Route::post('/acces-tache/{step}/{member}', [BrandMemberEmailAccessController::class, 'authenticate'])->middleware(['signed','throttle:10,1'])->name('member.tasks.email-authenticate');
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/dashboard', DashboardRedirectController::class)->name('dashboard');

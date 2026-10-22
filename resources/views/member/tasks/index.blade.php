@@ -8,7 +8,7 @@
 
 <section class="overflow-hidden rounded-3xl bg-gradient-to-br from-indigo-700 via-indigo-600 to-violet-600 p-6 text-white shadow-xl shadow-indigo-100 dark:shadow-none sm:p-8">
     <div class="flex flex-col justify-between gap-6 md:flex-row md:items-end">
-        <div><p class="text-xs font-black uppercase tracking-[.2em] text-indigo-200">{{ $member->department ?: 'Équipe de certification' }}</p><h1 class="mt-2 text-3xl font-black tracking-tight sm:text-4xl">Bonjour {{ $member->name }}</h1><p class="mt-3 max-w-2xl text-sm leading-6 text-indigo-100">Suivez les étapes qui vous sont confiées, consultez les produits concernés et transmettez vos preuves à la marque.</p></div>
+        <div><p class="text-xs font-black uppercase tracking-[.2em] text-indigo-200">{{ $member->department ?: 'Équipe de certification' }}</p><h1 class="mt-2 text-3xl font-black tracking-tight sm:text-4xl">Bonjour {{ $member->name }}</h1><p class="mt-3 max-w-2xl text-sm leading-6 text-indigo-100">Suivez les étapes qui vous sont confiées, consultez les produits concernés et transmettez vos preuves à l’administrateur pour validation.</p></div>
         @if($stats['total'])<div class="min-w-52 rounded-2xl bg-white/10 p-4 ring-1 ring-white/20 backdrop-blur"><div class="flex items-center justify-between text-xs font-bold"><span>Progression globale</span><span>{{ $stats['approved'] }}/{{ $stats['total'] }}</span></div><div class="mt-3 h-2 overflow-hidden rounded-full bg-indigo-950/30"><div class="h-full rounded-full bg-white" style="width: {{ round(($stats['approved'] / $stats['total']) * 100) }}%"></div></div></div>@endif
     </div>
 </section>
