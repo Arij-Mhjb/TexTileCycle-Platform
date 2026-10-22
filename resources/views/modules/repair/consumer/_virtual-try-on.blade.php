@@ -31,9 +31,9 @@
                 <button x-show="capturedUrl || resultUrl" type="button" @click="takeAnotherPhoto()" :disabled="generating" class="mt-3 w-full rounded-2xl border border-slate-300 px-4 py-3 font-black text-slate-700 disabled:opacity-40 dark:text-slate-200">Reprendre une photo</button>
 
                 <div class="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-900">
-                    <strong>Confidentialité :</strong> après votre clic, la capture et le vêtement sont envoyés temporairement au Space public OOTDiffusion de Hugging Face. N’utilisez pas de photo sensible. Le service gratuit peut être lent ou indisponible.
+                    <strong>Confidentialité :</strong> après votre clic, la capture et le fichier du vêtement sont envoyés temporairement aux Spaces publics OOTDiffusion ou IDM-VTON de Hugging Face. N’utilisez pas de photo sensible. Les services gratuits peuvent être lents ou indisponibles.
                 </div>
-                <p class="mt-4 text-xs leading-5 text-slate-500">Résultat indicatif généré par OOTDiffusion ZeroGPU. La coupe réelle dépend de votre morphologie, de la matière et de la taille choisie.</p>
+                <p class="mt-4 text-xs leading-5 text-slate-500">Résultat indicatif généré par un moteur VTON sur ZeroGPU. La coupe réelle dépend de votre morphologie, de la matière et de la taille choisie.</p>
             </aside>
         </div>
     </div>
