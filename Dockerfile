@@ -5,8 +5,7 @@ RUN npm ci
 COPY . .
 RUN npm run build \
     && test -f public/build/manifest.json \
-    && find public/build/assets -maxdepth 1 -type f -name 'movenet-lightning-*.json' -print -quit | grep -q . \
-    && find public/build/assets -maxdepth 1 -type f -name 'movenet-lightning-*.bin' -print -quit | grep -q .
+    && find public/build/assets -maxdepth 1 -type f -name 'vision_bundle-*.js' -print -quit | grep -q .
 
 FROM php:8.3-apache-bookworm
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -28,8 +27,7 @@ RUN composer install --no-interaction --prefer-dist --optimize-autoloader \
     && chmod +x docker/start.sh
 COPY --from=assets /app/public/build ./public/build
 RUN test -f public/build/manifest.json \
-    && find public/build/assets -maxdepth 1 -type f -name 'movenet-lightning-*.json' -print -quit | grep -q . \
-    && find public/build/assets -maxdepth 1 -type f -name 'movenet-lightning-*.bin' -print -quit | grep -q .
+    && find public/build/assets -maxdepth 1 -type f -name 'vision_bundle-*.js' -print -quit | grep -q .
 ENV APP_ENV=production APP_DEBUG=false LOG_CHANNEL=stderr
 EXPOSE 10000
 CMD ["sh", "docker/start.sh"]
