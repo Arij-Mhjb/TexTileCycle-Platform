@@ -288,11 +288,6 @@ export default function virtualTryOn({ imageUrl, category }) {
             await this.startCamera();
         },
 
-        chooseAnotherPhoto() {
-            if (this.generating) return;
-            this.$refs.photoInput?.click();
-        },
-
         revokeUrl(property) {
             if (this[property]?.startsWith('blob:')) URL.revokeObjectURL(this[property]);
             this[property] = '';
@@ -308,7 +303,6 @@ export default function virtualTryOn({ imageUrl, category }) {
             this.generating = false;
             this.countdown = 0;
             this.provider = '';
-            if (this.$refs.photoInput) this.$refs.photoInput.value = '';
             this.open = false;
         },
     };
