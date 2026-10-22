@@ -66,9 +66,9 @@ class MaterialExchangeService
         });
     }
 
-    public function accept(MaterialMatch $match): MaterialMatch
+    public function accept(MaterialMatch $match, bool $allowOverCapacity = false, ?User $actor = null): MaterialMatch
     {
-        return DB::transaction(function () use ($match) {
+        return DB::transaction(function () use ($match, $allowOverCapacity, $actor) {
             ProductReturn::whereKey($match->product_return_id)->lockForUpdate()->firstOrFail();
             $match = MaterialMatch::whereKey($match->id)->lockForUpdate()->firstOrFail();
             $request = MaterialRequest::whereKey($match->material_request_id)->lockForUpdate()->firstOrFail();
@@ -88,24 +88,41 @@ class MaterialExchangeService
                 ->join('product_returns', 'product_returns.id', '=', 'material_matches.product_return_id')
                 ->sum('product_returns.confirmed_weight_kg');
             $weight = (float) $match->productReturn->confirmed_weight_kg;
-            if ($weight <= 0 || $weight > (float) $request->remaining_kg - $reservedKg + 0.001) {
-                throw ValidationException::withMessages(['match' => 'La pesée confirmée dépasse la quantité encore disponible pour cette demande.']);
+            $availableKg = max(0, (float) $request->remaining_kg - $reservedKg);
+            $overCapacity = $weight > $availableKg + 0.001;
+            if ($weight <= 0 || ($overCapacity && ! $allowOverCapacity)) {
+                throw ValidationException::withMessages([
+                    'match' => 'La pesée confirmée dépasse la quantité encore disponible. Cochez l’option d’acceptation exceptionnelle pour continuer.',
+                ]);
             }
             $match->loadMissing(['request.brand', 'productReturn.rewardTransaction']);
+            $details = $match->ai_details ?? [];
+            if ($overCapacity) {
+                $details['capacity_override'] = [
+                    'accepted' => true,
+                    'available_kg' => round($availableKg, 3),
+                    'confirmed_weight_kg' => round($weight, 3),
+                    'actor_id' => $actor?->id,
+                    'accepted_at' => now()->toIso8601String(),
+                ];
+            }
             $match->update([
                 'status' => 'accepted',
                 'transfer_token' => (string) Str::uuid(),
                 'accepted_at' => now(),
                 'due_at' => now()->addDays(7),
+                'ai_details' => $details,
             ]);
 
             $return = $match->productReturn;
             $return->materialMatches()->where('id', '!=', $match->id)->where('status', 'suggested')->update(['status' => 'unavailable']);
             $return->update(['status' => 'reserved_by_brand']);
             $return->statusHistory()->create([
-                'user_id' => $match->request->brand->user_id,
+                'user_id' => $actor?->id ?? $match->request->brand->user_id,
                 'status' => 'reserved_by_brand',
-                'note' => 'Matière réservée par '.$match->request->brand->name.'.',
+                'note' => 'Matière réservée par '.$match->request->brand->name.'.'.($overCapacity
+                    ? ' Dépassement accepté explicitement : '.number_format($weight, 3, ',', ' ').' kg pour '.number_format($availableKg, 3, ',', ' ').' kg disponibles.'
+                    : ''),
             ]);
 
             if ($return->rewardTransaction?->status === 'pending') {
