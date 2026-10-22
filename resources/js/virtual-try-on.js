@@ -33,9 +33,17 @@ async function poseDetector() {
         import('@tensorflow/tfjs-backend-webgl'),
         import('@tensorflow/tfjs-backend-cpu'),
     ]);
-    const webglReady = await tf.setBackend('webgl');
-    if (!webglReady) await tf.setBackend('cpu');
-    await tf.ready();
+    let webglReady = false;
+    try {
+        webglReady = await tf.setBackend('webgl');
+        if (webglReady) await tf.ready();
+    } catch (error) {
+        console.warn('TensorFlow WebGL backend unavailable, using CPU:', error);
+    }
+    if (!webglReady) {
+        await tf.setBackend('cpu');
+        await tf.ready();
+    }
     const modelUrl = await bundledMoveNetModel();
     const options = {
         modelType: poseDetection.movenet.modelType.SINGLEPOSE_LIGHTNING,
@@ -133,13 +141,19 @@ export default function virtualTryOn({ imageUrl, category }) {
                 this.render();
                 this.status = 'Caméra en direct · chargement du filtre AR…';
                 stage = 'model';
-                [this.detector, this.garment] = await Promise.all([poseDetector(), loadImage(imageUrl).then(garmentCutout)]);
+                this.detector = await poseDetector();
+                stage = 'garment';
+                this.garment = garmentCutout(await loadImage(imageUrl));
                 this.status = 'Filtre AR prêt · placez le haut du corps dans le cadre.';
             } catch (error) {
                 console.error('Virtual try-on initialization failed:', error);
-                this.error = stage === 'camera'
-                    ? 'Impossible d’ouvrir la caméra. Vérifiez son autorisation dans le navigateur.'
-                    : 'La caméra reste en direct, mais le filtre AR n’a pas pu être chargé. Réessayez.';
+                if (stage === 'camera') {
+                    this.error = 'Impossible d’ouvrir la caméra. Vérifiez son autorisation dans le navigateur.';
+                } else if (stage === 'garment') {
+                    this.error = 'Le suivi AR est prêt, mais l’image du vêtement est inaccessible. Vérifiez l’image du produit.';
+                } else {
+                    this.error = 'La caméra reste en direct, mais le modèle de suivi AR n’a pas pu être chargé. Réessayez.';
+                }
             } finally {
                 this.loading = false;
             }
