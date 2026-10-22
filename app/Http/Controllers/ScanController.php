@@ -9,7 +9,6 @@ use App\Models\Product;
 use App\Models\Scan;
 use App\Services\CircularRecommendationService;
 use App\Services\MediaStorageService;
-use App\Services\MultimodalScanService;
 use App\Services\PassportProposalWorkflowService;
 use App\Services\SmartScanService;
 use Illuminate\Http\RedirectResponse;
@@ -38,7 +37,6 @@ class ScanController extends Controller
     public function store(
         Request $request,
         SmartScanService $scanner,
-        MultimodalScanService $multimodal,
         MediaStorageService $media
     ): RedirectResponse {
         $data = $request->validate([
@@ -108,11 +106,10 @@ class ScanController extends Controller
         }
 
         if ($isMultimodal) {
-            if (config('services.smart_scan.async')) {
-                AnalyseMultimodalScan::dispatch($scan->id);
-            } else {
-                (new AnalyseMultimodalScan($scan->id))->handle($multimodal);
-            }
+            // OCR, Cloudinary downloads and Gemini can take longer than the web
+            // request limit. Always hand the analysis to the queue so the upload
+            // request can redirect as soon as the durable assets are stored.
+            AnalyseMultimodalScan::dispatch($scan->id);
         } else {
             foreach ($matches as $match) {
                 Detection::create([
@@ -155,7 +152,6 @@ class ScanController extends Controller
     public function reanalyse(
         Request $request,
         Scan $scan,
-        MultimodalScanService $multimodal,
         MediaStorageService $media
     ): RedirectResponse {
         $this->guard($request, $scan);
@@ -180,18 +176,10 @@ class ScanController extends Controller
             'ai_status' => 'analysing',
         ]);
 
-        if (config('services.smart_scan.async')) {
-            AnalyseMultimodalScan::dispatch($scan->id);
-        } else {
-            (new AnalyseMultimodalScan($scan->id))->handle($multimodal);
-        }
+        AnalyseMultimodalScan::dispatch($scan->id);
 
-        return to_route('scans.show', $scan)->with(
-            'success',
-            config('services.smart_scan.async')
-                ? 'Nouvelle analyse lancée en arrière-plan.'
-                : 'Nouvelle analyse terminée avec OCR, lecture du code-barres et suggestions visuelles si Gemini est configuré.'
-        );
+        return to_route('scans.show', $scan)
+            ->with('success', 'Nouvelle analyse lancée en arrière-plan. Cette page se mettra à jour automatiquement.');
     }
 
     public function confirmData(
