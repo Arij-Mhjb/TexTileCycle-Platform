@@ -40,6 +40,33 @@ class ProfessionalBrandWorkflowTest extends TestCase
         $this->assertDatabaseMissing('products', ['sku' => 'PRO-1']);
     }
 
+    public function test_product_form_uses_accessible_category_and_origin_lists(): void
+    {
+        $user = $this->brandUser();
+
+        $this->actingAs($user)->get(route('brand.products.create'))
+            ->assertOk()
+            ->assertSee('Sélectionner une catégorie…')
+            ->assertSee('Pays de fabrication')
+            ->assertSee('Tunisie')
+            ->assertSee('Veste');
+    }
+
+    public function test_product_category_and_origin_must_come_from_php_reference_lists(): void
+    {
+        $user = $this->brandUser();
+
+        $this->actingAs($user)->post(route('brand.products.store'), [
+            'name' => 'Produit invalide', 'sku' => 'OPTIONS-INVALID',
+            'category' => 'Catégorie inventée', 'origin' => 'Pays inventé',
+        ])->assertSessionHasErrors([
+            'category' => 'Sélectionnez une catégorie proposée dans la liste.',
+            'origin' => 'Sélectionnez un pays d’origine proposé dans la liste.',
+        ]);
+
+        $this->assertDatabaseMissing('products', ['sku' => 'OPTIONS-INVALID']);
+    }
+
     public function test_composition_cannot_exceed_one_hundred_percent(): void
     {
         $user = $this->brandUser();

@@ -28,9 +28,9 @@ class BrandProductRequest extends FormRequest
             'sku' => ['required', 'string', 'max:100', Rule::unique('products', 'sku')->ignore($product?->id)],
             'barcode' => ['nullable', 'string', 'max:100', Rule::unique('products', 'barcode')->ignore($product?->id)],
             'qr_code' => ['nullable', 'string', 'max:255', Rule::unique('products', 'qr_code')->ignore($product?->id)],
-            'category' => ['required', 'string', 'max:100'],
+            'category' => ['required', 'string', 'max:100', Rule::in($this->allowedOptions('categories', $product?->category))],
             'description' => ['nullable', 'string'],
-            'origin' => ['nullable', 'string', 'max:150'],
+            'origin' => ['nullable', 'string', 'max:150', Rule::in($this->allowedOptions('origins', $product?->origin))],
             'image' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:1900'],
             'recyclability_score' => ['nullable', 'integer', 'min:0', 'max:100'],
             'recycling_instructions' => ['nullable', 'string'],
@@ -61,6 +61,8 @@ class BrandProductRequest extends FormRequest
             'image.image' => 'Le fichier choisi doit être une véritable image.',
             'image.mimes' => 'La photo doit être au format JPG, JPEG, PNG ou WebP.',
             'image.max' => 'La photo ne doit pas dépasser 1,9 Mo. Les grandes photos sont normalement optimisées automatiquement.',
+            'category.in' => 'Sélectionnez une catégorie proposée dans la liste.',
+            'origin.in' => 'Sélectionnez un pays d’origine proposé dans la liste.',
         ];
     }
 
@@ -78,5 +80,17 @@ class BrandProductRequest extends FormRequest
     public function materialPercentages(): array
     {
         return array_filter($this->input('materials', []), fn ($value) => (float) $value > 0);
+    }
+
+    /** @return array<int, string> */
+    private function allowedOptions(string $group, ?string $existingValue): array
+    {
+        $values = array_keys(config('product_options.'.$group, []));
+
+        if (filled($existingValue) && ! in_array($existingValue, $values, true)) {
+            $values[] = $existingValue;
+        }
+
+        return $values;
     }
 }

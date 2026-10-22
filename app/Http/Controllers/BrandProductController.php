@@ -32,7 +32,9 @@ class BrandProductController extends Controller
 
     public function create(): View
     {
-        return view('brand.products.form', ['product' => new Product, 'materials' => Material::orderBy('name')->get(), 'analysis' => null]);
+        $product = new Product;
+
+        return view('brand.products.form', $this->formData($product, null));
     }
 
     public function store(BrandProductRequest $request, MediaStorageService $media): RedirectResponse
@@ -70,7 +72,7 @@ class BrandProductController extends Controller
         $this->own($request, $product);
         $product->load('materials', 'versions.author');
 
-        return view('brand.products.form', ['product' => $product, 'materials' => Material::orderBy('name')->get(), 'analysis' => app(ProductCompletenessService::class)->analyse($product)]);
+        return view('brand.products.form', $this->formData($product, app(ProductCompletenessService::class)->analyse($product)));
     }
 
     public function update(BrandProductRequest $request, Product $product, MediaStorageService $media): RedirectResponse
@@ -197,5 +199,27 @@ class BrandProductController extends Controller
     private function productImageColumns(array $stored): array
     {
         return ['image_path' => $stored['path'], 'image_storage_disk' => $stored['storage_disk'], 'image_cloudinary_public_id' => $stored['cloudinary_public_id'], 'image_secure_url' => $stored['secure_url'], 'image_delivery_type' => $stored['delivery_type'], 'image_format' => $stored['format'], 'image_version' => $stored['version']];
+    }
+
+    private function formData(Product $product, ?array $analysis): array
+    {
+        $categories = config('product_options.categories', []);
+        $origins = config('product_options.origins', []);
+
+        // Les anciennes valeurs restent modifiables même si elles ne figurent plus dans le référentiel.
+        if ($product->exists && filled($product->category) && ! array_key_exists($product->category, $categories)) {
+            $categories = [$product->category => $product->category.' (valeur existante)'] + $categories;
+        }
+        if ($product->exists && filled($product->origin) && ! array_key_exists($product->origin, $origins)) {
+            $origins = [$product->origin => $product->origin.' (valeur existante)'] + $origins;
+        }
+
+        return [
+            'product' => $product,
+            'materials' => Material::orderBy('name')->get(),
+            'analysis' => $analysis,
+            'categories' => $categories,
+            'origins' => $origins,
+        ];
     }
 }
