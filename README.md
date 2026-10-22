@@ -680,12 +680,11 @@ Les preuves locales de feuilles de route nécessitent un disque privé persistan
 GEMINI_AI_ENABLED=true
 GEMINI_API_KEY=<cle_serveur>
 GEMINI_MODEL=gemini-3.5-flash-lite
-SMART_SCAN_ASYNC=false
 ```
 
 Le modèle ci-dessus est la valeur configurée dans le dépôt ; sa disponibilité et ses quotas dépendent du fournisseur. Sans clé, en cas de quota ou d’erreur réseau, le parcours conserve l’analyse locale. Les suggestions complètent les champs vides sans écraser les données locales ou du catalogue et restent soumises à confirmation.
 
-Pour déplacer l’analyse vers la file, définir `SMART_SCAN_ASYNC=true` et maintenir un worker actif. Le formulaire informe l’utilisateur du recours au service externe.
+L’analyse multimodale est toujours envoyée dans la file afin que Cloudinary, l’OCR ou Gemini ne puissent pas dépasser la limite de temps d’une requête web. `QUEUE_CONNECTION=database` doit être configuré et un worker `php artisan queue:work --tries=3 --timeout=150` doit rester actif. La page du scan se rafraîchit automatiquement pendant le traitement.
 
 ### Orientation marque et produit-label : OpenAI facultatif
 

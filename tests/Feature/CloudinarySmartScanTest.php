@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Jobs\AnalyseMultimodalScan;
 use App\Models\Scan;
 use App\Models\ScanAsset;
 use App\Models\User;
@@ -11,6 +12,7 @@ use Cloudinary\Cloudinary;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Mockery;
 use Tests\TestCase;
@@ -21,6 +23,7 @@ class CloudinarySmartScanTest extends TestCase
 
     public function test_consumer_creates_scan_with_three_durable_images(): void
     {
+        Queue::fake();
         $user = User::factory()->create(['role' => 'consumer']);
         $media = Mockery::mock(MediaStorageService::class);
         $sequence = 0;
@@ -34,7 +37,7 @@ class CloudinarySmartScanTest extends TestCase
         $this->app->instance(MediaStorageService::class, $media);
 
         $analysis = Mockery::mock(MultimodalScanService::class);
-        $analysis->shouldReceive('analyse')->once()->andReturn(['confidence' => 0]);
+        $analysis->shouldNotReceive('analyse');
         $this->app->instance(MultimodalScanService::class, $analysis);
 
         $response = $this->actingAs($user)->post(route('scans.store'), [
@@ -51,6 +54,7 @@ class CloudinarySmartScanTest extends TestCase
         $this->assertSame(['cloudinary'], $scan->assets->pluck('storage_disk')->unique()->values()->all());
         $this->assertTrue($scan->assets->every(fn ($asset) => str_starts_with($asset->cloudinary_public_id, 'textilecycle/scans/')));
         $this->assertSame('authenticated', $scan->assets->firstWhere('type', 'receipt')->delivery_type);
+        Queue::assertPushed(AnalyseMultimodalScan::class, fn ($job) => $job->scanId === $scan->id);
     }
 
     public function test_service_generates_secure_cloudinary_url_without_exposing_secret(): void
