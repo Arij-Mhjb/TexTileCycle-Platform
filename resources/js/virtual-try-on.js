@@ -214,6 +214,46 @@ export default function virtualTryOn({ imageUrl, category }) {
             }
         },
 
+        async selectPhoto(event) {
+            const input = event.target;
+            const file = input.files?.[0];
+            input.value = '';
+            if (!file) return;
+
+            this.error = '';
+            if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+                this.error = 'Format non accepté. Choisissez une image JPG, PNG ou WebP.';
+                return;
+            }
+            if (file.size > 12 * 1024 * 1024) {
+                this.error = 'La photo dépasse 12 Mo. Choisissez une image moins volumineuse.';
+                return;
+            }
+
+            try {
+                const bitmap = await createImageBitmap(file);
+                const tooSmall = bitmap.width < 512 || bitmap.height < 512;
+                bitmap.close();
+                if (tooSmall) {
+                    this.error = 'La photo est trop petite. Utilisez une image d’au moins 512 × 512 pixels.';
+                    return;
+                }
+
+                this.job?.cancel();
+                this.job = null;
+                this.stopCamera();
+                this.captureFile = file;
+                this.revokeUrl('capturedUrl');
+                this.resultUrl = '';
+                this.provider = '';
+                this.capturedUrl = URL.createObjectURL(file);
+                this.status = 'Photo importée · vérifiez le cadrage puis lancez l’essayage.';
+            } catch (error) {
+                console.error('Photo validation failed:', error);
+                this.error = 'Cette image est illisible ou endommagée. Choisissez une autre photo.';
+            }
+        },
+
         async downloadResult() {
             if (!this.resultUrl) return;
             try {
@@ -248,6 +288,11 @@ export default function virtualTryOn({ imageUrl, category }) {
             await this.startCamera();
         },
 
+        chooseAnotherPhoto() {
+            if (this.generating) return;
+            this.$refs.photoInput?.click();
+        },
+
         revokeUrl(property) {
             if (this[property]?.startsWith('blob:')) URL.revokeObjectURL(this[property]);
             this[property] = '';
@@ -263,6 +308,7 @@ export default function virtualTryOn({ imageUrl, category }) {
             this.generating = false;
             this.countdown = 0;
             this.provider = '';
+            if (this.$refs.photoInput) this.$refs.photoInput.value = '';
             this.open = false;
         },
     };
