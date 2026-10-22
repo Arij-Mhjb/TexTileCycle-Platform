@@ -19,7 +19,9 @@ return [
     'base_url' => env('HF_BASE_URL', 'https://router.huggingface.co/hf-inference/models'),
     'chat_url' => env('HF_CHAT_URL', 'https://router.huggingface.co/v1/chat/completions'),
     'timeout' => env('HF_TIMEOUT', 30),
-    'chat_timeout' => env('HF_CHAT_TIMEOUT', 60),
+    'chat_timeout' => env('HF_CHAT_TIMEOUT', 40),
+    // Temps maximum pour essayer les modèles l'un après l'autre avant de passer au plan B.
+    'chat_budget' => env('HF_CHAT_BUDGET', 45),
 
     // Classification d'image « zero-shot » (CLIP) : défauts et nature de la fibre.
     'vision_model' => env('HF_VISION_MODEL', 'openai/clip-vit-large-patch14'),
