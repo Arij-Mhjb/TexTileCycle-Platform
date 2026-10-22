@@ -53,9 +53,13 @@ class BrandMaterialMatchController extends Controller
     public function accept(Request $request, MaterialMatch $materialMatch, MaterialExchangeService $exchange): RedirectResponse
     {
         $this->guard($request, $materialMatch);
-        $exchange->accept($materialMatch);
+        $data = $request->validate(['allow_over_capacity' => 'nullable|boolean']);
+        $override = (bool) ($data['allow_over_capacity'] ?? false);
+        $exchange->accept($materialMatch, $override, $request->user());
 
-        return back()->with('success', 'Matière réservée. Le consommateur a reçu les instructions.');
+        return back()->with('success', $override
+            ? 'Matière réservée avec acceptation exceptionnelle du dépassement. Cette décision a été tracée.'
+            : 'Matière réservée. Le consommateur a reçu les instructions.');
     }
 
     public function receive(Request $request, MaterialMatch $materialMatch, MaterialExchangeService $exchange): RedirectResponse

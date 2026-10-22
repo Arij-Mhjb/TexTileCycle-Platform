@@ -3,6 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <meta name="description" content="TexTileCycle transforme les tickets et étiquettes en passeports textiles pour faciliter réparation, don, reprise et recyclage.">
     <title>TexTileCycle · Circularité textile responsable</title>
     <x-theme-script />
@@ -16,6 +17,7 @@
                 <a href="#solution" class="transition hover:text-emerald-300">Solution</a>
                 <a href="#cycle" class="transition hover:text-emerald-300">Cycle</a>
                 <a href="#impact" class="transition hover:text-emerald-300">Impact ODD</a>
+                <a href="{{ route('blog.index') }}" class="transition hover:text-emerald-300">Blog</a>
             </nav>
             <div class="flex items-center gap-2">
                 <x-theme-toggle />
@@ -132,5 +134,6 @@
     </main>
 
     <x-layout.footer />
+    <x-chatbot-widget />
 </body>
 </html>

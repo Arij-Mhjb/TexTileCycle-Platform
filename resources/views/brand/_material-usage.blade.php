@@ -36,7 +36,7 @@
                     @endforeach
                     <p class="text-xs">Le total ne peut pas dépasser {{ $usage->recycled_output_kg }} kg de sortie recyclée.</p>
                 @endif
-                <label class="block text-sm font-bold">Justificatifs privés<input name="proofs[]" type="file" multiple required accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx,.csv,.txt" class="mt-2 block w-full"><span class="text-xs font-normal">1 à 4 fichiers, 8 Mo maximum chacun.</span></label>
+                <label class="block text-sm font-bold">Justificatifs privés<input name="proofs[]" type="file" multiple required accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx,.csv,.txt" data-field-label="Justificatifs privés" data-max-files="4" data-max-bytes="8388608" data-validation-message="Formats acceptés : PDF, JPG, JPEG, PNG, WebP, Word, CSV ou TXT." class="mt-2 block w-full"><span class="text-xs font-normal">1 à 4 fichiers, 8 Mo maximum chacun.</span></label>
                 <button class="rounded-xl bg-emerald-700 px-4 py-3 text-sm font-bold text-white">Enregistrer cette étape</button>
             </form>
         @endif
@@ -58,7 +58,7 @@
         <label class="block text-sm">Motif et résultats corrigés<textarea name="note" required minlength="10" maxlength="4000" class="mt-1 w-full rounded-xl border-slate-300"></textarea></label>
         @if(in_array($usage->status,['processed','incorporated']))<label class="block text-sm">Sortie recyclée corrigée (kg)<input type="number" name="recycled_output_kg" min="0" max="{{ $usage->input_kg }}" step="0.01" required value="{{ $usage->recycled_output_kg }}" class="mt-1 w-full rounded-xl border-slate-300"></label>@endif
         @if($usage->status === 'incorporated')@foreach($usage->roadmap->products as $product)<label class="block text-sm">Incorporation dans {{ $product->name }} (kg)<input type="number" name="product_quantities[{{ $product->id }}]" min="0" step="0.01" required value="{{ $usage->product_quantities[$product->id] ?? 0 }}" class="mt-1 w-full rounded-xl border-slate-300"></label>@endforeach @endif
-        <label class="block text-sm">Nouvelles preuves privées<input type="file" name="proofs[]" multiple required accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx,.csv,.txt" class="mt-2 block w-full"></label>
+        <label class="block text-sm">Nouvelles preuves privées<input type="file" name="proofs[]" multiple required accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx,.csv,.txt" data-field-label="Nouvelles preuves privées" data-max-files="4" data-max-bytes="8388608" data-validation-message="Formats acceptés : PDF, JPG, JPEG, PNG, WebP, Word, CSV ou TXT." class="mt-2 block w-full"></label>
         <button class="rounded-xl bg-amber-700 px-4 py-2 text-sm font-bold text-white">Enregistrer la correction</button>
     </form>
 </details>

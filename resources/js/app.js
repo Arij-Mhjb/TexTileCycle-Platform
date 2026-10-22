@@ -28,6 +28,124 @@ Alpine.data('brandAssistant', ({ endpoint, page }) => ({
     },
 }));
 Alpine.data('virtualTryOn', virtualTryOn);
+Alpine.data('chatWidget', ({ askUrl, suggestionsUrl }) => ({
+    open: false, message: '', loading: false, error: '', suggestions: [],
+    messages: [{ role: 'bot', content: 'Bonjour ! Je suis l\'assistant TexTileCycle. Posez-moi une question sur le scan, les retours, la réparation, le recyclage ou nos labels.' }],
+    get sessionId() {
+        let id = localStorage.getItem('textilecycle-chat-session');
+        if (!id) { id = crypto.randomUUID(); localStorage.setItem('textilecycle-chat-session', id); }
+        return id;
+    },
+    async init() {
+        try {
+            const response = await fetch(suggestionsUrl, { headers: { Accept: 'application/json' } });
+            const data = await response.json();
+            this.suggestions = data.suggestions || [];
+        } catch (_) { this.suggestions = []; }
+    },
+    ask(question) { this.message = question; this.send(); },
+    async send() {
+        const question = this.message.trim();
+        if (question.length < 2 || this.loading) return;
+        this.messages.push({ role: 'user', content: question });
+        this.message = ''; this.loading = true; this.error = '';
+        this.$nextTick(() => { this.$refs.messages.scrollTop = this.$refs.messages.scrollHeight; });
+        try {
+            const response = await fetch(askUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '' },
+                body: JSON.stringify({ message: question, session_id: this.sessionId }),
+            });
+            if (!response.ok) throw new Error(response.status === 429 ? 'Trop de questions envoyées, réessayez dans une minute.' : 'Assistant indisponible pour le moment.');
+            const data = await response.json();
+            this.messages.push({ role: 'bot', content: data.answer });
+            this.suggestions = data.suggestions || [];
+        } catch (error) { this.error = error.message; }
+        finally { this.loading = false; this.$nextTick(() => { this.$refs.messages.scrollTop = this.$refs.messages.scrollHeight; }); }
+    },
+}));
+Alpine.data('articleReactions', ({ reactUrl, likes, dislikes, userReaction }) => ({
+    likes, dislikes, userReaction, loading: false,
+    async react(type) {
+        if (this.loading) return;
+        this.loading = true;
+        try {
+            const response = await fetch(reactUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '' },
+                body: JSON.stringify({ type }),
+            });
+            if (!response.ok) throw new Error('reaction-failed');
+            const data = await response.json();
+            this.likes = data.likes; this.dislikes = data.dislikes; this.userReaction = data.user_reaction;
+        } catch (_) { /* silently ignore, counts stay unchanged */ }
+        finally { this.loading = false; }
+    },
+}));
+
+Alpine.data('productForm', (initialTotal = 0) => ({
+    total: Number(initialTotal) || 0,
+    photoProcessing: false,
+    photoError: '',
+    photoName: '',
+    async preparePhoto(event) {
+        const input = event.target;
+        const file = input.files?.[0];
+        this.photoError = '';
+        this.photoName = '';
+        input.setCustomValidity('');
+        if (!file) return;
+
+        const extension = file.name.split('.').pop()?.toLowerCase();
+        const accepted = ['image/jpeg', 'image/png', 'image/webp'].includes(file.type)
+            || ['jpg', 'jpeg', 'png', 'webp'].includes(extension);
+        if (!accepted) {
+            this.photoError = 'Choisissez une image JPG, JPEG, PNG ou WebP.';
+            input.setCustomValidity(this.photoError);
+            return;
+        }
+
+        const targetBytes = 1_800_000;
+        if (file.size <= targetBytes) {
+            this.photoName = `${file.name} · ${(file.size / 1024 / 1024).toFixed(1)} Mo`;
+            return;
+        }
+
+        this.photoProcessing = true;
+        try {
+            const bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' });
+            const scale = Math.min(1, 2400 / Math.max(bitmap.width, bitmap.height));
+            const canvas = document.createElement('canvas');
+            canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+            canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+            const context = canvas.getContext('2d');
+            context.fillStyle = '#ffffff';
+            context.fillRect(0, 0, canvas.width, canvas.height);
+            context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+            bitmap.close();
+
+            let quality = 0.86;
+            let blob;
+            do {
+                blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', quality));
+                quality -= 0.08;
+            } while (blob && blob.size > targetBytes && quality >= 0.46);
+
+            if (!blob || blob.size > targetBytes) throw new Error('compression-failed');
+            const compressed = new File([blob], file.name.replace(/\.[^.]+$/, '') + '.jpg', { type: 'image/jpeg', lastModified: Date.now() });
+            const transfer = new DataTransfer();
+            transfer.items.add(compressed);
+            input.files = transfer.files;
+            input.setCustomValidity('');
+            this.photoName = `${compressed.name} · ${(compressed.size / 1024 / 1024).toFixed(1)} Mo · optimisée automatiquement`;
+        } catch (_) {
+            this.photoError = 'Cette photo dépasse 2 Mo et n’a pas pu être optimisée. Réduisez sa taille puis réessayez.';
+            input.setCustomValidity(this.photoError);
+        } finally {
+            this.photoProcessing = false;
+        }
+    },
+}));
 
 window.mentionComposer = function (searchUrl) {
     return {
@@ -142,7 +260,11 @@ function confirmAction(message) {
 }
 
 function validationMessage(field) {
-    const label = field.closest('label')?.querySelector('span')?.textContent?.replace('*', '').trim() || 'Ce champ';
+    const label = field.dataset.fieldLabel
+        || field.closest('label')?.querySelector('[data-field-label-text]')?.textContent?.replace('*', '').trim()
+        || field.closest('label')?.querySelector('span')?.textContent?.replace('*', '').trim()
+        || 'Ce champ';
+    if (field.validity.customError) return field.validationMessage;
     if (field.validity.valueMissing) return `${label} est obligatoire.`;
     if (field.validity.typeMismatch && field.type === 'email') return 'Saisissez une adresse e-mail valide.';
     if (field.validity.tooShort) return `${label} doit contenir au moins ${field.minLength} caractères.`;
@@ -185,12 +307,30 @@ document.addEventListener('input', (event) => {
 
 document.addEventListener('change', (event) => {
     const field = event.target;
-    if (!(field instanceof HTMLInputElement) || field.type !== 'file' || !field.files?.length) return;
-    const file = field.files[0];
-    const acceptedTypes = (field.accept || '').split(',').map((type) => type.trim()).filter(Boolean);
-    const tooLarge = field.dataset.maxBytes && file.size > Number(field.dataset.maxBytes);
-    const wrongType = acceptedTypes.length && !acceptedTypes.includes(file.type);
-    field.setCustomValidity(tooLarge || wrongType ? (field.dataset.validationMessage || 'Le fichier sélectionné n’est pas valide.') : '');
+    if (!(field instanceof HTMLInputElement) || field.type !== 'file') return;
+
+    const files = Array.from(field.files || []);
+    const acceptedTypes = (field.accept || '').split(',').map((type) => type.trim().toLowerCase()).filter(Boolean);
+    const maxBytes = Number(field.dataset.maxBytes || 0);
+    const maxFiles = Number(field.dataset.maxFiles || 0);
+    const matchesAcceptedType = (file) => acceptedTypes.length === 0 || acceptedTypes.some((accepted) => {
+        const mime = (file.type || '').toLowerCase();
+        const name = file.name.toLowerCase();
+        if (accepted.startsWith('.')) return name.endsWith(accepted);
+        if (accepted.endsWith('/*')) return mime.startsWith(accepted.slice(0, -1));
+        return mime === accepted;
+    });
+
+    let message = '';
+    if (maxFiles && files.length > maxFiles) {
+        message = `Vous pouvez joindre au maximum ${maxFiles} fichiers.`;
+    } else if (maxBytes && files.some((file) => file.size > maxBytes)) {
+        message = `Chaque fichier doit faire au maximum ${Math.round(maxBytes / 1024 / 1024)} Mo.`;
+    } else if (files.some((file) => !matchesAcceptedType(file))) {
+        message = field.dataset.validationMessage || 'Format de fichier non accepté.';
+    }
+
+    field.setCustomValidity(message);
     if (field.validity.valid) clearFieldError(field); else showFieldError(field);
 }, true);
 

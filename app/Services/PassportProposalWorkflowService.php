@@ -201,6 +201,38 @@ class PassportProposalWorkflowService
 
     private function resolveProduct(PassportProposal $proposal, array $data): Product
     {
+        $barcode = filled($data['barcode'] ?? null) ? trim((string) $data['barcode']) : null;
+        $barcodeProduct = $barcode
+            ? Product::withTrashed()->where('barcode', $barcode)->first()
+            : null;
+
+        if ($barcodeProduct) {
+            if ($barcodeProduct->trashed()) {
+                $barcodeProduct->restore();
+            }
+
+            $brandId = $barcodeProduct->brand_id ?: $proposal->brand_id;
+            $barcodeProduct->forceFill(array_filter([
+                'brand_id' => $brandId,
+                'brand' => $barcodeProduct->brand ?: ($proposal->brand?->name ?? ($data['brand'] ?? null)),
+                'origin' => $barcodeProduct->origin ?: ($data['manufacturing_country'] ?? null),
+            ], fn ($value) => $value !== null && $value !== ''))->save();
+
+            $proposal->forceFill([
+                'product_id' => $barcodeProduct->id,
+                'brand_id' => $brandId,
+            ])->save();
+            $proposal->scan->update(['product_id' => $barcodeProduct->id]);
+            $proposal->unsetRelation('product');
+            $proposal->unsetRelation('brand');
+
+            if (! $barcodeProduct->materials()->exists()) {
+                $this->syncComposition($barcodeProduct, $data['composition'] ?? []);
+            }
+
+            return $barcodeProduct;
+        }
+
         $product = $proposal->product;
         $sku = filled($data['sku'] ?? null) ? (string) $data['sku'] : 'SCAN-'.$proposal->scan->uuid;
         if (! $product) {
@@ -214,7 +246,7 @@ class PassportProposalWorkflowService
             'brand_id' => $proposal->brand_id,
             'brand' => $proposal->brand?->name ?? ($data['brand'] ?? 'Marque non identifiée'),
             'name' => $data['product_name'] ?? 'Produit textile proposé',
-            'barcode' => $data['barcode'] ?? $product->barcode,
+            'barcode' => $barcode ?? $product->barcode,
             'category' => $data['category'] ?? 'Textile',
             'origin' => $data['manufacturing_country'] ?? $product->origin,
             'description' => 'Passeport proposé depuis le Smart Scan #'.$proposal->scan_id.'.',

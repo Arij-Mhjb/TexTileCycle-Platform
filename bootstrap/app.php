@@ -12,6 +12,14 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        // This password form is reached through a short-lived signed URL from
+        // the assignment email. Excluding this single endpoint avoids local
+        // localhost/127.0.0.1 session-cookie mismatches while the signature,
+        // password check and route throttle continue to protect access.
+        $middleware->validateCsrfTokens(except: [
+            'acces-tache/*',
+        ]);
+
         $middleware->alias([
             'role' => EnsureUserHasRole::class,
         ]);

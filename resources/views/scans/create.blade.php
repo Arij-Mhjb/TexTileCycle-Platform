@@ -17,7 +17,7 @@
                     <label class="rounded-2xl border-2 border-dashed border-slate-200 p-5 transition hover:border-emerald-400">
                         <span class="block font-black">{{ $title }}</span>
                         <span class="mt-1 block text-xs text-slate-500">{{ $help }}</span>
-                        <input type="file" name="{{ $name }}" accept="image/*" capture="environment" required class="mt-4 block w-full text-sm">
+                        <input type="file" name="{{ $name }}" accept="image/jpeg,image/png,image/webp" data-max-bytes="8388608" data-validation-message="Choisissez une image JPG, JPEG, PNG ou WebP de 8 Mo maximum." capture="environment" required class="mt-4 block w-full text-sm">
                     </label>
                 @endforeach
             </div>
@@ -25,8 +25,8 @@
             <details class="rounded-2xl bg-slate-50 p-5">
                 <summary class="cursor-pointer font-black">Ajouter plus de preuves</summary>
                 <div class="mt-4 grid gap-5 md:grid-cols-2">
-                    <label class="text-sm font-bold">Dos du produit<input type="file" name="product_back_image" accept="image/*" capture="environment" class="mt-2 block w-full"></label>
-                    <label class="text-sm font-bold">Photo d’un défaut<input type="file" name="damage_image" accept="image/*" capture="environment" class="mt-2 block w-full"></label>
+                    <label class="text-sm font-bold">Dos du produit<input type="file" name="product_back_image" accept="image/jpeg,image/png,image/webp" data-max-bytes="8388608" data-validation-message="Choisissez une image JPG, JPEG, PNG ou WebP de 8 Mo maximum." capture="environment" class="mt-2 block w-full"></label>
+                    <label class="text-sm font-bold">Photo d’un défaut<input type="file" name="damage_image" accept="image/jpeg,image/png,image/webp" data-max-bytes="8388608" data-validation-message="Choisissez une image JPG, JPEG, PNG ou WebP de 8 Mo maximum." capture="environment" class="mt-2 block w-full"></label>
                 </div>
             </details>
 

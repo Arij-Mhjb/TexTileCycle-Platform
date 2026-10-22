@@ -80,6 +80,39 @@ class MaterialExchangeWorkflowTest extends TestCase
         ]);
     }
 
+    public function test_brand_can_explicitly_accept_a_match_over_the_remaining_capacity(): void
+    {
+        [$consumer, $admin, $brandUser, $return, $request] = $this->data();
+        $request->update(['quantity_kg' => 0.5, 'remaining_kg' => 0.5]);
+        app(MaterialExchangeService::class)->adminReview($return, $admin, 'verified', [
+            'condition' => 'damaged',
+            'confirmed_weight_kg' => 1.2,
+        ]);
+        $match = MaterialMatch::firstOrFail();
+
+        $this->actingAs($brandUser)
+            ->post(route('brand.material-matches.accept', $match))
+            ->assertSessionHasErrors('match');
+        $this->assertSame('suggested', $match->fresh()->status);
+
+        $this->post(route('brand.material-matches.accept', $match), [
+            'allow_over_capacity' => 1,
+        ])->assertSessionHasNoErrors();
+
+        $match = $match->fresh();
+        $this->assertSame('accepted', $match->status);
+        $this->assertTrue((bool) data_get($match->ai_details, 'capacity_override.accepted'));
+        $this->assertEquals(0.5, data_get($match->ai_details, 'capacity_override.available_kg'));
+        $this->assertDatabaseHas('return_status_histories', [
+            'product_return_id' => $return->id,
+            'status' => 'reserved_by_brand',
+        ]);
+        $this->assertStringContainsString(
+            'Dépassement accepté explicitement',
+            $return->statusHistory()->where('status', 'reserved_by_brand')->firstOrFail()->note
+        );
+    }
+
     private function data(): array
     {
         $consumer = User::factory()->create(['role' => 'consumer']);

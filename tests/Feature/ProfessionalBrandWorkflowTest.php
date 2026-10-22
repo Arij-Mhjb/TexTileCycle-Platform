@@ -40,6 +40,33 @@ class ProfessionalBrandWorkflowTest extends TestCase
         $this->assertDatabaseMissing('products', ['sku' => 'PRO-1']);
     }
 
+    public function test_product_form_uses_accessible_category_and_origin_lists(): void
+    {
+        $user = $this->brandUser();
+
+        $this->actingAs($user)->get(route('brand.products.create'))
+            ->assertOk()
+            ->assertSee('Sélectionner une catégorie…')
+            ->assertSee('Pays de fabrication')
+            ->assertSee('Tunisie')
+            ->assertSee('Veste');
+    }
+
+    public function test_product_category_and_origin_must_come_from_php_reference_lists(): void
+    {
+        $user = $this->brandUser();
+
+        $this->actingAs($user)->post(route('brand.products.store'), [
+            'name' => 'Produit invalide', 'sku' => 'OPTIONS-INVALID',
+            'category' => 'Catégorie inventée', 'origin' => 'Pays inventé',
+        ])->assertSessionHasErrors([
+            'category' => 'Sélectionnez une catégorie proposée dans la liste.',
+            'origin' => 'Sélectionnez un pays d’origine proposé dans la liste.',
+        ]);
+
+        $this->assertDatabaseMissing('products', ['sku' => 'OPTIONS-INVALID']);
+    }
+
     public function test_composition_cannot_exceed_one_hundred_percent(): void
     {
         $user = $this->brandUser();
@@ -94,6 +121,20 @@ class ProfessionalBrandWorkflowTest extends TestCase
         $this->assertSame('public', $product->image_storage_disk);
         $this->assertNull($product->image_cloudinary_public_id);
         Storage::disk('public')->assertExists($product->image_path);
+    }
+
+    public function test_oversized_product_photo_has_a_clear_error_message(): void
+    {
+        $user = $this->brandUser();
+
+        $this->actingAs($user)->post(route('brand.products.store'), [
+            'name' => 'Produit photo lourde', 'sku' => 'PHOTO-LARGE', 'category' => 'Veste',
+            'image' => UploadedFile::fake()->image('veste.jpg', 1200, 1200)->size(2000),
+        ])->assertSessionHasErrors([
+            'image' => 'La photo ne doit pas dépasser 1,9 Mo. Les grandes photos sont normalement optimisées automatiquement.',
+        ]);
+
+        $this->assertDatabaseMissing('products', ['sku' => 'PHOTO-LARGE']);
     }
 
     public function test_complete_product_can_be_submitted_and_versioned(): void
