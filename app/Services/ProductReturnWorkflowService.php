@@ -179,7 +179,7 @@ class ProductReturnWorkflowService
 
             $existingReturn = ProductReturn::where('scan_id', $scan->id)
                 ->whereNotIn('status', ['cancelled', 'rejected'])
-                ->when($currentReturn, fn ($query) => $query->whereKeyNot($currentReturn->id))
+                ->when($currentReturn, fn ($query) => $query->where('id', '!=', $currentReturn->id))
                 ->exists();
 
             if ($existingReturn) {
