@@ -772,7 +772,7 @@ Les tests couvrent notamment l’onboarding, les produits, le Smart Scan, les pa
 
 Le scénario circulaire vérifie les quatre rôles, les états, les bilans de masse, la double affectation, les corrections avec nouvelle revue et la double validation des points.
 
-**Dernière validation locale de l’amélioration métier** — commit `6129149` : **92 tests réussis, 1 610 assertions**, build Vite et compilation Blade réussis. Ce résultat est un instantané de validation, pas un statut CI dynamique.
+**Dernière validation locale complète** — 23 octobre 2026 : **189 tests réussis, 3 610 assertions**, toutes les migrations appliquées, build Vite réussi et **417 routes Laravel** chargées. Ce résultat est un instantané de validation ; le badge CI ci-dessus présente l’état dynamique du dépôt.
 
 Le workflow [Application tests](.github/workflows/tests.yml) est configuré sur les pull requests et les mises à jour de `main`. Consulter l’onglet Actions pour connaître le résultat effectif de chaque exécution ; la présence du workflow ne garantit pas son démarrage.
 
