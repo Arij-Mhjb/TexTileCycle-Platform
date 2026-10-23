@@ -4,6 +4,11 @@
 
 **La seconde vie du textile devient visible.**
 
+[![CI/CD](https://github.com/Arij-Mhjb/TexTileCycle-Platform/actions/workflows/tests.yml/badge.svg)](https://github.com/Arij-Mhjb/TexTileCycle-Platform/actions/workflows/tests.yml)
+[![Laravel 12](https://img.shields.io/badge/Laravel-12-FF2D20?logo=laravel&logoColor=white)](https://laravel.com/)
+[![PHP 8.2+](https://img.shields.io/badge/PHP-8.2%2B-777BB4?logo=php&logoColor=white)](https://www.php.net/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](composer.json)
+
 Plateforme de circularité textile, de passeports numériques et de préparation aux labels.
 
 **[Découvrir l’application déployée](https://textilecycle.onrender.com/)** · **[Scénario matières → labels](docs/circular-material-label-journey.md)** · **[Captures de production](docs/screenshots/README.md)**
@@ -592,8 +597,8 @@ Avec XAMPP, démarrer MySQL et créer la base dans phpMyAdmin. `php artisan serv
 ### Installer et lancer
 
 ```bash
-git clone https://github.com/walaeddine-riahi/Esprit-5twin4-TechForGood.git
-cd Esprit-5twin4-TechForGood
+git clone https://github.com/Arij-Mhjb/TexTileCycle-Platform.git
+cd TexTileCycle-Platform
 composer install
 cp .env.example .env
 php artisan key:generate
